@@ -1,0 +1,25 @@
+Analyzing lib...                                                
+
+  error • Unused import: 'sync_model.dart' • lib/src/core/schema_manager.dart:9:8 • unused_import
+  error • Undefined name 'ApprovalStatus' • lib/src/core/schema_manager.dart:188:37 • undefined_identifier
+  error • Undefined name 'ApprovalStatus' • lib/src/core/schema_manager.dart:191:37 • undefined_identifier
+  error • Undefined name 'ApprovalStatus' • lib/src/core/schema_manager.dart:194:38 • undefined_identifier
+  error • Too many positional arguments: 2 expected, but 3 found • lib/src/core/sync_manager.dart:53:50 • extra_positional_arguments
+  error • The method 'syncTable' isn't defined for the type 'SyncService' • lib/src/core/sync_manager.dart:115:35 • undefined_method
+  error • A value of type 'void' can't be returned from the method 'syncNow' because it has a return type of 'Future<SyncResult>' • lib/src/core/sync_manager.dart:117:16 • return_of_invalid_type
+  error • A value of type 'void' can't be returned from the method 'syncAll' because it has a return type of 'Future<SyncResult>' • lib/src/core/sync_manager.dart:157:12 • return_of_invalid_type
+  error • The method 'syncTable' isn't defined for the type 'SyncService' • lib/src/core/sync_manager.dart:163:31 • undefined_method
+  error • The method 'updateConfig' isn't defined for the type 'SyncService' • lib/src/core/sync_manager.dart:220:24 • undefined_method
+warning • The value of the local variable 'field' isn't used • lib/src/core/sync_model.dart:175:15 • unused_local_variable
+  error • Target of URI doesn't exist: '../database/backup_manager.dart' • lib/src/core/sync_service.dart:12:8 • uri_does_not_exist
+  error • Undefined name 'BackupManager' • lib/src/core/sync_service.dart:61:9 • undefined_identifier
+  error • Undefined name 'BackupManager' • lib/src/core/sync_service.dart:62:9 • undefined_identifier
+  error • Undefined name 'BackupManager' • lib/src/core/sync_service.dart:127:11 • undefined_identifier
+  error • Undefined name 'BackupManager' • lib/src/core/sync_service.dart:176:9 • undefined_identifier
+  error • Undefined name 'BackupManager' • lib/src/core/sync_service.dart:177:9 • undefined_identifier
+  error • Target of URI hasn't been generated: 'file:///Users/ferhatnas/App/EXFINOPS/data_sync_module/lib/src/models/sync_config.g.dart' • lib/src/models/sync_config.dart:9:6 • uri_has_not_been_generated
+  error • The method '_$SyncConfigFromJson' isn't defined for the type 'SyncConfig' • lib/src/models/sync_config.dart:76:7 • undefined_method
+  error • The method '_$SyncConfigToJson' isn't defined for the type 'SyncConfig' • lib/src/models/sync_config.dart:79:36 • undefined_method
+  error • The method 'getPath' isn't defined for the type 'Database' • lib/src/services/backup_manager.dart:78:32 • undefined_method
+  error • The method 'getPath' isn't defined for the type 'Database' • lib/src/services/backup_manager.dart:250:32 • undefined_method
+

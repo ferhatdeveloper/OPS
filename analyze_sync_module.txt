@@ -1,0 +1,219 @@
+Analyzing data_sync_module...                                   
+
+  error • Target of URI doesn't exist: 'package:flutter/material.dart' • data_sync_module/example/lib/main.dart:7:8 • uri_does_not_exist
+  error • Target of URI doesn't exist: 'package:sqflite/sqflite.dart' • data_sync_module/example/lib/main.dart:8:8 • uri_does_not_exist
+  error • Target of URI doesn't exist: 'package:path/path.dart' • data_sync_module/example/lib/main.dart:9:8 • uri_does_not_exist
+  error • Target of URI doesn't exist: 'package:supabase_flutter/supabase_flutter.dart' • data_sync_module/example/lib/main.dart:10:8 • uri_does_not_exist
+  error • Undefined name 'WidgetsFlutterBinding' • data_sync_module/example/lib/main.dart:14:3 • undefined_identifier
+  error • Undefined name 'Supabase' • data_sync_module/example/lib/main.dart:17:9 • undefined_identifier
+  error • The function 'openDatabase' isn't defined • data_sync_module/example/lib/main.dart:23:26 • undefined_function
+  error • The function 'join' isn't defined • data_sync_module/example/lib/main.dart:24:5 • undefined_function
+  error • The function 'getDatabasesPath' isn't defined • data_sync_module/example/lib/main.dart:24:16 • undefined_function
+  error • Undefined name 'Supabase' • data_sync_module/example/lib/main.dart:32:15 • undefined_identifier
+  error • The function 'runApp' isn't defined • data_sync_module/example/lib/main.dart:36:3 • undefined_function
+  error • Classes can only extend other classes • data_sync_module/example/lib/main.dart:39:21 • extends_non_class
+  error • Undefined class 'Database' • data_sync_module/example/lib/main.dart:41:9 • undefined_class
+  error • Undefined class 'Key' • data_sync_module/example/lib/main.dart:44:5 • undefined_class
+  error • The named parameter 'key' isn't defined • data_sync_module/example/lib/main.dart:47:14 • undefined_named_parameter
+  error • Undefined class 'Widget' • data_sync_module/example/lib/main.dart:50:3 • undefined_class
+warning • The method doesn't override an inherited method • data_sync_module/example/lib/main.dart:50:10 • override_on_non_overriding_member
+  error • Undefined class 'BuildContext' • data_sync_module/example/lib/main.dart:50:16 • undefined_class
+  error • The method 'MaterialApp' isn't defined for the type 'MyApp' • data_sync_module/example/lib/main.dart:51:12 • undefined_method
+  error • The method 'ThemeData' isn't defined for the type 'MyApp' • data_sync_module/example/lib/main.dart:53:14 • undefined_method
+  error • Undefined name 'Colors' • data_sync_module/example/lib/main.dart:54:24 • undefined_identifier
+  error • Classes can only extend other classes • data_sync_module/example/lib/main.dart:62:24 • extends_non_class
+  error • Undefined class 'Database' • data_sync_module/example/lib/main.dart:64:9 • undefined_class
+  error • Undefined class 'Key' • data_sync_module/example/lib/main.dart:67:5 • undefined_class
+  error • The named parameter 'key' isn't defined • data_sync_module/example/lib/main.dart:70:14 • undefined_named_parameter
+  error • Undefined class 'State' • data_sync_module/example/lib/main.dart:73:3 • undefined_class
+warning • The method doesn't override an inherited method • data_sync_module/example/lib/main.dart:73:19 • override_on_non_overriding_member
+  error • Classes can only extend other classes • data_sync_module/example/lib/main.dart:76:30 • extends_non_class
+warning • The method doesn't override an inherited method • data_sync_module/example/lib/main.dart:82:8 • override_on_non_overriding_member
+  error • The method 'initState' isn't defined in a superclass of '_HomePageState' • data_sync_module/example/lib/main.dart:83:11 • undefined_super_member
+  error • Undefined name 'widget' • data_sync_module/example/lib/main.dart:89:5 • undefined_identifier
+  error • The method 'setState' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:90:7 • undefined_method
+  error • Undefined name 'widget' • data_sync_module/example/lib/main.dart:98:27 • undefined_identifier
+  error • The method 'setState' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:99:5 • undefined_method
+  error • Undefined name 'widget' • data_sync_module/example/lib/main.dart:106:13 • undefined_identifier
+  error • Undefined name 'ScaffoldMessenger' • data_sync_module/example/lib/main.dart:112:7 • undefined_identifier
+  error • Undefined name 'context' • data_sync_module/example/lib/main.dart:112:28 • undefined_identifier
+  error • The name 'SnackBar' isn't a class • data_sync_module/example/lib/main.dart:113:15 • creation_with_non_type
+  error • The method 'Text' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:113:33 • undefined_method
+  error • Undefined name 'ScaffoldMessenger' • data_sync_module/example/lib/main.dart:116:7 • undefined_identifier
+  error • Undefined name 'context' • data_sync_module/example/lib/main.dart:116:28 • undefined_identifier
+  error • The method 'SnackBar' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:117:9 • undefined_method
+  error • The method 'Text' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:117:27 • undefined_method
+  error • Undefined name 'widget' • data_sync_module/example/lib/main.dart:130:13 • undefined_identifier
+  error • Undefined name 'widget' • data_sync_module/example/lib/main.dart:134:13 • undefined_identifier
+  error • Undefined name 'ScaffoldMessenger' • data_sync_module/example/lib/main.dart:143:7 • undefined_identifier
+  error • Undefined name 'context' • data_sync_module/example/lib/main.dart:143:28 • undefined_identifier
+  error • The name 'SnackBar' isn't a class • data_sync_module/example/lib/main.dart:144:15 • creation_with_non_type
+  error • The method 'Text' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:144:33 • undefined_method
+  error • Undefined name 'ScaffoldMessenger' • data_sync_module/example/lib/main.dart:147:7 • undefined_identifier
+  error • Undefined name 'context' • data_sync_module/example/lib/main.dart:147:28 • undefined_identifier
+  error • The method 'SnackBar' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:148:9 • undefined_method
+  error • The method 'Text' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:148:27 • undefined_method
+  error • Undefined name 'widget' • data_sync_module/example/lib/main.dart:155:28 • undefined_identifier
+  error • Undefined name 'ScaffoldMessenger' • data_sync_module/example/lib/main.dart:157:7 • undefined_identifier
+  error • Undefined name 'context' • data_sync_module/example/lib/main.dart:157:28 • undefined_identifier
+  error • The method 'SnackBar' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:158:9 • undefined_method
+  error • The method 'Text' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:159:20 • undefined_method
+  error • Undefined name 'ScaffoldMessenger' • data_sync_module/example/lib/main.dart:168:7 • undefined_identifier
+  error • Undefined name 'context' • data_sync_module/example/lib/main.dart:168:28 • undefined_identifier
+  error • The method 'SnackBar' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:169:9 • undefined_method
+  error • The method 'Text' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:169:27 • undefined_method
+  error • Undefined name 'widget' • data_sync_module/example/lib/main.dart:176:28 • undefined_identifier
+  error • The method 'showDialog' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:178:7 • undefined_method
+  error • Undefined name 'context' • data_sync_module/example/lib/main.dart:179:18 • undefined_identifier
+  error • The method 'AlertDialog' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:180:31 • undefined_method
+  error • The name 'Text' isn't a class • data_sync_module/example/lib/main.dart:181:24 • creation_with_non_type
+  error • The method 'SingleChildScrollView' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:182:20 • undefined_method
+  error • The method 'Column' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:183:20 • undefined_method
+  error • Undefined name 'CrossAxisAlignment' • data_sync_module/example/lib/main.dart:184:35 • undefined_identifier
+  error • Undefined name 'MainAxisSize' • data_sync_module/example/lib/main.dart:185:29 • undefined_identifier
+  error • The method 'Padding' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:190:24 • undefined_method
+  error • The name 'symmetric' isn't a class • data_sync_module/example/lib/main.dart:191:34 • creation_with_non_type
+  error • The method 'Column' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:192:26 • undefined_method
+  error • Undefined name 'CrossAxisAlignment' • data_sync_module/example/lib/main.dart:193:41 • undefined_identifier
+  error • The method 'Text' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:195:23 • undefined_method
+  error • The name 'TextStyle' isn't a class • data_sync_module/example/lib/main.dart:197:38 • creation_with_non_type
+  error • Undefined name 'FontWeight' • data_sync_module/example/lib/main.dart:197:60 • undefined_identifier
+  error • The method 'Text' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:199:23 • undefined_method
+  error • The method 'Text' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:201:23 • undefined_method
+  error • The method 'Text' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:202:23 • undefined_method
+  error • The name 'Divider' isn't a class • data_sync_module/example/lib/main.dart:204:29 • creation_with_non_type
+  error • The method 'TextButton' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:212:13 • undefined_method
+  error • Undefined name 'Navigator' • data_sync_module/example/lib/main.dart:213:32 • undefined_identifier
+  error • The name 'Text' isn't a class • data_sync_module/example/lib/main.dart:214:28 • creation_with_non_type
+  error • Undefined name 'ScaffoldMessenger' • data_sync_module/example/lib/main.dart:220:7 • undefined_identifier
+  error • Undefined name 'context' • data_sync_module/example/lib/main.dart:220:28 • undefined_identifier
+  error • The method 'SnackBar' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:221:9 • undefined_method
+  error • The method 'Text' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:221:27 • undefined_method
+  error • Undefined class 'Widget' • data_sync_module/example/lib/main.dart:227:3 • undefined_class
+warning • The method doesn't override an inherited method • data_sync_module/example/lib/main.dart:227:10 • override_on_non_overriding_member
+  error • Undefined class 'BuildContext' • data_sync_module/example/lib/main.dart:227:16 • undefined_class
+  error • The method 'Scaffold' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:228:12 • undefined_method
+  error • The method 'AppBar' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:229:15 • undefined_method
+  error • The name 'Text' isn't a class • data_sync_module/example/lib/main.dart:230:22 • creation_with_non_type
+  error • Undefined name 'Theme' • data_sync_module/example/lib/main.dart:231:26 • undefined_identifier
+  error • The method 'Padding' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:233:13 • undefined_method
+  error • The name 'all' isn't a class • data_sync_module/example/lib/main.dart:234:24 • creation_with_non_type
+  error • The method 'Column' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:235:16 • undefined_method
+  error • Undefined name 'CrossAxisAlignment' • data_sync_module/example/lib/main.dart:236:31 • undefined_identifier
+  error • The method 'Card' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:239:13 • undefined_method
+  error • The method 'Padding' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:240:22 • undefined_method
+  error • The name 'all' isn't a class • data_sync_module/example/lib/main.dart:241:32 • creation_with_non_type
+  error • The method 'Column' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:242:24 • undefined_method
+  error • Undefined name 'CrossAxisAlignment' • data_sync_module/example/lib/main.dart:243:39 • undefined_identifier
+  error • The method 'Row' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:245:21 • undefined_method
+  error • The method 'Icon' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:247:25 • undefined_method
+  error • Undefined name 'Icons' • data_sync_module/example/lib/main.dart:248:40 • undefined_identifier
+  error • Undefined name 'Icons' • data_sync_module/example/lib/main.dart:248:53 • undefined_identifier
+  error • Undefined name 'Colors' • data_sync_module/example/lib/main.dart:249:47 • undefined_identifier
+  error • Undefined name 'Colors' • data_sync_module/example/lib/main.dart:249:63 • undefined_identifier
+  error • The name 'SizedBox' isn't a class • data_sync_module/example/lib/main.dart:251:31 • creation_with_non_type
+  error • The method 'Text' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:252:25 • undefined_method
+  error • The name 'TextStyle' isn't a class • data_sync_module/example/lib/main.dart:254:40 • creation_with_non_type
+  error • The name 'SizedBox' isn't a class • data_sync_module/example/lib/main.dart:258:27 • creation_with_non_type
+  error • The method 'Text' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:259:21 • undefined_method
+  error • The name 'SizedBox' isn't a class • data_sync_module/example/lib/main.dart:265:19 • creation_with_non_type
+  error • The method 'Row' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:268:13 • undefined_method
+  error • The method 'Expanded' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:270:17 • undefined_method
+  error • Undefined name 'ElevatedButton' • data_sync_module/example/lib/main.dart:271:26 • undefined_identifier
+  error • The name 'Icon' isn't a class • data_sync_module/example/lib/main.dart:273:33 • creation_with_non_type
+  error • Undefined name 'Icons' • data_sync_module/example/lib/main.dart:273:38 • undefined_identifier
+  error • The name 'Text' isn't a class • data_sync_module/example/lib/main.dart:274:34 • creation_with_non_type
+  error • The name 'SizedBox' isn't a class • data_sync_module/example/lib/main.dart:277:23 • creation_with_non_type
+  error • The method 'Expanded' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:278:17 • undefined_method
+  error • Undefined name 'ElevatedButton' • data_sync_module/example/lib/main.dart:279:26 • undefined_identifier
+  error • The name 'Icon' isn't a class • data_sync_module/example/lib/main.dart:281:33 • creation_with_non_type
+  error • Undefined name 'Icons' • data_sync_module/example/lib/main.dart:281:38 • undefined_identifier
+  error • The name 'Text' isn't a class • data_sync_module/example/lib/main.dart:282:34 • creation_with_non_type
+  error • The name 'SizedBox' isn't a class • data_sync_module/example/lib/main.dart:288:19 • creation_with_non_type
+  error • The method 'Row' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:290:13 • undefined_method
+  error • The method 'Expanded' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:292:17 • undefined_method
+  error • Undefined name 'ElevatedButton' • data_sync_module/example/lib/main.dart:293:26 • undefined_identifier
+  error • The name 'Icon' isn't a class • data_sync_module/example/lib/main.dart:295:33 • creation_with_non_type
+  error • Undefined name 'Icons' • data_sync_module/example/lib/main.dart:295:38 • undefined_identifier
+  error • The name 'Text' isn't a class • data_sync_module/example/lib/main.dart:296:34 • creation_with_non_type
+  error • The name 'SizedBox' isn't a class • data_sync_module/example/lib/main.dart:299:23 • creation_with_non_type
+  error • The method 'Expanded' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:300:17 • undefined_method
+  error • Undefined name 'ElevatedButton' • data_sync_module/example/lib/main.dart:301:26 • undefined_identifier
+  error • The name 'Icon' isn't a class • data_sync_module/example/lib/main.dart:303:33 • creation_with_non_type
+  error • Undefined name 'Icons' • data_sync_module/example/lib/main.dart:303:38 • undefined_identifier
+  error • The name 'Text' isn't a class • data_sync_module/example/lib/main.dart:304:34 • creation_with_non_type
+  error • The name 'SizedBox' isn't a class • data_sync_module/example/lib/main.dart:310:19 • creation_with_non_type
+  error • The name 'Text' isn't a class • data_sync_module/example/lib/main.dart:313:19 • creation_with_non_type
+  error • The method 'TextStyle' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:315:22 • undefined_method
+  error • Undefined name 'FontWeight' • data_sync_module/example/lib/main.dart:315:58 • undefined_identifier
+  error • The name 'SizedBox' isn't a class • data_sync_module/example/lib/main.dart:318:19 • creation_with_non_type
+  error • The method 'Expanded' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:320:13 • undefined_method
+  error • The name 'Center' isn't a class • data_sync_module/example/lib/main.dart:322:27 • creation_with_non_type
+  error • The method 'Text' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:323:30 • undefined_method
+  error • Undefined name 'ListView' • data_sync_module/example/lib/main.dart:325:21 • undefined_identifier
+  error • The method 'Card' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:329:32 • undefined_method
+  error • The method 'ListTile' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:330:34 • undefined_method
+  error • The method 'Text' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:331:36 • undefined_method
+  error • The method 'Column' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:332:39 • undefined_method
+  error • Undefined name 'CrossAxisAlignment' • data_sync_module/example/lib/main.dart:333:51 • undefined_identifier
+  error • The method 'Text' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:335:33 • undefined_method
+  error • The method 'Text' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:336:57 • undefined_method
+  error • The method 'Text' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:337:33 • undefined_method
+  error • The method 'TextStyle' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:339:42 • undefined_method
+  error • Undefined name 'Colors' • data_sync_module/example/lib/main.dart:341:43 • undefined_identifier
+  error • Undefined name 'Colors' • data_sync_module/example/lib/main.dart:342:43 • undefined_identifier
+  error • Undefined name 'FontWeight' • data_sync_module/example/lib/main.dart:343:49 • undefined_identifier
+  error • The method 'Icon' isn't defined for the type '_HomePageState' • data_sync_module/example/lib/main.dart:348:39 • undefined_method
+  error • Undefined name 'Icons' • data_sync_module/example/lib/main.dart:350:37 • undefined_identifier
+  error • Undefined name 'Icons' • data_sync_module/example/lib/main.dart:351:37 • undefined_identifier
+  error • Undefined name 'Colors' • data_sync_module/example/lib/main.dart:353:51 • undefined_identifier
+  error • Undefined name 'Colors' • data_sync_module/example/lib/main.dart:353:66 • undefined_identifier
+  error • Target of URI doesn't exist: 'src/core/sync_service.dart' • data_sync_module/lib/data_sync_module.dart:11:8 • uri_does_not_exist
+  error • Target of URI doesn't exist: 'src/core/schema_manager.dart' • data_sync_module/lib/data_sync_module.dart:12:8 • uri_does_not_exist
+  error • Target of URI doesn't exist: 'src/services/conflict_resolution_service.dart' • data_sync_module/lib/data_sync_module.dart:16:8 • uri_does_not_exist
+  error • Target of URI doesn't exist: 'src/services/delta_sync_service.dart' • data_sync_module/lib/data_sync_module.dart:17:8 • uri_does_not_exist
+  error • Target of URI doesn't exist: 'src/utils/sync_utils.dart' • data_sync_module/lib/data_sync_module.dart:26:8 • uri_does_not_exist
+  error • Target of URI doesn't exist: 'src/utils/encryption_utils.dart' • data_sync_module/lib/data_sync_module.dart:27:8 • uri_does_not_exist
+  error • Target of URI doesn't exist: 'src/providers/sync_provider.dart' • data_sync_module/lib/data_sync_module.dart:30:8 • uri_does_not_exist
+  error • Target of URI doesn't exist: 'src/providers/auto_sync_provider.dart' • data_sync_module/lib/data_sync_module.dart:31:8 • uri_does_not_exist
+  error • Target of URI doesn't exist: 'package:flutter/foundation.dart' • data_sync_module/lib/src/core/sync_manager.dart:7:8 • uri_does_not_exist
+  error • Target of URI doesn't exist: 'package:sqflite/sqflite.dart' • data_sync_module/lib/src/core/sync_manager.dart:8:8 • uri_does_not_exist
+  error • Target of URI doesn't exist: 'package:supabase_flutter/supabase_flutter.dart' • data_sync_module/lib/src/core/sync_manager.dart:9:8 • uri_does_not_exist
+  error • Target of URI doesn't exist: 'schema_manager.dart' • data_sync_module/lib/src/core/sync_manager.dart:10:8 • uri_does_not_exist
+  error • Target of URI doesn't exist: 'sync_service.dart' • data_sync_module/lib/src/core/sync_manager.dart:11:8 • uri_does_not_exist
+  error • Undefined class 'SchemaManager' • data_sync_module/lib/src/core/sync_manager.dart:25:14 • undefined_class
+  error • Undefined class 'SyncService' • data_sync_module/lib/src/core/sync_manager.dart:26:14 • undefined_class
+  error • Undefined class 'Database' • data_sync_module/lib/src/core/sync_manager.dart:28:14 • undefined_class
+  error • Undefined class 'SupabaseClient' • data_sync_module/lib/src/core/sync_manager.dart:29:14 • undefined_class
+  error • Undefined class 'Database' • data_sync_module/lib/src/core/sync_manager.dart:41:14 • undefined_class
+  error • Undefined class 'SupabaseClient' • data_sync_module/lib/src/core/sync_manager.dart:42:14 • undefined_class
+  error • The method 'SchemaManager' isn't defined for the type 'SyncManager' • data_sync_module/lib/src/core/sync_manager.dart:52:24 • undefined_method
+  error • The method 'SyncService' isn't defined for the type 'SyncManager' • data_sync_module/lib/src/core/sync_manager.dart:53:22 • undefined_method
+  error • Undefined name 'kIsWeb' • data_sync_module/lib/src/core/sync_manager.dart:57:12 • undefined_identifier
+  error • Undefined name 'kIsWeb' • data_sync_module/lib/src/core/sync_manager.dart:87:10 • undefined_identifier
+  error • Undefined name 'kIsWeb' • data_sync_module/lib/src/core/sync_manager.dart:103:10 • undefined_identifier
+  error • Undefined name 'kIsWeb' • data_sync_module/lib/src/core/sync_manager.dart:113:10 • undefined_identifier
+  error • Undefined name 'kIsWeb' • data_sync_module/lib/src/core/sync_manager.dart:290:10 • undefined_identifier
+  error • Target of URI doesn't exist: 'package:uuid/uuid.dart' • data_sync_module/lib/src/core/sync_model.dart:7:8 • uri_does_not_exist
+  error • The name 'Uuid' isn't a class • data_sync_module/lib/src/core/sync_model.dart:41:26 • creation_with_non_type
+warning • The value of the local variable 'field' isn't used • data_sync_module/lib/src/core/sync_model.dart:175:15 • unused_local_variable
+  error • Target of URI doesn't exist: 'package:json_annotation/json_annotation.dart' • data_sync_module/lib/src/models/sync_config.dart:7:8 • uri_does_not_exist
+  error • Target of URI hasn't been generated: 'package:data_sync_module/src/models/sync_config.g.dart' • data_sync_module/lib/src/models/sync_config.dart:9:6 • uri_has_not_been_generated
+  error • Undefined name 'JsonSerializable' used as an annotation • data_sync_module/lib/src/models/sync_config.dart:23:1 • undefined_annotation
+  error • Undefined name 'JsonKey' used as an annotation • data_sync_module/lib/src/models/sync_config.dart:26:3 • undefined_annotation
+  error • Undefined name 'JsonKey' used as an annotation • data_sync_module/lib/src/models/sync_config.dart:30:3 • undefined_annotation
+  error • Undefined name 'JsonKey' used as an annotation • data_sync_module/lib/src/models/sync_config.dart:34:3 • undefined_annotation
+  error • Undefined name 'JsonKey' used as an annotation • data_sync_module/lib/src/models/sync_config.dart:38:3 • undefined_annotation
+  error • Undefined name 'JsonKey' used as an annotation • data_sync_module/lib/src/models/sync_config.dart:42:3 • undefined_annotation
+  error • Undefined name 'JsonKey' used as an annotation • data_sync_module/lib/src/models/sync_config.dart:46:3 • undefined_annotation
+  error • Undefined name 'JsonKey' used as an annotation • data_sync_module/lib/src/models/sync_config.dart:50:3 • undefined_annotation
+  error • Undefined name 'JsonKey' used as an annotation • data_sync_module/lib/src/models/sync_config.dart:54:3 • undefined_annotation
+  error • Undefined name 'JsonKey' used as an annotation • data_sync_module/lib/src/models/sync_config.dart:58:3 • undefined_annotation
+  error • The method '_$SyncConfigFromJson' isn't defined for the type 'SyncConfig' • data_sync_module/lib/src/models/sync_config.dart:76:7 • undefined_method
+  error • The method '_$SyncConfigToJson' isn't defined for the type 'SyncConfig' • data_sync_module/lib/src/models/sync_config.dart:79:36 • undefined_method
+  error • Target of URI doesn't exist: 'package:path/path.dart' • data_sync_module/lib/src/services/backup_manager.dart:9:8 • uri_does_not_exist
+  error • Target of URI doesn't exist: 'package:sqflite/sqflite.dart' • data_sync_module/lib/src/services/backup_manager.dart:10:8 • uri_does_not_exist
+  error • Target of URI doesn't exist: 'package:supabase_flutter/supabase_flutter.dart' • data_sync_module/lib/src/services/backup_manager.dart:11:8 • uri_does_not_exist
+  error • Undefined class 'Database' • data_sync_module/lib/src/services/backup_manager.dart:61:9 • undefined_class
+  error • Undefined class 'SupabaseClient' • data_sync_module/lib/src/services/backup_manager.dart:62:9 • undefined_class
+

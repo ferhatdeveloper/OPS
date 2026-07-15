@@ -1,0 +1,2509 @@
+## Türkçe Dokümantasyon Kuralları
+turkish_documentation {
+    file_header: {
+        required: true;
+        format: {
+            line1: "// Dosya Adı: {filename}";
+            line2: "// Açıklama: {description}";
+            line3: "// Oluşturulma Tarihi: {date}";
+            line4: "// Geliştirici: {developer}";
+            line5: "// Son Güncelleme: {last_update}";
+        };
+        example: '''
+        // Dosya Adı: user_repository.dart
+        // Açıklama: Kullanıcı işlemleri için veri katmanı repository sınıfı
+        // Oluşturulma Tarihi: 2024-03-20
+        // Geliştirici: Ahmet Yılmaz
+        // Son Güncelleme: 2024-03-21
+        ''';
+    };
+
+    code_comments: {
+        class_comments: {
+            required: true;
+            format: '''
+            /// {@template class_name}
+            /// Sınıf açıklaması buraya yazılacak
+            /// 
+            /// Kullanım örneği:
+            /// ```dart
+            /// final instance = ClassName();
+            /// ```
+            /// {@endtemplate}
+            ''';
+        };
+
+        method_comments: {
+            required: true;
+            format: '''
+            /// {@template method_name}
+            /// Metodun ne iş yaptığının açıklaması
+            /// 
+            /// Parametreler:
+            /// - [param1]: Parametre açıklaması
+            /// 
+            /// Dönüş değeri:
+            /// - [ReturnType]: Dönüş değeri açıklaması
+            /// 
+            /// Fırlatılan hatalar:
+            /// - [Exception]: Hata durumu açıklaması
+            /// {@endtemplate}
+            ''';
+        };
+
+        variable_comments: {
+            required: true;
+            format: "/// [değişken_adı]: Değişkenin açıklaması";
+        };
+
+        todo_comments: {
+            format: "// TODO(developer): Yapılacak işin açıklaması";
+            required_fields: ["developer", "description"];
+        };
+    };
+
+    folder_documentation: {
+        required: true;
+        file_name: "README.md";
+        format: '''
+        # Klasör Adı
+        
+        ## Açıklama
+        Bu klasörün ne amaçla kullanıldığı ve içeriği hakkında genel bilgi.
+        
+        ## Dosyalar
+            - `dosya1.dart`: Dosya açıklaması
+                - `dosya2.dart`: Dosya açıklaması
+        
+        ## Kullanım
+        Bu klasördeki dosyaların nasıl kullanılacağı hakkında bilgi.
+        
+        ## Bağımlılıklar
+        Bu klasördeki kodların bağımlı olduğu diğer modül / paketler.
+        ''';
+    };
+
+    naming_conventions: {
+        files: {
+            format: "snake_case";
+            suffix: "_tr";
+            example: "kullanici_servisi_tr.dart";
+        };
+
+        folders: {
+            format: "snake_case";
+            suffix: "_tr";
+            example: "kullanici_islemleri_tr";
+        };
+
+        translation_keys: {
+            format: "snake_case";
+            prefix: "tr_";
+            example: "tr_kullanici_adi";
+        };
+    };
+
+    documentation_rules: {
+        language: "tr";
+        technical_terms: {
+            preserve_english: ["Widget", "State", "Provider", "Repository"];
+            translate_rest: true;
+        };
+        code_examples: {
+            required: true;
+            language: "tr";
+            include_output: true;
+        };
+        update_policy: {
+            on_code_change: true;
+            review_frequency: "monthly";
+            version_tracking: true;
+        };
+    };
+}
+
+# Cursor AI Özel Kuralları
+
+## Kod Stili ve Formatı
+style {
+    indentation: 2 spaces;
+    max_line_length: 80;
+    naming_convention: camelCase;
+    brace_style: same_line;
+    organization: {
+        imports_order: [
+            "dart:",
+            "flutter:",
+            "package:",
+            "relative:"
+        ];
+        exports_order: [
+            "models",
+            "repositories",
+            "providers",
+            "widgets"
+        ];
+    };
+}
+
+## Dosya Yapısı Kuralları
+structure {
+    lib_directory: "lib";
+    test_directory: "test";
+    assets_directory: "assets";
+    modules_directory: "modules";
+    core_directory: "core";
+    features_directory: "features";
+    shared_directory: "shared";
+    generated_directory: "generated";
+}
+
+## Dil ve Framework Kuralları
+language {
+    primary: dart;
+    framework: flutter;
+    state_management: riverpod;
+    supported_languages: ["TR", "EN", "DE", "AR", "RU", "FA"];
+}
+
+## Özel Komut Kısıtlamaları
+commands {
+    allow: ["npm", "yarn", "git"];
+    deny: ["rm -rf", "sudo"];
+    powershell: {
+        command_chaining: {
+            avoid: ["&&"];
+            use: ";";
+            example: "command1; command2; command3";
+            explanation: "PowerShell'de komutları birleştirmek için && yerine ; kullanılmalıdır";
+        };
+        best_practices: {
+            use_semicolon: true;
+            avoid_ampersand: true;
+            command_separator: ";";
+        };
+    };
+}
+
+## AI Davranış Kuralları
+ai_behavior {
+    preserve_existing_structure: true;
+    respect_code_style: true;
+    maintain_documentation: true;
+    follow_naming_conventions: true;
+    clean_architecture: true;
+    modular_structure: true;
+}
+
+## Otomatik Düzeltme Kuralları
+auto_fix {
+    formatting: true;
+    imports: true;
+    unused_variables: true;
+    type_checks: true;
+}
+
+## Kod Analiz Kuralları
+analysis {
+    complexity_threshold: 15;
+    max_function_length: 50;
+    required_comments: true;
+    required_types: true;
+}
+
+## Güvenlik Kuralları
+security {
+    prevent_sensitive_data: true;
+    validate_dependencies: true;
+    check_vulnerabilities: true;
+    two_factor_auth: true;
+    session_management: true;
+    ip_restrictions: true;
+    access_time_restrictions: true;
+    secure_logging: true;
+    failed_login_tracking: true;
+}
+
+## Test Kuralları
+testing {
+    require_unit_tests: true;
+    coverage_threshold: 80;
+    test_naming: "{ClassName}Test";
+}
+
+## Belgeleme Kuralları
+documentation {
+    require_jsdoc: true;
+    require_readme: true;
+    changelog_format: "conventional";
+}
+
+## Veri Yönetimi Kuralları
+data_management {
+    offline_first: true;
+    local_storage: {
+        type: "hive";
+        encryption: true;
+        auto_backup: true;
+    };
+    sync_with_server: true;
+    batch_operations: true;
+    data_validation: true;
+    error_logging: true;
+    backup_strategy: {
+        auto_backup: true;
+        backup_before_critical_operations: true;
+        cloud_backup: true;
+        backup_history: true;
+    };
+}
+
+## UI / UX Kuralları
+ui_ux {
+    modern_interface: true;
+    design_system: "material3";
+    responsive_design: {
+        mobile_first: true;
+        breakpoints: {
+            mobile: 600;
+            tablet: 900;
+            desktop: 1200;
+            large_desktop: 1440;
+        };
+        grid_system: {
+            columns: 12;
+            gutter: 16;
+            margin: 24;
+        };
+        orientation_support: true;
+        adaptive_layout: true;
+    };
+
+    components: {
+        modern_cards: {
+            elevation: true;
+            rounded_corners: true;
+            hover_effects: true;
+            shadow_effects: true;
+        };
+        buttons: {
+            types: ["filled", "outlined", "text", "elevated", "tonal"];
+            states: ["default", "hover", "pressed", "disabled"];
+            icons: {
+                position: ["left", "right", "only"];
+                animation: true;
+            };
+        };
+        inputs: {
+            styles: ["filled", "outlined", "standard"];
+            features: {
+                label_behavior: "float";
+                helper_text: true;
+                error_states: true;
+                character_counter: true;
+                clear_button: true;
+            };
+            validation: {
+                real_time: true;
+                custom_rules: true;
+                error_messages: true;
+            };
+        };
+        loading_states: {
+            skeleton_loading: true;
+            shimmer_effect: true;
+            progress_indicators: ["circular", "linear"];
+            placeholder_content: true;
+        };
+    };
+
+    animations: {
+        page_transitions: {
+            types: ["fade", "slide", "scale", "custom"];
+            duration: "300ms";
+            curve: "ease_in_out";
+        };
+        micro_interactions: {
+            button_press: true;
+            form_focus: true;
+            list_item_hover: true;
+            scroll_effects: true;
+        };
+        loading_animations: {
+            smooth_progress: true;
+            infinite_scroll: true;
+            pull_to_refresh: true;
+        };
+    };
+
+    typography: {
+        scale: {
+            display_large: "57/64";
+            display_medium: "45/52";
+            display_small: "36/44";
+            headline_large: "32/40";
+            headline_medium: "28/36";
+            headline_small: "24/32";
+            title_large: "22/28";
+            title_medium: "16/24";
+            title_small: "14/20";
+            body_large: "16/24";
+            body_medium: "14/20";
+            body_small: "12/16";
+        };
+        font_family: {
+            primary: "Roboto";
+            secondary: "Inter";
+            monospace: "JetBrains Mono";
+        };
+        weights: {
+            regular: 400;
+            medium: 500;
+            semibold: 600;
+            bold: 700;
+        };
+    };
+
+    color_system: {
+        theme_modes: ["light", "dark", "system"];
+        palette: {
+            primary: {
+                main: "#1389FD";
+                light: "#42A4FE";
+                dark: "#0B5CA9";
+            };
+            secondary: {
+                main: "#6C63FF";
+                light: "#8F88FF";
+                dark: "#4B44CC";
+            };
+            accent: {
+                main: "#FFA726";
+                light: "#FFB851";
+                dark: "#CC7D1A";
+            };
+            neutral: {
+                background: "#F8F9FA";
+                surface: "#FFFFFF";
+                text: "#1A1A1A";
+            };
+            semantic: {
+                success: "#4CAF50";
+                warning: "#FFA726";
+                error: "#E53935";
+                info: "#2196F3";
+            };
+        };
+        opacity_levels: ["8%", "12%", "16%", "24%", "32%", "48%"];
+    };
+
+    spacing_system: {
+        base: 8;
+        scale: [0, 4, 8, 12, 16, 24, 32, 48, 64, 96];
+        custom_spaces: {
+            card_padding: 16;
+            section_margin: 24;
+            container_padding: 16;
+        };
+    };
+
+    interaction: {
+        touch_targets: {
+            minimum_size: 48;
+            spacing: 8;
+        };
+        feedback: {
+            haptic: true;
+            visual: true;
+            audio: false;
+        };
+        gestures: {
+            swipe: true;
+            drag_drop: true;
+            pinch_zoom: true;
+            double_tap: true;
+        };
+    };
+
+    accessibility: {
+        contrast_ratios: {
+            normal_text: "4.5:1";
+            large_text: "3:1";
+            ui_components: "3:1";
+        };
+        screen_readers: {
+            aria_labels: true;
+            semantic_markup: true;
+            focus_management: true;
+        };
+        keyboard_navigation: {
+            focus_visible: true;
+            tab_order: true;
+            shortcuts: true;
+        };
+        reduced_motion: true;
+        color_blind_safe: true;
+    };
+
+    responsive_images: {
+        formats: ["webp", "png", "svg"];
+        lazy_loading: true;
+        resolution_switching: true;
+        art_direction: true;
+        optimization: {
+            compression: true;
+            caching: true;
+            cdn_delivery: true;
+        };
+    };
+
+    form_design: {
+        layout: {
+            single_column: true;
+            grouped_fields: true;
+            progressive_disclosure: true;
+        };
+        validation: {
+            instant_feedback: true;
+            error_prevention: true;
+            success_messages: true;
+        };
+        accessibility: {
+            labels: true;
+            error_announcements: true;
+            keyboard_support: true;
+        };
+    };
+
+    data_visualization: {
+        charts: {
+            types: ["line", "bar", "pie", "scatter"];
+            responsive: true;
+            interactive: true;
+            animations: true;
+        };
+        tables: {
+            sorting: true;
+            filtering: true;
+            pagination: true;
+            responsive_layout: true;
+        };
+        maps: {
+            interactive: true;
+            custom_markers: true;
+            clustering: true;
+        };
+    };
+
+    performance: {
+        image_optimization: {
+            lazy_loading: true;
+            responsive_images: true;
+            next_gen_formats: true;
+            compression: true;
+        };
+        animation_performance: {
+            use_transforms: true;
+            reduce_paints: true;
+            debounce_events: true;
+        };
+        loading_strategy: {
+            progressive: true;
+            skeleton_screens: true;
+            prefetching: true;
+        };
+    };
+
+    dark_mode: {
+        auto_detection: true;
+        manual_toggle: true;
+        system_preference: true;
+        custom_colors: {
+            background: "#121212";
+            surface: "#1E1E1E";
+            primary: "#BB86FC";
+            secondary: "#03DAC6";
+        };
+    };
+
+    error_states: {
+        empty_states: {
+            illustrations: true;
+            helpful_messages: true;
+            action_buttons: true;
+        };
+        error_pages: {
+            status_codes: ["404", "500", "403"];
+            custom_illustrations: true;
+            recovery_actions: true;
+        };
+        form_errors: {
+            inline_validation: true;
+            error_summary: true;
+            field_highlighting: true;
+        };
+    };
+
+    navigation: {
+        patterns: {
+            bottom_navigation: true;
+            side_navigation: true;
+            top_navigation: true;
+            tabs: true;
+        };
+        mobile_menu: {
+            hamburger: true;
+            swipe_gestures: true;
+            nested_items: true;
+        };
+        breadcrumbs: {
+            responsive: true;
+            truncation: true;
+            separator_icons: true;
+        };
+    };
+}
+
+## Entegrasyon Kuralları
+integration {
+    template_based_data_transfer: true;
+    supported_formats: ["Excel", "CSV", "XML", "JSON"];
+    error_checking: true;
+    large_dataset_optimization: true;
+    background_transfers: true;
+    scheduled_transfers: true;
+    data_mapping: true;
+    ocr_support: true;
+}
+
+## Senkronizasyon Kuralları
+synchronization {
+    real_time_sync: true;
+    offline_storage: true;
+    conflict_resolution: true;
+    batch_sync: true;
+    sync_status_tracking: true;
+    auto_retry_failed: true;
+    data_integrity_checks: true;
+}
+
+## Organizasyon Yapısı Kuralları
+organization_structure {
+    company_based: true;
+    period_based: true;
+    hierarchy: {
+        workplace: {
+            parameters: true;
+            authorization: true;
+            financial_reports: true;
+            locations: true;
+        };
+        department: {
+            under_workplace: true;
+            cost_center: true;
+            transfers: true;
+            responsibilities: true;
+        };
+        factory: {
+            production_capacity: true;
+            cost_calculation: true;
+            stock_management: true;
+            planning: true;
+        };
+        warehouse: {
+            types: ["raw_material", "semi_finished", "finished", "waste"];
+            transfers: true;
+            inventory_management: true;
+            authorization: true;
+        };
+    };
+}
+
+## Veritabanı Kuralları
+database {
+    local: {
+        type: "hive";
+        schema_sync: true;
+        performance_optimization: true;
+        storage_limits: true;
+        maintenance_tools: true;
+        encryption: true;
+    };
+    central: {
+        type: "supabase";
+        api_based: true;
+        connection_management: true;
+        auto_transfer: true;
+        retry_failed: true;
+        transaction_logs: true;
+        backup_before_transfer: true;
+        rollback_on_failure: true;
+    };
+}
+
+## Mobil Uygulama Kuralları
+mobile_app {
+    location_tracking: {
+        real_time: true;
+        optimized_data_usage: true;
+        offline_storage: true;
+        battery_optimization: true;
+        privacy_compliance: true;
+        user_consent: true;
+    };
+    map_integration: {
+        providers: ["Google Maps", "Yandex Maps"];
+        custom_markers: true;
+        route_optimization: true;
+    };
+    platform_specific: {
+        android: {
+            min_sdk: 21;
+            target_sdk: 33;
+            permissions_handling: true;
+        };
+        ios: {
+            min_version: "11.0";
+            permissions_handling: true;
+        };
+    };
+}
+
+## İş Akışı Kuralları
+workflow {
+    document_based: true;
+    approval_system: true;
+    notification: true;
+    status_tracking: true;
+    history_logging: true;
+    role_based_actions: true;
+}
+
+## Raporlama Kuralları
+reporting {
+    cross_company: true;
+    period_based: true;
+    customizable_templates: true;
+    export_formats: ["PDF", "Excel", "Word", "CSV"];
+    scheduled_reports: true;
+    interactive_dashboards: true;
+    drill_down_capability: true;
+}
+
+## Performans Kuralları
+performance {
+    caching: true;
+    lazy_loading: true;
+    pagination: true;
+    query_optimization: true;
+    background_processing: true;
+    resource_monitoring: true;
+    image_optimization: {
+        lazy_loading: true;
+        caching: true;
+        compression: true;
+        format_selection: true;
+    };
+}
+
+## KVKK Uyumluluk Kuralları
+gdpr_compliance {
+    data_encryption: true;
+    user_consent: true;
+    data_anonymization: true;
+    right_to_be_forgotten: true;
+    data_portability: true;
+    audit_logging: true;
+}
+
+## Denetim Kuralları
+audit {
+    user_activity: true;
+    data_changes: true;
+    critical_operations: true;
+    reporting: true;
+    archiving: true;
+    audit_trail: true;
+}
+
+## Flutter Geliştirme Kuralları
+flutter_development {
+    frameworks: ["Flutter", "Dart", "Riverpod", "Freezed", "Flutter Hooks", "Supabase"];
+
+    core_rules: {
+        state_management: "riverpod";
+        architecture: "clean_architecture";
+        folder_structure: "feature_first";
+        code_generation: true;
+        error_handling: true;
+    };
+
+    code_style: {
+        line_length: 80;
+        use_trailing_commas: true;
+        prefer_const_constructors: true;
+        prefer_single_quotes: true;
+        sort_imports: true;
+        sort_constructors_first: true;
+        avoid_print: true;
+        use_key_in_widgets: true;
+        use_build_context_synchronously: false;
+        avoid_redundant_argument_values: true;
+        prefer_relative_imports: true;
+        prefer_final_locals: true;
+        prefer_final_fields: true;
+        avoid_dynamic: true;
+    };
+
+    widget_rules: {
+        extract_widgets: {
+            min_lines: 50;
+            extract_methods: true;
+            widget_type: "private";
+        };
+        performance: {
+            const_constructors: true;
+            avoid_unnecessary_rebuilds: true;
+            use_repaint_boundary: true;
+            cache_network_images: true;
+        };
+        responsive: {
+            use_layout_builder: true;
+            use_media_query: true;
+            use_sized_box: true;
+            avoid_hard_coded_sizes: true;
+        };
+    };
+
+    riverpod_rules: {
+        preferred_providers: [
+            "AsyncNotifierProvider",
+            "NotifierProvider",
+            "StreamProvider",
+            "FutureProvider"
+        ];
+        avoid_providers: [
+            "StateProvider",
+            "StateNotifierProvider",
+            "ChangeNotifierProvider"
+        ];
+        naming: {
+            provider: "${name}Provider",
+                notifier: "${name}Notifier",
+                    state: "${name}State"
+        };
+        implementation: {
+            use_freezed: true;
+            use_riverpod_generator: true;
+            handle_loading_states: true;
+            handle_error_states: true;
+            dispose_resources: true;
+        };
+    };
+
+    form_management: {
+        validation: {
+            use_form_builder: true;
+            real_time_validation: true;
+            custom_validators: true;
+            error_messages: {
+                localized: true;
+                user_friendly: true;
+            };
+        };
+        input_decoration: {
+            consistent_style: true;
+            error_style: {
+                color: "red";
+                size: 12;
+            };
+            label_style: {
+                color: "primary";
+                size: 14;
+            };
+        };
+    };
+
+    theme_rules: {
+        use_theme_extension: true;
+        color_scheme: {
+            use_color_palette: true;
+            support_dark_mode: true;
+            semantic_colors: true;
+        };
+        typography: {
+            use_text_theme: true;
+            consistent_font_family: true;
+            responsive_font_sizes: true;
+        };
+        components: {
+            use_theme_components: true;
+            custom_components: true;
+            consistent_spacing: true;
+        };
+    };
+
+    performance_rules: {
+        widget_optimization: {
+            use_const: true;
+            minimize_rebuilds: true;
+            use_cached_network_image: true;
+            lazy_loading: true;
+        };
+        memory_management: {
+            dispose_controllers: true;
+            clear_cache: true;
+            image_caching: true;
+            stream_subscription_disposal: true;
+        };
+        build_optimization: {
+            split_widgets: true;
+            use_builders: true;
+            conditional_rebuilding: true;
+        };
+    };
+
+    testing_rules: {
+        unit_tests: {
+            coverage_threshold: 80;
+            mock_dependencies: true;
+            test_providers: true;
+            test_repositories: true;
+        };
+        widget_tests: {
+            test_user_interactions: true;
+            test_navigation: true;
+            test_state_changes: true;
+        };
+        integration_tests: {
+            test_main_flows: true;
+            test_error_scenarios: true;
+            test_edge_cases: true;
+        };
+    };
+
+    error_handling: {
+        exception_handling: {
+            use_custom_exceptions: true;
+            graceful_error_ui: true;
+            error_reporting: true;
+            retry_mechanism: true;
+        };
+        error_boundaries: {
+            use_error_boundary: true;
+            fallback_ui: true;
+            error_recovery: true;
+        };
+        logging: {
+            use_structured_logging: true;
+            log_levels: ["error", "warning", "info", "debug"];
+            sensitive_data_filtering: true;
+        };
+    };
+
+    localization: {
+        use_intl: true;
+        arb_files: true;
+        rtl_support: true;
+        number_formatting: true;
+        date_formatting: true;
+        currency_formatting: true;
+        plural_rules: true;
+    };
+
+    security: {
+        secure_storage: true;
+        api_security: {
+            use_https: true;
+            certificate_pinning: true;
+            token_management: true;
+        };
+        input_validation: true;
+        sensitive_data_handling: true;
+        biometric_authentication: true;
+    };
+
+    navigation: {
+        use_go_router: true;
+        route_guards: true;
+        deep_linking: true;
+        route_transitions: true;
+        nested_navigation: true;
+        route_parameters: true;
+    };
+
+    dependency_management: {
+        version_constraints: "caret";
+        update_frequency: "weekly";
+        security_updates: "immediate";
+        compatibility_check: true;
+        dependency_analysis: true;
+    };
+
+    code_generation: {
+        tools: ["build_runner", "freezed", "json_serializable"];
+        commands: {
+            watch: "flutter pub run build_runner watch --delete-conflicting-outputs";
+            build: "flutter pub run build_runner build --delete-conflicting-outputs";
+        };
+        generated_code: {
+            ignore_lint: true;
+            separate_files: true;
+            clear_generated: true;
+        };
+    };
+
+    asset_management: {
+        image_formats: ["svg", "png", "webp"];
+        font_management: true;
+        asset_variants: true;
+        lazy_loading: true;
+        caching_strategy: true;
+    };
+
+    ci_cd: {
+        static_analysis: true;
+        automated_tests: true;
+        code_formatting: true;
+        version_management: true;
+        automated_deployment: true;
+    };
+
+    programming_patterns: {
+        functional_programming: true;
+        declarative_programming: true;
+        composition_over_inheritance: true;
+        immutable_state: true;
+    };
+
+    performance: {
+        use_const_widgets: true;
+        optimize_lists: true;
+        image_handling: {
+            static: "AssetImage";
+            remote: "cached_network_image";
+        };
+        supabase_error_handling: true;
+    };
+
+    widgets: {
+        prefer_stateless: true;
+        consumer_widgets: {
+            state_dependent: "ConsumerWidget";
+            with_hooks: "HookConsumerWidget";
+        };
+    };
+
+    ui_styling: {
+        use_layout_builder: true;
+        use_media_query: true;
+        theme_usage: true;
+        text_styles: {
+            use_new_names: true;
+            examples: {
+                old: "headline6";
+                new: "Theme.of(context).textTheme.titleLarge";
+            };
+        };
+    };
+
+    database: {
+        required_fields: ["createdAt", "updatedAt", "isDeleted"];
+        json_serialization: {
+            use_snake_case: true;
+            annotation: "@JsonSerializable(fieldRename: FieldRename.snake)";
+            read_only: "@JsonKey(includeFromJson: true, includeToJson: false)";
+        };
+    };
+
+    ui_components: {
+        private_widgets: true;
+        refresh_indicator: true;
+        text_fields: {
+            required_props: [
+                "textCapitalization",
+                "keyboardType",
+                "textInputAction"
+            ];
+        };
+        network_images: {
+            require_error_builder: true;
+        };
+    };
+
+    development_practices: {
+        debugging: "use_log_not_print";
+        line_length: 80;
+        code_generation: {
+            tools: ["build_runner"];
+            command: "flutter pub run build_runner build --delete-conflicting-outputs";
+        };
+        documentation: {
+            document_complex_logic: true;
+            follow_official_docs: true;
+            supported_docs: [
+                "Flutter",
+                "Riverpod",
+                "Supabase"
+            ];
+        };
+    };
+
+    performance_optimization: {
+        widget_optimization: {
+            avoid_unnecessary_rebuilds: true;
+            use_const_constructors: true;
+            extract_heavy_operations: true;
+            debounce_user_input: true;
+        };
+
+        async_handling: {
+            check_mounted_before_setState: true;
+            use_future_builder: true;
+            proper_stream_disposal: true;
+            avoid_async_in_build: true;
+        };
+
+        image_optimization: {
+            use_cached_network_image: true;
+            specify_image_dimensions: true;
+            compress_assets: true;
+            use_webp_format: true;
+            lazy_loading: true;
+        };
+
+        build_context: {
+            verify_context_validity: true;
+            avoid_context_across_async: true;
+            use_builder_when_needed: true;
+            proper_inherited_widget_usage: true;
+        };
+
+        global_state: {
+            avoid_global_keys: true;
+            prefer_local_state: true;
+            use_proper_state_management: true;
+            isolate_business_logic: true;
+        };
+
+        testing_strategy: {
+            widget_testing: {
+                test_user_interactions: true;
+                verify_widget_lifecycle: true;
+                mock_dependencies: true;
+                test_error_states: true;
+            };
+
+            integration_testing: {
+                test_critical_flows: true;
+                verify_platform_specific: true;
+                test_offline_behavior: true;
+            };
+
+            performance_testing: {
+                measure_frame_drops: true;
+                monitor_memory_usage: true;
+                track_startup_time: true;
+            };
+        };
+
+        error_boundaries: {
+            implement_error_widgets: true;
+            graceful_degradation: true;
+            log_errors_properly: true;
+            provide_user_feedback: true;
+        };
+
+        code_organization: {
+            separate_business_logic: true;
+            use_repository_pattern: true;
+            implement_clean_architecture: true;
+            follow_solid_principles: true;
+        };
+    };
+
+    dependency_management: {
+        package_rules: {
+            avoid_unnecessary_dependencies: true;
+            check_package_health: true;
+            prefer_stable_versions: true;
+            regular_updates: true;
+        };
+
+        version_control: {
+            semantic_versioning: true;
+            lock_file_maintenance: true;
+            dependency_audit: true;
+        };
+    };
+}
+
+## PowerShell Kuralları
+powershell {
+    command_chaining: {
+        avoid: ["&&"];
+        use: ";";
+        example: "command1; command2; command3";
+        explanation: "PowerShell'de komutları birleştirmek için && yerine ; kullanılmalıdır";
+    };
+    best_practices: {
+        use_semicolon: true;
+        avoid_ampersand: true;
+        command_separator: ";";
+    };
+}
+
+## Otomatik Yedekleme Kuralları
+backup_rules {
+    auto_backup: {
+        trigger_conditions: [
+            "major_code_changes",
+            "structure_changes",
+            "dependency_updates",
+            "version_updates"
+        ];
+        backup_directory: "Backup";
+        file_format: {
+            source: "lib";
+            type: "zip";
+            naming: "xislemindensonra_${date}_${time}.zip";
+            date_format: "YYYYMMDD";
+            time_format: "HHmmss";
+        };
+        retention: {
+            keep_last: 10;
+            max_age_days: 30;
+            min_free_space_mb: 1000;
+        };
+        pre_backup_checks: {
+            verify_source_exists: true;
+            check_destination_space: true;
+            validate_write_permissions: true;
+        };
+        post_backup_actions: {
+            verify_backup_integrity: true;
+            log_backup_details: true;
+            cleanup_old_backups: true;
+        };
+    };
+
+    backup_scenarios: {
+        before_major_changes: {
+            directories: ["lib"];
+            include_patterns: ["*.dart", "*.yaml", "*.json"];
+            exclude_patterns: ["*.g.dart", "*.freezed.dart"];
+        };
+        before_dependency_updates: {
+            files: ["pubspec.yaml", "pubspec.lock"];
+            backup_config: true;
+        };
+        before_structure_changes: {
+            directories: ["lib", "test", "assets"];
+            include_subdirectories: true;
+        };
+    };
+}
+
+## Dokümantasyon Oluşturma Kuralları
+documentation_generator {
+    command: "run docgen";
+    output_directory: "Docs";
+    format: "html";
+
+    layout: {
+        sidebar: {
+            position: "right";
+            width: "250px";
+            sticky: true;
+            collapsible: true;
+        };
+        main_content: {
+            padding: "20px";
+            max_width: "1200px";
+        };
+        navigation: {
+            top_menu: true;
+            breadcrumbs: true;
+            search_bar: true;
+        };
+    };
+
+    user_documentation: {
+        sections: [
+            "Başlangıç Kılavuzu",
+            "Kurulum",
+            "Kullanıcı Arayüzü",
+            "Modüller ve Özellikler",
+            "Sık Sorulan Sorular",
+            "Sorun Giderme",
+            "Güvenlik ve Gizlilik"
+        ];
+        features: {
+            screenshots: true;
+            video_tutorials: true;
+            interactive_examples: true;
+            step_by_step_guides: true;
+        };
+        languages: ["TR", "EN", "DE", "AR", "RU", "FA"];
+    };
+
+    developer_documentation: {
+        code_documentation: {
+            auto_generate: true;
+            source_directories: ["lib", "test"];
+            include_patterns: ["*.dart"];
+            exclude_patterns: ["*.g.dart", "*.freezed.dart"];
+            parse_comments: true;
+            extract_examples: true;
+        };
+
+        architecture: {
+            document_patterns: true;
+            class_diagrams: true;
+            sequence_diagrams: true;
+            dependency_graphs: true;
+        };
+
+        sections: [
+            "Mimari Genel Bakış",
+            "Kurulum ve Geliştirme Ortamı",
+            "Kod Organizasyonu",
+            "Tasarım Desenleri",
+            "State Management",
+            "Veritabanı Şeması",
+            "API Dokümantasyonu",
+            "Test Stratejisi",
+            "CI/CD Pipeline",
+            "Katkıda Bulunma Kılavuzu"
+        ];
+
+        code_examples: {
+            syntax_highlighting: true;
+            live_preview: true;
+            copy_button: true;
+            line_numbers: true;
+        };
+
+        api_documentation: {
+            endpoints: true;
+            models: true;
+            services: true;
+            providers: true;
+            repositories: true;
+        };
+    };
+
+    styling: {
+        theme: {
+            light: {
+                primary_color: "#1389FD";
+                background_color: "#FFFFFF";
+                text_color: "#333333";
+                code_background: "#F5F5F5";
+            };
+            dark: {
+                primary_color: "#1389FD";
+                background_color: "#1A1A1A";
+                text_color: "#FFFFFF";
+                code_background: "#2D2D2D";
+            };
+        };
+        typography: {
+            font_family: "Roboto, sans-serif";
+            code_font: "JetBrains Mono, monospace";
+            base_size: "16px";
+            line_height: "1.6";
+        };
+        responsive: {
+            breakpoints: {
+                mobile: "600px";
+                tablet: "900px";
+                desktop: "1200px";
+            };
+        };
+    };
+
+    auto_update: {
+        watch_directories: ["lib", "test", "docs"];
+        trigger_on_changes: true;
+        rebuild_delay: "2s";
+    };
+
+    export_options: {
+        formats: ["html", "pdf", "markdown"];
+        single_page_version: true;
+        offline_support: true;
+        search_index: true;
+    };
+
+    features: {
+        full_text_search: true;
+        version_control: true;
+        change_tracking: true;
+        comment_support: true;
+        code_preview: true;
+        responsive_design: true;
+        dark_mode: true;
+        print_friendly: true;
+    };
+
+    templates: {
+        page_template: "docs/templates/page.html";
+        section_template: "docs/templates/section.html";
+        code_template: "docs/templates/code.html";
+        api_template: "docs/templates/api.html";
+    };
+
+    meta_data: {
+        project_name: "EXFINERP";
+        version: "1.0.0";
+        repository: "https://github.com/username/EXFINERP";
+        authors: ["Geliştirici Ekibi"];
+        license: "MIT";
+        last_updated: "auto";
+    };
+}
+
+## Script Analiz ve Test Kuralları
+script_rules {
+    directory: "script";
+
+    analysis_scripts: {
+        code_quality: {
+            name: "analyze_code_quality.dart";
+            rules: {
+                cyclomatic_complexity: {
+                    max_value: 10;
+                    check_directories: ["lib", "test"];
+                    exclude_patterns: ["*.g.dart", "*.freezed.dart"];
+                };
+                code_metrics: {
+                    lines_of_code: true;
+                    maintainability_index: true;
+                    technical_debt: true;
+                    code_coverage: true;
+                };
+                naming_conventions: {
+                    check_patterns: true;
+                    enforce_style_guide: true;
+                    report_violations: true;
+                };
+            };
+            output: {
+                format: ["html", "json"];
+                save_to: "analysis_reports";
+            };
+        };
+
+        performance_analysis: {
+            name: "analyze_performance.dart";
+            checks: {
+                widget_rebuilds: true;
+                memory_leaks: true;
+                frame_drops: true;
+                startup_time: true;
+                resource_usage: true;
+            };
+            benchmarks: {
+                cold_startup: true;
+                hot_reload: true;
+                memory_baseline: true;
+                api_response_times: true;
+            };
+        };
+
+        dependency_analysis: {
+            name: "analyze_dependencies.dart";
+            checks: {
+                unused_dependencies: true;
+                version_conflicts: true;
+                security_vulnerabilities: true;
+                license_compliance: true;
+                outdated_packages: true;
+            };
+            auto_fix: {
+                remove_unused: true;
+                update_outdated: true;
+                resolve_conflicts: true;
+            };
+        };
+    };
+
+    test_scripts: {
+        unit_tests: {
+            name: "run_unit_tests.dart";
+            configuration: {
+                parallel_execution: true;
+                timeout: "30s";
+                retry_flaky: 3;
+                coverage_threshold: 80;
+            };
+            reports: {
+                generate_coverage: true;
+                save_results: true;
+                notify_on_failure: true;
+            };
+        };
+
+        integration_tests: {
+            name: "run_integration_tests.dart";
+            device_matrix: {
+                platforms: ["android", "ios"];
+                versions: ["latest", "minimum_supported"];
+                screen_sizes: ["small", "medium", "large"];
+            };
+            test_types: {
+                ui_flow: true;
+                api_integration: true;
+                database_operations: true;
+                file_operations: true;
+            };
+        };
+
+        performance_tests: {
+            name: "run_performance_tests.dart";
+            scenarios: {
+                load_testing: {
+                    concurrent_users: 100;
+                    duration: "5m";
+                    ramp_up: "30s";
+                };
+                stress_testing: {
+                    max_users: 1000;
+                    duration: "10m";
+                    monitor_resources: true;
+                };
+                endurance_testing: {
+                    users: 50;
+                    duration: "1h";
+                    check_memory_leaks: true;
+                };
+            };
+        };
+
+        security_tests: {
+            name: "run_security_tests.dart";
+            checks: {
+                sql_injection: true;
+                xss_vulnerabilities: true;
+                data_encryption: true;
+                api_security: true;
+                input_validation: true;
+                session_handling: true;
+            };
+            compliance: {
+                gdpr: true;
+                kvkk: true;
+                pci: true;
+            };
+        };
+    };
+
+    automation_scripts: {
+        ci_cd: {
+            name: "ci_cd_automation.dart";
+            stages: {
+                build: {
+                    clean_build: true;
+                    generate_code: true;
+                    run_tests: true;
+                };
+                analyze: {
+                    static_analysis: true;
+                    code_quality: true;
+                    security_scan: true;
+                };
+                deploy: {
+                    version_bump: true;
+                    create_release: true;
+                    update_changelog: true;
+                };
+            };
+        };
+
+        database_scripts: {
+            name: "database_operations.dart";
+            operations: {
+                backup: {
+                    schedule: "daily";
+                    retention: "30d";
+                    compress: true;
+                };
+                migrate: {
+                    validate_schema: true;
+                    backup_before_migrate: true;
+                    rollback_on_failure: true;
+                };
+                seed: {
+                    development_data: true;
+                    test_data: true;
+                    demo_data: true;
+                };
+            };
+        };
+
+        monitoring_scripts: {
+            name: "system_monitoring.dart";
+            metrics: {
+                app_performance: true;
+                error_rates: true;
+                user_activity: true;
+                resource_usage: true;
+                api_health: true;
+            };
+            alerts: {
+                error_threshold: "1%";
+                performance_degradation: true;
+                security_incidents: true;
+                notify_channels: ["email", "slack"];
+            };
+        };
+    };
+
+    report_generation: {
+        formats: ["html", "pdf", "json"];
+        scheduling: {
+            daily_reports: true;
+            weekly_summary: true;
+            monthly_metrics: true;
+        };
+        notifications: {
+            on_completion: true;
+            on_failure: true;
+            on_threshold_breach: true;
+        };
+        archiving: {
+            enabled: true;
+            retention_period: "90d";
+            compress_old_reports: true;
+        };
+    };
+}
+
+## Modül Geliştirme Kuralları
+module_rules {
+    naming: {
+        module_prefix: true;
+        format: "${name}_module";
+        test_format: "${name}_test";
+        example_format: "${name}_example";
+    };
+
+    versioning: {
+        semantic_versioning: true;
+        changelog_required: true;
+        git_tags: true;
+    };
+
+    dependencies: {
+        core_module_required: true;
+        avoid_cross_module_dependencies: true;
+        use_interfaces: true;
+        version_constraints: "caret";
+    };
+
+    structure: {
+        required_directories: [
+            "lib/src/models",
+            "lib/src/repositories",
+            "lib/src/services",
+            "lib/src/providers",
+            "lib/src/views",
+            "lib/src/widgets"
+        ];
+        required_files: [
+            "lib/${name}_module.dart",
+            "lib/src/config.dart",
+            "README.md",
+            "CHANGELOG.md",
+            "pubspec.yaml"
+        ];
+    };
+
+    testing: {
+        unit_test_coverage: 80;
+        widget_test_required: true;
+        integration_test_required: true;
+        golden_test_optional: true;
+    };
+
+    documentation: {
+        api_docs_required: true;
+        example_code_required: true;
+        readme_sections: [
+            "Kurulum",
+            "Kullanım",
+            "API",
+            "Örnekler",
+            "Test",
+            "Lisans"
+        ];
+    };
+
+    code_organization: {
+        feature_based: true;
+        layer_separation: true;
+        dependency_direction: "inward";
+        shared_code_location: "core_module";
+    };
+
+    state_management: {
+        use_riverpod: true;
+        provider_naming: "${feature}Provider";
+        state_immutability: true;
+        error_handling: true;
+    };
+
+    error_handling: {
+        custom_exceptions: true;
+        error_reporting: true;
+        user_friendly_messages: true;
+        multi_language_support: true;
+    };
+
+    performance: {
+        lazy_loading: true;
+        caching_strategy: true;
+        memory_management: true;
+        background_operations: true;
+    };
+
+    security: {
+        input_validation: true;
+        data_encryption: true;
+        secure_storage: true;
+        api_security: true;
+    };
+
+    localization: {
+        use_arb_files: true;
+        supported_locales: ["tr", "en", "de", "ar", "ru", "fa"];
+        default_locale: "tr";
+        fallback_locale: "en";
+    };
+
+    module_communication: {
+        use_event_bus: true;
+        use_interfaces: true;
+        avoid_direct_dependencies: true;
+        versioned_apis: true;
+    };
+
+    module_lifecycle: {
+        initialization_required: true;
+        cleanup_required: true;
+        state_persistence: true;
+        error_recovery: true;
+    };
+
+    module_updates: {
+        backward_compatibility: true;
+        migration_guide_required: true;
+        version_tracking: true;
+        update_notifications: true;
+    };
+
+    module_configuration: {
+        environment_based: true;
+        feature_flags: true;
+        remote_config: true;
+        local_override: true;
+    };
+
+    module_monitoring: {
+        performance_metrics: true;
+        error_tracking: true;
+        usage_analytics: true;
+        health_checks: true;
+    };
+
+    module_deployment: {
+        versioned_releases: true;
+        release_notes: true;
+        deployment_verification: true;
+        rollback_strategy: true;
+    };
+};
+
+## Modül Entegrasyon Kuralları
+module_integration {
+    initialization: {
+        order: "core_first";
+        dependencies_check: true;
+        version_compatibility: true;
+        configuration_validation: true;
+    };
+
+    communication: {
+        event_based: true;
+        type_safe: true;
+        versioned_contracts: true;
+        error_propagation: true;
+    };
+
+    data_sharing: {
+        use_interfaces: true;
+        versioned_models: true;
+        serialization_rules: true;
+        validation_required: true;
+    };
+
+    state_sync: {
+        centralized_store: true;
+        conflict_resolution: true;
+        offline_support: true;
+        real_time_updates: true;
+    };
+
+    error_handling: {
+        isolation: true;
+        fallback_behavior: true;
+        recovery_strategy: true;
+        user_notification: true;
+    };
+
+    performance: {
+        lazy_loading: true;
+        resource_sharing: true;
+        memory_management: true;
+        startup_optimization: true;
+    };
+
+    testing: {
+        integration_tests: true;
+        contract_tests: true;
+        performance_tests: true;
+        compatibility_tests: true;
+    };
+
+    deployment: {
+        independent_deployment: true;
+        version_management: true;
+        rollback_support: true;
+        health_monitoring: true;
+    };
+
+    documentation: {
+        integration_guide: true;
+        api_documentation: true;
+        example_code: true;
+        troubleshooting_guide: true;
+    };
+};
+
+## Veritabanı Güvenlik ve Koruma Kuralları
+database_security {
+    data_protection: {
+        existing_data: {
+            preserve_device_data: true;
+            backup_before_changes: true;
+            isolation_level: "READ_COMMITTED";
+            prevent_data_loss: true;
+            data_integrity_checks: true;
+        };
+
+        access_control: {
+            schema_level_security: true;
+            row_level_security: true;
+            column_level_encryption: true;
+            audit_logging: true;
+        };
+
+        sync_rules: {
+            conflict_resolution: "device_wins";
+            merge_strategy: "preserve_local";
+            sync_direction: "device_to_server";
+            version_control: true;
+        };
+
+        backup_strategy: {
+            auto_backup: {
+                frequency: "daily";
+                retention_period: "30_days";
+                compression: true;
+                encryption: true;
+            };
+            manual_backup: {
+                before_sync: true;
+                before_schema_change: true;
+                before_data_migration: true;
+            };
+            restore_points: {
+                keep_daily: 7;
+                keep_weekly: 4;
+                keep_monthly: 3;
+            };
+        };
+
+        data_validation: {
+            schema_validation: true;
+            data_type_checking: true;
+            constraint_checking: true;
+            referential_integrity: true;
+        };
+
+        error_handling: {
+            rollback_on_error: true;
+            transaction_isolation: true;
+            error_logging: true;
+            notification_on_error: true;
+        };
+    };
+
+    local_storage: {
+        hive: {
+            box_encryption: true;
+            separate_boxes_per_entity: true;
+            compaction_strategy: "auto";
+            max_size_per_box: "100MB";
+            backup_enabled: true;
+        };
+
+        sqlite: {
+            encryption: true;
+            journal_mode: "WAL";
+            auto_vacuum: "INCREMENTAL";
+            secure_delete: true;
+            foreign_keys: true;
+        };
+    };
+
+    remote_storage: {
+        supabase: {
+            row_level_security: true;
+            policies: {
+                read: "authenticated_only";
+                write: "authenticated_with_claims";
+                delete: "admin_only";
+            };
+            backup_schedule: "daily";
+            point_in_time_recovery: true;
+            special_tables: {
+                menu: {
+                    exclude_from_sync: true;
+                    backup_enabled: true;
+                    allow_reset: true;
+                    reset_procedure: {
+                        backup_before_reset: true;
+                        truncate_allowed: true;
+                        auto_recreate: true;
+                        preserve_structure: true;
+                        notify_admins: true;
+                    };
+                    restore_procedure: {
+                        from_backup: true;
+                        validate_data: true;
+                        notify_on_complete: true;
+                    };
+                };
+            };
+        };
+    };
+
+    data_synchronization: {
+        strategy: "offline_first";
+        conflict_resolution: {
+            priority: "device_data";
+            merge_strategy: "smart_merge";
+            version_vectors: true;
+            conflict_detection: true;
+        };
+        sync_rules: {
+            prevent_data_override: true;
+            validate_before_sync: true;
+            backup_before_sync: true;
+            retry_on_failure: true;
+        };
+        change_tracking: {
+            track_modifications: true;
+            version_history: true;
+            audit_trail: true;
+            change_notifications: true;
+        };
+    };
+
+    migration_rules: {
+        schema_changes: {
+            version_control: true;
+            backwards_compatible: true;
+            data_preservation: true;
+            rollback_support: true;
+        };
+        data_migration: {
+            incremental: true;
+            validate_integrity: true;
+            preserve_existing: true;
+            error_recovery: true;
+        };
+        testing: {
+            dry_run: true;
+            validation_checks: true;
+            performance_impact: true;
+            rollback_testing: true;
+        };
+    };
+
+    monitoring: {
+        performance: {
+            query_analysis: true;
+            index_usage: true;
+            storage_metrics: true;
+            sync_metrics: true;
+        };
+        security: {
+            access_logs: true;
+            change_logs: true;
+            error_logs: true;
+            sync_logs: true;
+        };
+        alerts: {
+            storage_threshold: true;
+            sync_failures: true;
+            security_violations: true;
+            performance_degradation: true;
+        };
+    };
+
+    recovery: {
+        auto_recovery: {
+            enabled: true;
+            max_attempts: 3;
+            backoff_strategy: "exponential";
+            notification: true;
+        };
+        manual_recovery: {
+            guided_process: true;
+            data_verification: true;
+            partial_recovery: true;
+            point_in_time: true;
+        };
+        disaster_recovery: {
+            backup_location: "multiple";
+            recovery_time_objective: "4h";
+            recovery_point_objective: "24h";
+            testing_schedule: "monthly";
+        };
+    };
+};
+
+## Log ve Hata Yönetimi Kuralları
+logging_rules {
+    logging_setup: {
+        use_logging_package: true;
+        avoid_print: true;
+        avoid_debugPrint: true;
+        log_levels: ["error", "warning", "info", "debug", "verbose"];
+        default_level: "info";
+    };
+
+    log_configuration: {
+        hierarchical_logging: false;
+        record_stack_trace_at_level: "severe";
+        color_output: true;
+        log_format: {
+            include_timestamp: true;
+            include_level: true;
+            include_logger_name: true;
+            include_message: true;
+            include_stacktrace: true;
+        };
+    };
+
+    production_logging: {
+        enabled: true;
+        min_log_level: "warning";
+        secure_logging: true;
+        exclude_sensitive_data: true;
+        log_rotation: {
+            enabled: true;
+            max_file_size: "10MB";
+            max_files: 5;
+        };
+    };
+
+    debug_logging: {
+        enabled: true;
+        console_output: true;
+        file_output: true;
+        network_logs: true;
+        performance_logs: true;
+        memory_logs: true;
+    };
+
+    error_handling: {
+        global_error_handling: true;
+        custom_error_widget: true;
+        error_reporting: {
+            enabled: true;
+            include_device_info: true;
+            include_app_info: true;
+            include_error_details: true;
+            sanitize_logs: true;
+        };
+        error_boundaries: {
+            widget_errors: true;
+            async_errors: true;
+            platform_errors: true;
+        };
+    };
+
+    monitoring: {
+        performance_monitoring: true;
+        error_monitoring: true;
+        crash_reporting: true;
+        analytics_integration: true;
+    };
+
+    best_practices: {
+        use_structured_logging: true;
+        log_sanitization: true;
+        avoid_sensitive_data: true;
+        proper_error_handling: true;
+        proper_stack_trace_handling: true;
+    };
+
+    development_tools: {
+        devtools_integration: true;
+        console_filters: true;
+        log_visualization: true;
+        error_navigation: true;
+    };
+};
+
+## Geliştirici Bilgisi
+developer_info {
+    name: "Ferhat NAS";
+    role: "Baş Geliştirici";
+    last_update: "2024-03-21";
+}
+
+## Dosya Bağlantı Şeması
+file_connections {
+    cursorrules: {
+        description: "Projenin ana kural ve standart tanımlamalarını içeren yapılandırma dosyası";
+
+        direct_connections: {
+            analysis_options: {
+                path: "analysis_options.yaml";
+                relation: "Dart/Flutter lint ve analiz kurallarını yapılandırır";
+                impact: "Kod kalitesi ve stil kontrolleri";
+            };
+
+            pubspec: {
+                path: "pubspec.yaml";
+                relation: "Paket bağımlılıkları ve proje yapılandırması";
+                impact: "Proje bağımlılıkları ve yapılandırma ayarları";
+            };
+
+            lib_structure: {
+                path: "lib/";
+                relation: "Kaynak kod organizasyonu ve yapısı";
+                impact: "Kod organizasyonu ve mimari yapı";
+            };
+        };
+
+        module_connections: {
+            core: {
+                path: "lib/core/";
+                relation: "Temel altyapı ve yardımcı sınıflar";
+                enforced_rules: [
+                    "turkish_documentation",
+                    "code_style",
+                    "error_handling"
+                ];
+            };
+
+            features: {
+                path: "lib/features/";
+                relation: "Özellik modülleri";
+                enforced_rules: [
+                    "module_rules",
+                    "state_management",
+                    "ui_ux"
+                ];
+            };
+
+            shared: {
+                path: "lib/shared/";
+                relation: "Paylaşılan bileşenler ve yardımcılar";
+                enforced_rules: [
+                    "component_rules",
+                    "documentation",
+                    "testing"
+                ];
+            };
+        };
+
+        test_connections: {
+            unit_tests: {
+                path: "test/unit/";
+                relation: "Birim testleri";
+                enforced_rules: ["testing_rules.unit_tests"];
+            };
+
+            widget_tests: {
+                path: "test/widget/";
+                relation: "Widget testleri";
+                enforced_rules: ["testing_rules.widget_tests"];
+            };
+
+            integration_tests: {
+                path: "test/integration/";
+                relation: "Entegrasyon testleri";
+                enforced_rules: ["testing_rules.integration_tests"];
+            };
+        };
+
+        asset_connections: {
+            images: {
+                path: "assets/images/";
+                relation: "Görsel varlıklar";
+                enforced_rules: ["ui_ux.responsive_images"];
+            };
+
+            translations: {
+                path: "assets/translations/";
+                relation: "Çeviri dosyaları";
+                enforced_rules: ["localization"];
+            };
+
+            fonts: {
+                path: "assets/fonts/";
+                relation: "Yazı tipleri";
+                enforced_rules: ["ui_ux.typography"];
+            };
+        };
+
+        platform_connections: {
+            android: {
+                path: "android/";
+                relation: "Android platform konfigürasyonu";
+                enforced_rules: ["mobile_app.platform_specific.android"];
+            };
+
+            ios: {
+                path: "ios/";
+                relation: "iOS platform konfigürasyonu";
+                enforced_rules: ["mobile_app.platform_specific.ios"];
+            };
+
+            web: {
+                path: "web/";
+                relation: "Web platform konfigürasyonu";
+                enforced_rules: ["responsive_design"];
+            };
+
+            desktop: {
+                paths: ["windows/", "macos/", "linux/"];
+                relation: "Masaüstü platform konfigürasyonları";
+                enforced_rules: ["desktop_specific"];
+            };
+        };
+
+        documentation_connections: {
+            api_docs: {
+                path: "docs/api/";
+                relation: "API dokümantasyonu";
+                enforced_rules: ["documentation_rules"];
+            };
+
+            user_guides: {
+                path: "docs/guides/";
+                relation: "Kullanıcı kılavuzları";
+                enforced_rules: ["documentation_generator.user_documentation"];
+            };
+
+            developer_docs: {
+                path: "docs/development/";
+                relation: "Geliştirici dokümantasyonu";
+                enforced_rules: ["documentation_generator.developer_documentation"];
+            };
+        };
+
+        script_connections: {
+            analysis: {
+                path: "scripts/analysis/";
+                relation: "Kod analiz scriptleri";
+                enforced_rules: ["script_rules.analysis_scripts"];
+            };
+
+            testing: {
+                path: "scripts/testing/";
+                relation: "Test otomasyonu scriptleri";
+                enforced_rules: ["script_rules.test_scripts"];
+            };
+
+            deployment: {
+                path: "scripts/deployment/";
+                relation: "Dağıtım ve yayınlama scriptleri";
+                enforced_rules: ["script_rules.automation_scripts"];
+            };
+        };
+
+        monitoring_connections: {
+            logs: {
+                path: "logs/";
+                relation: "Uygulama logları";
+                enforced_rules: ["logging_rules"];
+            };
+
+            analytics: {
+                path: "analytics/";
+                relation: "Analitik verileri";
+                enforced_rules: ["monitoring"];
+            };
+
+            performance: {
+                path: "performance/";
+                relation: "Performans metrikleri";
+                enforced_rules: ["performance_rules"];
+            };
+        };
+    };
+};
+
+## Otomatik Çalıştırma Kuralları
+auto_run_rules {
+    device_priority: {
+        check_connected_devices: true;
+        priority_order: ["mobile", "windows"];
+
+        mobile_device: {
+            enabled: true;
+            auto_select: true;
+            platform_preference: ["android", "ios"];
+            command: "flutter run -d {device_id}";
+            fallback: "windows";
+        };
+
+        windows_device: {
+            enabled: true;
+            command: "flutter run -d windows";
+            window_settings: {
+                width: 1280;
+                height: 720;
+                position: "center";
+                title: "EXFINERP";
+            };
+        };
+
+        device_detection: {
+            check_interval: "2s";
+            timeout: "30s";
+            retry_attempts: 3;
+            auto_reload: true;
+        };
+
+        error_handling: {
+            device_not_found: {
+                action: "fallback_to_windows";
+                notification: true;
+                log_error: true;
+            };
+            launch_failed: {
+                retry: true;
+                max_retries: 3;
+                fallback_action: "show_error_dialog";
+            };
+        };
+
+        performance_monitoring: {
+            startup_time: true;
+            memory_usage: true;
+            frame_rate: true;
+            report_issues: true;
+        };
+
+        development_mode: {
+            hot_reload: true;
+            debug_mode: true;
+            network_logging: true;
+            performance_overlay: false;
+        };
+
+        notifications: {
+            device_connected: true;
+            device_disconnected: true;
+            build_started: true;
+            build_completed: true;
+            errors: true;
+        };
+    };
+};
+
+## Senkronizasyon Onay Kuralları
+sync_approval_rules {
+    approval_field: {
+        name: "ONAY";
+        type: "INTEGER";
+        default_value: 0;
+        states: {
+            pending: 0;      // Beklemede
+            approved: 1;     // Onaylandı
+            synced: 2;       // Senkronize Edildi
+            rejected: 3;     // Reddedildi
+            error: 4;        // Hata
+        };
+    };
+
+    sync_conditions: {
+        only_approved: true;
+        approval_check: "ONAY = 1";
+        post_sync_state: 2;
+        error_state: 4;
+    };
+
+    table_requirements: {
+        mandatory_fields: [
+            "ONAY",
+            "created_at",
+            "updated_at",
+            "is_synced",
+            "is_deleted"
+        ];
+        field_types: {
+            ONAY: "INTEGER NOT NULL DEFAULT 0",
+                created_at: "TEXT NOT NULL",
+                    updated_at: "TEXT NOT NULL",
+                        is_synced: "INTEGER NOT NULL DEFAULT 0",
+                            is_deleted: "INTEGER NOT NULL DEFAULT 0"
+        };
+    };
+
+    triggers: {
+        before_sync: {
+            check_approval: true;
+            backup_data: true;
+            validate_fields: true;
+        };
+        after_sync: {
+            update_status: true;
+            log_sync: true;
+            notify_users: true;
+        };
+        on_error: {
+            rollback: true;
+            log_error: true;
+            notify_admin: true;
+            retry_count: 3;
+        };
+    };
+
+    logging: {
+        enabled: true;
+        log_fields: [
+            "table_name",
+            "record_id",
+            "old_status",
+            "new_status",
+            "sync_date",
+            "sync_user",
+            "error_message"
+        ];
+        retention_days: 30;
+    };
+
+    notifications: {
+        on_approval: true;
+        on_sync: true;
+        on_error: true;
+        channels: ["system", "email"];
+    };
+
+    security: {
+        role_based_approval: true;
+        audit_trail: true;
+        encryption: true;
+        data_validation: true;
+    };
+};
+
+## Windows Geliştirme Sembolik Bağlantı Kuralları
+windows_development {
+    symlink_handling: {
+        problem: "Windows'ta Flutter sembolik bağlantı (symlink) oluşturma hatası";
+        solution: {
+            developer_mode: {
+                required: true;
+                setup_instructions: "Windows Ayarları > Geliştirici için > Geliştirici Modu'nu açın";
+            };
+            admin_privileges: {
+                required: true;
+                explanation: "Flutter geliştirme ortamı sembolik bağlantılar oluşturabilmek için yönetici haklarına ihtiyaç duyar";
+            };
+            flutter_clean: {
+                command: "flutter clean";
+                explanation: "Mevcut hatalı sembolik bağlantıları temizler";
+            };
+            cache_repair: {
+                command: "flutter pub cache repair";
+                explanation: "Bozuk paket önbelleklerini düzeltir";
+            };
+            powershell_commands: {
+                admin_execution: "Powershell'i yönetici olarak çalıştırın";
+                enable_symlinks: "Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser";
+                command_explanation: "PowerShell betik çalıştırma politikasını düzenler";
+            };
+            project_reset: {
+                steps: [
+                    "flutter clean",
+                    "rmdir /S /Q windows\\flutter\\ephemeral",
+                    "flutter pub get",
+                    "flutter run -d windows"
+                ];
+                explanation: "Windows plugin sembolik bağlantılarını yeniden oluşturur";
+            };
+            git_config: {
+                command: "git config --global core.symlinks true";
+                explanation: "Git'in sembolik bağlantıları düzgün şekilde işlemesini sağlar";
+            };
+        };
+        prevention: {
+            always_run_as_admin: true;
+            keep_developer_mode_on: true;
+            use_git_bash: true;
+            prefer_wsl: {
+                description: "Geliştirme için Windows Subsystem for Linux kullanmak sembolik bağlantı sorunlarını ortadan kaldırabilir";
+                setup: "Windows Özelliklerini Aç Kapat > WSL'i etkinleştir > Microsoft Store'dan Ubuntu kur";
+            };
+        };
+    };
+
+    error_recovery: {
+        app_links_error: {
+            symptoms: "PathExistsException: Cannot create link, path = '.../.plugin_symlinks/app_links'";
+            fix_steps: [
+                "Powershell'i yönetici olarak çalıştır",
+                "cd [proje_dizini]",
+                "rmdir /S /Q windows\\flutter\\ephemeral",
+                "flutter clean",
+                "flutter pub get",
+                "flutter run -d windows"
+            ];
+            preventive_measures: [
+                "Windows Geliştirici Modunu etkinleştir",
+                "IDE'yi her zaman yönetici olarak çalıştır",
+                "pubspec.yaml değişikliklerinden sonra windows\\flutter\\ephemeral klasörünü temizle"
+            ];
+        };
+    };
+
+    windows_ide_setup: {
+        visual_studio_code: {
+            run_as_admin: true;
+            workspace_settings: {
+                terminal_settings: {
+                    windows_shell: "C:\\Windows\\System32\\cmd.exe";
+                    shell_args: ["/K", "\"C:\\Program Files\\PowerShell\\7\\pwsh.exe\""];
+                };
+            };
+        };
+        android_studio: {
+            run_as_admin: true;
+            vm_options: "-Djava.io.tmpdir=C:\\Windows\\Temp";
+        };
+        cursor: {
+            run_as_admin: true;
+        };
+    };
+}; 

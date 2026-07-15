@@ -1,0 +1,7 @@
+Analyzing lib...                                                
+
+  error • Unused import: 'sync_model.dart' • lib/src/core/schema_manager.dart:10:8 • unused_import
+warning • The value of the local variable 'field' isn't used • lib/src/core/sync_model.dart:175:15 • unused_local_variable
+  error • Unused import: '../models/approval_status.dart' • lib/src/core/sync_service.dart:13:8 • unused_import
+  error • The argument type 'void Function(ConnectivityResult)' can't be assigned to the parameter type 'void Function(List<ConnectivityResult>)?'.  • lib/src/core/sync_service.dart:40:17 • argument_type_not_assignable
+

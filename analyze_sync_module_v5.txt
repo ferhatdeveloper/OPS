@@ -1,0 +1,17 @@
+Analyzing lib...                                                
+
+  error • Unused import: 'sync_model.dart' • lib/src/core/schema_manager.dart:10:8 • unused_import
+warning • The value of the local variable 'field' isn't used • lib/src/core/sync_model.dart:175:15 • unused_local_variable
+  error • Unused import: '../models/approval_status.dart' • lib/src/core/sync_service.dart:13:8 • unused_import
+  error • Instance member 'backupSqliteDatabase' can't be accessed using static access • lib/src/core/sync_service.dart:64:23 • static_access_to_instance_member
+  error • Instance member 'backupSupabaseDatabase' can't be accessed using static access • lib/src/core/sync_service.dart:65:23 • static_access_to_instance_member
+  error • Too many positional arguments: 0 expected, but 1 found • lib/src/core/sync_service.dart:65:46 • extra_positional_arguments
+  error • The method 'failure' isn't defined for the type 'SyncResult' • lib/src/core/sync_service.dart:75:25 • undefined_method
+  error • The method 'failure' isn't defined for the type 'SyncResult' • lib/src/core/sync_service.dart:93:25 • undefined_method
+  error • Instance member 'backupSqliteDatabase' can't be accessed using static access • lib/src/core/sync_service.dart:205:23 • static_access_to_instance_member
+  error • Instance member 'backupSupabaseDatabase' can't be accessed using static access • lib/src/core/sync_service.dart:206:23 • static_access_to_instance_member
+  error • Too many positional arguments: 0 expected, but 1 found • lib/src/core/sync_service.dart:206:46 • extra_positional_arguments
+  error • Target of URI hasn't been generated: 'file:///Users/ferhatnas/App/EXFINOPS/data_sync_module/lib/src/models/sync_config.g.dart' • lib/src/models/sync_config.dart:9:6 • uri_has_not_been_generated
+  error • The method '_$SyncConfigFromJson' isn't defined for the type 'SyncConfig' • lib/src/models/sync_config.dart:76:7 • undefined_method
+  error • The method '_$SyncConfigToJson' isn't defined for the type 'SyncConfig' • lib/src/models/sync_config.dart:79:36 • undefined_method
+

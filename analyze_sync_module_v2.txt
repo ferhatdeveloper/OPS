@@ -1,0 +1,28 @@
+Analyzing data_sync_module...                                   
+
+  error • The argument type 'Context' can't be assigned to the parameter type 'BuildContext'.  • data_sync_module/example/lib/main.dart:112:28 • argument_type_not_assignable
+  error • The argument type 'Context' can't be assigned to the parameter type 'BuildContext'.  • data_sync_module/example/lib/main.dart:116:28 • argument_type_not_assignable
+  error • The argument type 'Context' can't be assigned to the parameter type 'BuildContext'.  • data_sync_module/example/lib/main.dart:143:28 • argument_type_not_assignable
+  error • The argument type 'Context' can't be assigned to the parameter type 'BuildContext'.  • data_sync_module/example/lib/main.dart:147:28 • argument_type_not_assignable
+  error • The argument type 'Context' can't be assigned to the parameter type 'BuildContext'.  • data_sync_module/example/lib/main.dart:157:28 • argument_type_not_assignable
+  error • The argument type 'Context' can't be assigned to the parameter type 'BuildContext'.  • data_sync_module/example/lib/main.dart:168:28 • argument_type_not_assignable
+  error • The argument type 'Context' can't be assigned to the parameter type 'BuildContext'.  • data_sync_module/example/lib/main.dart:179:18 • argument_type_not_assignable
+  error • The argument type 'Context' can't be assigned to the parameter type 'BuildContext'.  • data_sync_module/example/lib/main.dart:220:28 • argument_type_not_assignable
+  error • Target of URI doesn't exist: 'src/core/sync_service.dart' • data_sync_module/lib/data_sync_module.dart:11:8 • uri_does_not_exist
+  error • Target of URI doesn't exist: 'src/core/schema_manager.dart' • data_sync_module/lib/data_sync_module.dart:12:8 • uri_does_not_exist
+  error • Target of URI doesn't exist: 'src/services/conflict_resolution_service.dart' • data_sync_module/lib/data_sync_module.dart:16:8 • uri_does_not_exist
+  error • Target of URI doesn't exist: 'src/services/delta_sync_service.dart' • data_sync_module/lib/data_sync_module.dart:17:8 • uri_does_not_exist
+  error • Target of URI doesn't exist: 'src/utils/sync_utils.dart' • data_sync_module/lib/data_sync_module.dart:26:8 • uri_does_not_exist
+  error • Target of URI doesn't exist: 'src/utils/encryption_utils.dart' • data_sync_module/lib/data_sync_module.dart:27:8 • uri_does_not_exist
+  error • Target of URI doesn't exist: 'src/providers/sync_provider.dart' • data_sync_module/lib/data_sync_module.dart:30:8 • uri_does_not_exist
+  error • Target of URI doesn't exist: 'src/providers/auto_sync_provider.dart' • data_sync_module/lib/data_sync_module.dart:31:8 • uri_does_not_exist
+  error • Target of URI doesn't exist: 'schema_manager.dart' • data_sync_module/lib/src/core/sync_manager.dart:10:8 • uri_does_not_exist
+  error • Target of URI doesn't exist: 'sync_service.dart' • data_sync_module/lib/src/core/sync_manager.dart:11:8 • uri_does_not_exist
+  error • Undefined class 'SchemaManager' • data_sync_module/lib/src/core/sync_manager.dart:25:14 • undefined_class
+  error • Undefined class 'SyncService' • data_sync_module/lib/src/core/sync_manager.dart:26:14 • undefined_class
+  error • The method 'SchemaManager' isn't defined for the type 'SyncManager' • data_sync_module/lib/src/core/sync_manager.dart:52:24 • undefined_method
+  error • The method 'SyncService' isn't defined for the type 'SyncManager' • data_sync_module/lib/src/core/sync_manager.dart:53:22 • undefined_method
+warning • The value of the local variable 'field' isn't used • data_sync_module/lib/src/core/sync_model.dart:175:15 • unused_local_variable
+  error • The method 'getPath' isn't defined for the type 'Database' • data_sync_module/lib/src/services/backup_manager.dart:78:32 • undefined_method
+  error • The method 'getPath' isn't defined for the type 'Database' • data_sync_module/lib/src/services/backup_manager.dart:250:32 • undefined_method
+
