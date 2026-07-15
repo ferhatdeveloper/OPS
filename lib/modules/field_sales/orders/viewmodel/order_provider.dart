@@ -4,8 +4,9 @@ import '../model/order_model.dart';
 import '../../campaigns/engine/campaign_engine.dart';
 import '../../campaigns/model/campaign_model.dart' as cm;
 import '../../../../service/database_service.dart';
+import '../../../../service/job_queue_service.dart';
+import '../../../../core/services/logo_payload_mapper.dart';
 import '../engine/price_engine.dart';
-import '../../stock/engine/unit_conversion_service.dart';
 
 class OrderState {
   final OrderModel? draftOrder;
@@ -211,12 +212,66 @@ class OrderNotifier extends StateNotifier<OrderState> {
         notes: notes,
       );
 
+      final savedItems = List<OrderItemModel>.from(state.items);
+
       await sqliteDb.transaction((txn) async {
-        await txn.insert('orders', order.toMap());
-        for (var item in state.items) {
+        final orderMap = order.toMap();
+        orderMap['is_synced'] = 0;
+        await txn.insert('orders', orderMap);
+        for (var item in savedItems) {
           await txn.insert('order_items', item.toMap());
         }
       });
+
+      // Logo REST aktarım kuyruğu
+      final customerRows = await sqliteDb.query(
+        'customers',
+        where: 'id = ?',
+        whereArgs: [order.customerId],
+        limit: 1,
+      );
+      String customerCode = order.customerId;
+      if (customerRows.isNotEmpty) {
+        final c = customerRows.first;
+        customerCode = (c['code'] ?? c['tax_no'] ?? c['id']).toString();
+      }
+
+      final lines = <Map<String, dynamic>>[];
+      for (final item in savedItems) {
+        String productCode = item.productId;
+        final products = await sqliteDb.query(
+          'products',
+          columns: ['code'],
+          where: 'id = ?',
+          whereArgs: [item.productId],
+          limit: 1,
+        );
+        if (products.isNotEmpty && products.first['code'] != null) {
+          productCode = products.first['code'].toString();
+        }
+        lines.add({
+          'product_code': productCode,
+          'quantity': item.quantity,
+          'price': item.price,
+        });
+      }
+
+      final logoPayload = LogoPayloadMapper.orderFromLocal(
+        order: {
+          'id': order.id,
+          'order_date': order.orderDate.toIso8601String(),
+          'notes': notes,
+        },
+        items: lines,
+        customerCode: customerCode,
+      );
+
+      await JobQueueService().enqueue(
+        entityType: 'order',
+        entityId: order.id,
+        payload: logoPayload,
+        priority: 1,
+      );
 
       state = state.copyWith(isLoading: false, draftOrder: null, items: []);
       return true;

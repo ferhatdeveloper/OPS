@@ -256,12 +256,57 @@ class InvoiceNotifier extends StateNotifier<InvoiceState> {
       });
 
       state = state.copyWith(isLoading: false, draftInvoice: null, items: []);
-      
-      // Phase 7: Enqueue for background sync (RabbitMQ-like)
+
+      // Logo REST kuyruğu — satırlı payload hazırla
+      String customerCode = invoice.customerId;
+      final cust = await sqliteDb.query(
+        'customers',
+        where: 'id = ?',
+        whereArgs: [invoice.customerId],
+        limit: 1,
+      );
+      if (cust.isNotEmpty) {
+        customerCode =
+            (cust.first['code'] ?? cust.first['tax_no'] ?? cust.first['id'])
+                .toString();
+      }
+      final lines = <Map<String, dynamic>>[];
+      // items already cleared from state — rebuild from DB
+      final itemRows = await sqliteDb.query(
+        'invoice_items',
+        where: 'invoice_id = ?',
+        whereArgs: [invoice.id],
+      );
+      for (final row in itemRows) {
+        String productCode = row['product_id']?.toString() ?? '';
+        final products = await sqliteDb.query(
+          'products',
+          columns: ['code'],
+          where: 'id = ?',
+          whereArgs: [row['product_id']],
+          limit: 1,
+        );
+        if (products.isNotEmpty && products.first['code'] != null) {
+          productCode = products.first['code'].toString();
+        }
+        lines.add({
+          'product_code': productCode,
+          'quantity': row['quantity'],
+          'price': row['price'],
+        });
+      }
+
       await JobQueueService().enqueue(
         entityType: 'invoice',
         entityId: invoice.id,
-        payload: invoice.toMap(),
+        payload: {
+          ...invoice.toMap(),
+          'customer_code': customerCode,
+          'arp_code': customerCode,
+          'type': 'wholesale',
+          'lines': lines,
+        },
+        priority: 2,
       );
 
       // Phase 9: Reward Points

@@ -191,6 +191,7 @@ class SqlQuerys {
   static const String createCustomersTable = '''
     CREATE TABLE IF NOT EXISTS customers (
       id TEXT PRIMARY KEY,
+      code TEXT,
       name TEXT NOT NULL,
       tax_no TEXT,
       tax_office TEXT,

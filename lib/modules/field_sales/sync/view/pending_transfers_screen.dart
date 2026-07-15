@@ -1,124 +1,187 @@
+// Dosya Adı: pending_transfers_screen.dart
+// Açıklama: Logo REST'e bekleyen sync_queue belgelerini listeler / yeniden dener
+// Oluşturulma Tarihi: 2026-02-22
+// Geliştirici: EXFIN OPS Team
+// Son Güncelleme: 2026-07-15
+
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
+
+import '../../../../service/job_queue_service.dart';
 
 class PendingTransfersScreen extends StatefulWidget {
   final int initialTabIndex;
-  const PendingTransfersScreen({Key? key, this.initialTabIndex = 0}) : super(key: key);
+  const PendingTransfersScreen({Key? key, this.initialTabIndex = 0})
+      : super(key: key);
 
   @override
   State<PendingTransfersScreen> createState() => _PendingTransfersScreenState();
 }
 
-class _PendingTransfersScreenState extends State<PendingTransfersScreen> with SingleTickerProviderStateMixin {
+class _PendingTransfersScreenState extends State<PendingTransfersScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  String _selectedPeriod = 'K1';
+  List<Map<String, dynamic>> _jobs = [];
+  bool _loading = true;
+  bool _processing = false;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this, initialIndex: widget.initialTabIndex);
+    _tabController = TabController(
+      length: 4,
+      vsync: this,
+      initialIndex: widget.initialTabIndex.clamp(0, 3),
+    );
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    final jobs = await JobQueueService().getPendingJobs();
+    if (!mounted) return;
+    setState(() {
+      _jobs = jobs;
+      _loading = false;
+    });
+  }
+
+  Future<void> _retryAll() async {
+    setState(() => _processing = true);
+    await JobQueueService().processQueue();
+    await _load();
+    if (mounted) setState(() => _processing = false);
+  }
+
+  List<Map<String, dynamic>> _filter(String type) {
+    if (type == 'all') return _jobs;
+    return _jobs
+        .where((j) =>
+            (j['entity_type'] as String? ?? '')
+                .toLowerCase()
+                .contains(type))
+        .toList();
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surface,
+      backgroundColor: const Color(0xFFF8F9FD),
       appBar: AppBar(
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF375A7F), Color(0xFF00A8E8)],
-            ),
-          ),
+        title: const Text(
+          'Bekleyen Aktarımlar',
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
-        title: const Text('Bekleyen Transferler', style: TextStyle(fontWeight: FontWeight.bold)),
-        foregroundColor: isDarkMode ? Colors.white : Colors.black87,
-        elevation: 0,
+        backgroundColor: const Color(0xFF375A7F),
+        iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           IconButton(
-            icon: const Icon(Icons.sync),
-            tooltip: 'Tümünü Senkronize Et',
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tüm bekleyen kayıtlar gönderiliyor...')));
-            },
+            icon: _processing
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Icon(Icons.sync),
+            onPressed: _processing ? null : _retryAll,
+            tooltip: 'Logo\'ya yeniden gönder',
+          ),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _load,
           ),
         ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(96.0),
-          child: Column(
-            children: [
-              TabBar(
-                controller: _tabController,
-                indicatorColor: isDarkMode ? Colors.white : Colors.black,
-                indicatorWeight: 3,
-                isScrollable: true,
-                labelStyle: const TextStyle(fontWeight: FontWeight.bold),
-                unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal),
-                tabs: const [
-                  Tab(text: 'Faturalar'),
-                  Tab(text: 'Tahsilatlar'),
-                  Tab(text: 'Siparişler'),
-                  Tab(text: 'Ambar / İrsaliye'),
-                ],
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                child: CupertinoSegmentedControl<String>(
-                  children: const {
-                    'K1': Text('K1'),
-                    'K2': Text('K2'),
-                    'K3': Text('K3'),
-                  },
-                  groupValue: _selectedPeriod,
-                  onValueChanged: (value) {
-                    setState(() => _selectedPeriod = value);
-                  },
-                ),
-              ),
-            ],
-          ),
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: Colors.white,
+          tabs: const [
+            Tab(text: 'Tümü'),
+            Tab(text: 'Sipariş'),
+            Tab(text: 'Fatura'),
+            Tab(text: 'Tahsilat'),
+          ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildDummyList('Fatura', Icons.receipt, Colors.blue, _selectedPeriod),
-          _buildDummyList('Tahsilat', Icons.monetization_on, Colors.green, _selectedPeriod),
-          _buildDummyList('Sipariş', Icons.shopping_cart, Colors.orange, _selectedPeriod),
-          _buildDummyList('Fiş', Icons.description, Colors.purple, _selectedPeriod),
-        ],
-      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : TabBarView(
+              controller: _tabController,
+              children: [
+                _buildList(_filter('all')),
+                _buildList(_filter('order')),
+                _buildList(_filter('invoice')),
+                _buildList(_filter('collection')),
+              ],
+            ),
     );
   }
 
-  Widget _buildDummyList(String type, IconData icon, Color color, String period) {
+  Widget _buildList(List<Map<String, dynamic>> jobs) {
+    if (jobs.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.check_circle_outline,
+                size: 64, color: Colors.green.shade300),
+            const SizedBox(height: 12),
+            const Text(
+              'Bekleyen Logo aktarımı yok',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+      );
+    }
+
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: 3,
+      padding: const EdgeInsets.all(12),
+      cacheExtent: 500,
+      itemCount: jobs.length,
       itemBuilder: (context, index) {
+        final job = jobs[index];
+        final type = job['entity_type']?.toString() ?? '-';
+        final entityId = job['entity_id']?.toString() ?? '-';
+        final retry = job['retry_count'] ?? 0;
+        final error = job['last_error']?.toString();
         return Card(
-          elevation: 2,
-          shadowColor: Theme.of(context).brightness == Brightness.dark ? Colors.transparent : Colors.black.withOpacity(0.05),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          margin: const EdgeInsets.only(bottom: 12),
           child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             leading: CircleAvatar(
-              backgroundColor: color.withOpacity(0.1),
-              child: Icon(icon, color: color),
+              backgroundColor: error != null
+                  ? Colors.orange.shade100
+                  : const Color(0xFF375A7F).withOpacity(0.15),
+              child: Icon(
+                error != null ? Icons.sync_problem : Icons.cloud_queue,
+                color: error != null ? Colors.orange : const Color(0xFF375A7F),
+              ),
             ),
-            title: Text('$type - $period - No: #${index + 1}', style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text('Tutar: \${(index + 1) * 1500} ₺\\nDurum: Bekliyor (Offline)'),
+            title: Text('$type · $entityId'),
+            subtitle: Text(
+              error != null
+                  ? 'Hata ($retry deneme): $error'
+                  : 'Oluşturulma: ${job['created_at'] ?? '-'}',
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+            ),
             trailing: IconButton(
-              icon: const Icon(Icons.sync_problem, color: Colors.orange),
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Sadece bu \$type gönderiliyor...')));
-              },
+              icon: const Icon(Icons.send),
+              onPressed: _processing
+                  ? null
+                  : () async {
+                      setState(() => _processing = true);
+                      await JobQueueService().processQueue();
+                      await _load();
+                      if (mounted) setState(() => _processing = false);
+                    },
             ),
-            isThreeLine: true,
           ),
         );
       },

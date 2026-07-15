@@ -32,6 +32,7 @@ import '../modules/manager/reports/view/period_comparison_report.dart';
 import '../modules/manager/reports/view/advanced_analysis_screen.dart';
 import '../modules/field_sales/currency/view/currency_rates_screen.dart';
 import '../modules/field_sales/sync/view/data_transfer_screen.dart';
+import '../modules/field_sales/sync/view/logo_rest_settings_screen.dart';
 import '../modules/field_sales/companies/view/company_list_screen.dart';
 import '../modules/field_sales/stock/view/barcode_scanner_screen.dart';
 import '../modules/ai/view/ai_assistant_screen.dart';
@@ -1635,6 +1636,10 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
       case 'Veri Transferi':
       case 'Veri Güncelleme':
         content = const DataTransferScreen();
+        break;
+      case 'Logo REST Ayarları':
+      case 'Logo API Ayarları':
+        content = const LogoRestSettingsScreen();
         break;
       case 'Mobil Şirket Listesi':
         content = const CompanyListScreen();

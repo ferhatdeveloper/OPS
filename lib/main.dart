@@ -348,6 +348,7 @@ Future<void> main() async {
     
     loadingNotifier.updateMessage('LOGO API servisi başlatılıyor...');
     LogoApiService().init();
+    // Config SharedPreferences'tan arka planda yüklenir (init içinde loadConfig)
 
     loadingNotifier.updateMessage('Senkronizasyon başlatılıyor...');
     if (kDebugMode) {

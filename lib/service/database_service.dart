@@ -218,6 +218,7 @@ class DatabaseService {
       await resetCompaniesIfSupabaseAvailable();
       await ensureCompaniesTableSchema();
       await ensureOrdersTableSchema();
+      await ensureCustomersCodeColumn();
 
       // Menü tablosu reset kontrolü ve otomatik sıfırlama kaldırıldı
       // Dil tablosunu oluştur
@@ -936,6 +937,23 @@ class DatabaseService {
       
       // POD tablosu var mı kontrol et
       await db.execute(SqlQuerys.createPodTable);
+    }
+  }
+
+  /// Customers tablosuna Logo cari kodu (code) kolonu ekler
+  Future<void> ensureCustomersCodeColumn() async {
+    if (!await _storage.hasSQLiteSupport()) return;
+    final db = await _storage.getDatabase();
+    final columns = await db.rawQuery('PRAGMA table_info(customers)');
+    if (columns.isEmpty) return;
+    final hasCode = columns.any((col) => col['name'] == 'code');
+    if (!hasCode) {
+      try {
+        await db.execute('ALTER TABLE customers ADD COLUMN code TEXT');
+        print('✅ customers.code kolonu eklendi (Logo REST)');
+      } catch (e) {
+        print('❌ customers.code kolon ekleme hatası: $e');
+      }
     }
   }
 

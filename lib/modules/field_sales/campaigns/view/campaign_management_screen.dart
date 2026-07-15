@@ -125,9 +125,9 @@ class _CampaignManagementScreenState extends ConsumerState<CampaignManagementScr
       };
 
       // 1. Send to LOGO API
-      final success = await LogoApiService().createCampaign(campaignData);
+      final result = await LogoApiService().createCampaign(campaignData);
       
-      if (success) {
+      if (result.success) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Kampanya başarıyla LOGOya gönderildi.')));
         Navigator.pop(context);
       } else {

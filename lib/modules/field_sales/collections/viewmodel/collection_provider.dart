@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../model/collection_model.dart';
 import '../../../../service/database_service.dart';
+import '../../../../service/job_queue_service.dart';
+import '../../../../core/services/logo_payload_mapper.dart';
 
 class CollectionState {
   final bool isLoading;
@@ -48,6 +50,34 @@ class CollectionNotifier extends StateNotifier<CollectionState> {
       collectionMap['updated_at'] = now;
 
       await sqliteDb.insert('collections', collectionMap);
+
+      String customerCode = customerId;
+      String? customerName;
+      final customerRows = await sqliteDb.query(
+        'customers',
+        where: 'id = ?',
+        whereArgs: [customerId],
+        limit: 1,
+      );
+      if (customerRows.isNotEmpty) {
+        final c = customerRows.first;
+        customerCode = (c['code'] ?? c['tax_no'] ?? c['id']).toString();
+        customerName = c['name']?.toString();
+      }
+
+      await JobQueueService().enqueue(
+        entityType: 'collection',
+        entityId: collection.id,
+        payload: LogoPayloadMapper.collectionFromLocal(
+          customerCode: customerCode,
+          amount: amount,
+          paymentType: paymentType,
+          description: notes,
+          customerName: customerName,
+        ),
+        priority: 2,
+      );
+
       state = CollectionState(isLoading: false);
       return true;
     } catch (e) {

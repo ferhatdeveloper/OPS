@@ -7,12 +7,16 @@ import '../../../modules/field_sales/routes/view/route_plan_screen.dart';
 import '../../../modules/field_sales/orders/view/order_entry_screen.dart';
 import '../../../modules/field_sales/collections/view/collection_entry_screen.dart';
 import '../../../modules/field_sales/merchandising/view/audit_form_screen.dart';
+import '../../../modules/field_sales/sync/view/logo_rest_settings_screen.dart';
 
 class AppRoutes {
   static const String splash = '/';
   static const String login = '/login';
   static const String home = '/home';
   static const String dashboard = '/dashboard';
+
+  /// Logo REST (ExfinApi) bağlantı ayarları
+  static const String logoRestSettings = '/field-sales/logo-rest-settings';
 
   // Finans modülü rotaları
   static const String financeMain = '/finance';
@@ -95,6 +99,8 @@ class AppRoutes {
         ));
       case fieldSalesMain: // Placeholder for main menu
         return MaterialPageRoute(builder: (_) => const CampaignManagementScreen());
+      case logoRestSettings:
+        return MaterialPageRoute(builder: (_) => const LogoRestSettingsScreen());
       default:
         return MaterialPageRoute(
           builder:
