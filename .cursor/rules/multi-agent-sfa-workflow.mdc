@@ -1,0 +1,35 @@
+---
+description: EXFINOPS çoklu ajan çalışma kuralı — test, muhasebe ve saha satış uzmanı zorunlu
+alwaysApply: true
+---
+
+# Çoklu Ajan Saha Satış Çalışma Kuralı
+
+## Zorunlu panel (her anlamlı işte)
+
+Paralel veya sıralı ajan kullanıldığında **şu 3 rol her zaman** yer almalı:
+
+1. **Test ajanı** — TDD/regresyon, Edge case, `test/` kapsamı, Flutter test komutları
+2. **Muhasebe uzmanı** — Cari, fatura, tahsilat, KDV, risk limiti, e-belge, LOGO fiş tipleri
+3. **Saha satış uzmanı** — Plasiyer gün akışı, check-in/out, rota, araç stok, offline sync
+
+Bu üçü olmadan özellik “tamamlandı” sayılmaz.
+
+## Genel kurallar
+
+- Büyük işleri **bağımsız domain**lere böl; aynı dosyayı iki ajanın yazmasını engelle
+- Mevcut mimariyi koru: `lib/modules/field_sales/`, Riverpod, SQLite offline-first, Logo REST/job queue
+- Clean Architecture klasörlerini sıfırdan yeniden yazma; mevcut `view` / `viewmodel` / `model` / `engine` yapısına ekle
+- Her ajan çıktısı: durum (hazır/yarım/eksik), risk, 3–5 somut TODO, ilgili dosya yolları
+- Entegrasyon: parent ajan çatışma kontrolü + test ajanı doğrulaması yapar
+
+## Önerilen agent seti (örnek)
+
+| Rol | Odak |
+|-----|------|
+| Test | unit/widget/integration |
+| Muhasebe | fatura, tahsilat, cari risk |
+| Saha satış | ziyaret → satış → gün sonu |
+| Sync/Logo | REST, mapper, queue |
+| Stok/Araç | yükleme, EOD, iade |
+| Rota/GPS | geofence, check-in |
