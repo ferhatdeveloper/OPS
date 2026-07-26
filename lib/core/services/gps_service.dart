@@ -1,11 +1,17 @@
-import 'package:geolocator/geolocator.dart';
-import '../../service/database_service.dart';
 import 'dart:async';
+
+import 'package:geolocator/geolocator.dart';
+
+import '../../modules/field_sales/gps/viewmodel/geofence_settings_store.dart';
+import '../../service/database_service.dart';
 
 class GpsService {
   static final GpsService _instance = GpsService._internal();
   factory GpsService() => _instance;
   GpsService._internal();
+
+  /// [_geofenceStore]: Check-in yarıçap / fail-closed prefs
+  final GeofenceSettingsStore _geofenceStore = const GeofenceSettingsStore();
 
   StreamSubscription<Position>? _positionStream;
 
@@ -66,14 +72,21 @@ class GpsService {
   }
 
   Future<bool> isWithinVisitRange(double targetLat, double targetLng) async {
+    final settings = await _geofenceStore.load();
+    if (!settings.enabled) return true;
+
     final pos = await getCurrentPosition();
-    if (pos == null) return false;
+    if (pos == null) {
+      // fail-closed: GPS yoksa ziyaret engellenir
+      return !settings.failClosed;
+    }
 
     final distance = Geolocator.distanceBetween(
-      pos.latitude, pos.longitude,
-      targetLat, targetLng,
+      pos.latitude,
+      pos.longitude,
+      targetLat,
+      targetLng,
     );
-    // Return true if within 100 meters
-    return distance <= 100;
+    return distance <= settings.radiusMeters;
   }
 }

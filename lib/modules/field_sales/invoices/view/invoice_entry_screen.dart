@@ -8,12 +8,17 @@ import '../../campaigns/engine/campaign_engine.dart';
 import '../../../../core/localization/app_localization.dart';
 import '../../../../service/database_service.dart';
 import '../../../../view/widgets/template_preview_card.dart';
-import 'package:barcode_scan2/barcode_scan2.dart';
 import '../../../../core/config/regional_config.dart';
 import '../../../../service/invoice_print_service.dart';
+import '../../shared/view/catalog_barcode_actions.dart';
 import '../../shared/view/digital_signature_screen.dart';
+import '../../shared/view/mbt_catalog_toolbar.dart';
+import '../../shared/view/unsaved_voucher_dialog.dart';
+import '../../shared/view/unsaved_voucher_scope.dart';
+import '../../shared/view/voucher_defaults_fields.dart';
 import '../../../../service/pod_service.dart';
 import 'package:geolocator/geolocator.dart';
+import 'invoice_customer_selection_screen.dart';
 
 class InvoiceEntryScreen extends ConsumerStatefulWidget {
   final String customerId;
@@ -42,10 +47,59 @@ class _InvoiceEntryScreenState extends ConsumerState<InvoiceEntryScreen> with Si
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    Future.microtask(() {
-      ref.read(invoiceProvider.notifier).startNewInvoice(widget.customerId, invoiceType: widget.invoiceType);
+    Future.microtask(() async {
+      if (!InvoiceNotifier.isValidCustomerId(widget.customerId)) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalization.of(context).translate(
+                'field_sales.invoice_requires_customer',
+              ),
+            ),
+          ),
+        );
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => InvoiceCustomerSelectionScreen(
+              title: widget.title,
+              invoiceType: widget.invoiceType,
+            ),
+          ),
+        );
+        return;
+      }
+      await _beginInvoiceDraftOrPrompt();
+      if (!mounted) return;
       _fetchProducts();
     });
+  }
+
+  /// {@template _beginInvoiceDraftOrPrompt}
+  /// Mevcut kaydedilmemiş fatura varsa ortak taslak uyarısı gösterir.
+  /// {@endtemplate}
+  Future<void> _beginInvoiceDraftOrPrompt() async {
+    final invoiceState = ref.read(invoiceProvider);
+    final hasDraft = invoiceState.items.isNotEmpty;
+    final decision = await promptExistingDraftVoucher(
+      context: context,
+      hasExistingDraft: hasDraft,
+      customerLabel: invoiceState.draftInvoice?.customerId,
+    );
+    if (!mounted) return;
+    switch (decision) {
+      case ExistingDraftDecision.keepExisting:
+        return;
+      case ExistingDraftDecision.discardAndRestart:
+        ref.read(invoiceProvider.notifier).discardDraft();
+        break;
+      case ExistingDraftDecision.startFresh:
+        break;
+    }
+    ref.read(invoiceProvider.notifier).startNewInvoice(
+          widget.customerId,
+          invoiceType: widget.invoiceType,
+        );
   }
 
   Future<void> _fetchProducts() async {
@@ -63,90 +117,91 @@ class _InvoiceEntryScreenState extends ConsumerState<InvoiceEntryScreen> with Si
     }
   }
 
-  void _scanBarcode() async {
-    try {
-      final result = await BarcodeScanner.scan();
-      if (result.type == ResultType.Barcode && result.rawContent.isNotEmpty) {
-        _handleBarcodeScanned(result.rawContent);
-      }
-    } catch (e) {
-      debugPrint('Barcode scan error: $e');
-    }
-  }
-
-  void _handleBarcodeScanned(String code) {
-    final l10n = AppLocalization.of(context);
-    _searchController.text = code;
-    setState(() {});
-    
-    final exactMatch = _products.where((p) => p['code'] == code || p['barcode'] == code).toList();
-    if (exactMatch.isNotEmpty) {
-      final p = exactMatch.first;
-      ref.read(invoiceProvider.notifier).addItem(p['id'], p['name'], (p['price'] as num).toDouble(), 1);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.translate('field_sales.product_added').replaceAll('{name}', p['name']))));
-      _searchController.clear();
-      setState(() {});
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(invoiceProvider);
     final l10n = AppLocalization.of(context);
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
-      appBar: AppBar(
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF375A7F), Color(0xFF00A8E8)],
-            ),
-          ),
-        ),
-        title: Text(widget.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.qr_code_scanner),
-            onPressed: _scanBarcode,
-          ),
-        ],
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: Colors.white,
-          indicatorWeight: 3,
-          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal, fontSize: 14),
-          tabs: [
-            Tab(text: l10n.translate('field_sales.catalog')),
-            Tab(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(l10n.translate('field_sales.products_in_invoice')),
-                  if (state.items.isNotEmpty)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(10)),
-                      child: Text('${state.items.length}', style: const TextStyle(fontSize: 12, color: Colors.white)),
-                    ),
-                ],
+    return UnsavedVoucherScope(
+      hasUnsaved: state.items.isNotEmpty,
+      onDiscard: () => ref.read(invoiceProvider.notifier).discardDraft(),
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF8F9FD),
+        appBar: AppBar(
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF375A7F), Color(0xFF00A8E8)],
               ),
             ),
+          ),
+          title: Text(
+            widget.title,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+          ),
+          elevation: 0,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.qr_code_scanner),
+              onPressed: () => _openBarcodeLookup(l10n),
+            ),
+          ],
+          bottom: TabBar(
+            controller: _tabController,
+            indicatorColor: Colors.white,
+            indicatorWeight: 3,
+            labelStyle: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+            unselectedLabelStyle: const TextStyle(
+              fontWeight: FontWeight.normal,
+              fontSize: 14,
+            ),
+            tabs: [
+              Tab(text: l10n.translate('field_sales.catalog')),
+              Tab(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(l10n.translate('field_sales.products_in_invoice')),
+                    if (state.items.isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          '${state.items.length}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        body: TabBarView(
+          controller: _tabController,
+          children: [
+            _buildProductCatalog(context, state, l10n),
+            _buildCartSummary(context, state, l10n),
           ],
         ),
+        bottomNavigationBar: _tabController.index == 1
+            ? _buildBottomBar(context, state, l10n)
+            : null,
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildProductCatalog(context, state, l10n),
-          _buildCartSummary(context, state, l10n),
-        ],
-      ),
-      bottomNavigationBar: _tabController.index == 1 ? _buildBottomBar(context, state, l10n) : null,
     );
   }
 
@@ -161,22 +216,48 @@ class _InvoiceEntryScreenState extends ConsumerState<InvoiceEntryScreen> with Si
 
     return Column(
       children: [
+        MbtCatalogToolbar(
+          onAction: (action) => _onMbtToolbarAction(context, l10n, action),
+        ),
         Container(
           color: const Color(0xFF375A7F),
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
           child: Container(
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+            ),
             child: TextField(
               controller: _searchController,
+              style: const TextStyle(fontSize: 13),
               decoration: InputDecoration(
+                isDense: true,
                 hintText: l10n.translate('field_sales.search_products_hint'),
-                hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-                prefixIcon: const Icon(Icons.search, color: Color(0xFF00A8E8)),
+                hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+                prefixIcon: const Icon(
+                  Icons.search,
+                  color: Color(0xFF00A8E8),
+                  size: 20,
+                ),
                 suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(icon: const Icon(Icons.clear, color: Colors.red), onPressed: () => setState(() => _searchController.clear()))
-                    : IconButton(icon: const Icon(Icons.qr_code_scanner, color: Color(0xFF375A7F)), onPressed: _scanBarcode),
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, color: Colors.red, size: 18),
+                        onPressed: () =>
+                            setState(() => _searchController.clear()),
+                      )
+                    : IconButton(
+                        icon: const Icon(
+                          Icons.qr_code_scanner,
+                          color: Color(0xFF375A7F),
+                          size: 20,
+                        ),
+                        onPressed: () => _openBarcodeLookup(l10n),
+                      ),
                 border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 10,
+                ),
               ),
               onChanged: (v) => setState(() {}),
             ),
@@ -188,64 +269,110 @@ class _InvoiceEntryScreenState extends ConsumerState<InvoiceEntryScreen> with Si
             : filteredProducts.isEmpty 
                 ? _buildEmptyState(l10n.translate('field_sales.no_products_found'))
                 : ListView.builder(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     itemCount: filteredProducts.length,
                     itemBuilder: (context, index) {
                       final p = filteredProducts[index];
                       final name = p['name'] as String;
                       final code = p['code'] as String;
                       final price = (p['price'] as num).toDouble();
-                      final unit = p['unit'] as String? ?? 'Adet';
+                      final unit = p['unit'] as String? ??
+                          l10n.translate('field_sales.unit_piece');
+                      final vatRate = (p['vat_rate'] as num?)?.toDouble() ??
+                          20.0;
 
                       return Container(
-                        margin: const EdgeInsets.only(bottom: 12),
+                        margin: const EdgeInsets.only(bottom: 6),
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.grey.shade200),
                         ),
                         child: Padding(
-                          padding: const EdgeInsets.all(12),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 8,
+                          ),
                           child: Row(
                             children: [
                               Container(
-                                width: 60,
-                                height: 60,
-                                decoration: BoxDecoration(color: const Color(0xFFF8F9FD), borderRadius: BorderRadius.circular(12)),
-                                child: const Icon(Icons.inventory_2_outlined, color: Color(0xFF00A8E8), size: 32),
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF8F9FD),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(
+                                  Icons.inventory_2_outlined,
+                                  color: Color(0xFF00A8E8),
+                                  size: 22,
+                                ),
                               ),
-                              const SizedBox(width: 16),
+                              const SizedBox(width: 10),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF2C3E50)), maxLines: 2, overflow: TextOverflow.ellipsis),
-                                    const SizedBox(height: 4),
-                                    Text('${l10n.translate('auth.username')}: $code', style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
-                                    const SizedBox(height: 8),
-                                    Text('$price  / $unit', style: const TextStyle(color: Color(0xFF00A8E8), fontWeight: FontWeight.bold, fontSize: 14)),
+                                    Text(
+                                      name,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 13,
+                                        color: Color(0xFF2C3E50),
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      '$code · $price / $unit',
+                                      style: TextStyle(
+                                        color: Colors.grey.shade500,
+                                        fontSize: 11,
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
-                              Column(
-                                children: [
-                                  IconButton(
-                                    onPressed: () => _printLabel(p),
-                                    icon: const Icon(Icons.print_outlined, color: Colors.grey, size: 20),
-                                    tooltip: l10n.translate('field_sales.print_label'),
-                                  ),
-                                  ElevatedButton(
-                                    onPressed: () => ref.read(invoiceProvider.notifier).addItem(p['id'], name, price, 1),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF00A8E8).withOpacity(0.1),
-                                      foregroundColor: const Color(0xFF00A8E8),
-                                      shape: const CircleBorder(),
-                                      padding: const EdgeInsets.all(12),
-                                      elevation: 0,
+                              IconButton(
+                                onPressed: () => _printLabel(p),
+                                icon: const Icon(
+                                  Icons.print_outlined,
+                                  color: Colors.grey,
+                                  size: 18,
+                                ),
+                                visualDensity: VisualDensity.compact,
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(
+                                  minWidth: 32,
+                                  minHeight: 32,
+                                ),
+                                tooltip: l10n.translate(
+                                  'field_sales.print_label',
+                                ),
+                              ),
+                              ElevatedButton(
+                                onPressed: () => ref
+                                    .read(invoiceProvider.notifier)
+                                    .addItem(
+                                      p['id'],
+                                      name,
+                                      price,
+                                      1,
+                                      vatRate: vatRate,
                                     ),
-                                    child: const Icon(Icons.add, size: 24),
-                                  ),
-                                ],
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor:
+                                      const Color(0xFF00A8E8).withOpacity(0.1),
+                                  foregroundColor: const Color(0xFF00A8E8),
+                                  shape: const CircleBorder(),
+                                  padding: const EdgeInsets.all(8),
+                                  minimumSize: const Size(36, 36),
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                  elevation: 0,
+                                ),
+                                child: const Icon(Icons.add, size: 20),
                               ),
                             ],
                           ),
@@ -256,6 +383,103 @@ class _InvoiceEntryScreenState extends ConsumerState<InvoiceEntryScreen> with Si
         ),
       ],
     );
+  }
+
+  /// {@template _open_barcode_lookup}
+  /// Barkod dens lookup açar; seçilen ürünü faturaya ekler.
+  /// {@endtemplate}
+  Future<void> _openBarcodeLookup(AppLocalization l10n) async {
+    final product = await openFieldSalesBarcodeScan(context);
+    if (product == null || !mounted) return;
+    final id = product['id'];
+    final name = product['name']?.toString() ?? '';
+    final price = (product['price'] as num?)?.toDouble() ?? 0.0;
+    final vatRate = (product['vat_rate'] as num?)?.toInt() ?? 20;
+    if (id == null) return;
+    ref.read(invoiceProvider.notifier).addItem(
+          id.toString(),
+          name,
+          price,
+          1.0,
+          vatRate: vatRate.toDouble(),
+        );
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          l10n.translate(
+            'field_sales.product_added',
+            args: {'name': name},
+          ),
+        ),
+        duration: const Duration(seconds: 1),
+      ),
+    );
+  }
+
+  /// {@template _onMbtToolbarAction}
+  /// Katalog araç çubuğu: Barkod/Kamera → [BarcodeScanScreen]; diğerleri stub.
+  /// {@endtemplate}
+  void _onMbtToolbarAction(
+    BuildContext context,
+    AppLocalization l10n,
+    MbtCatalogToolbarAction action,
+  ) {
+    switch (action) {
+      case MbtCatalogToolbarAction.barcode:
+      case MbtCatalogToolbarAction.camera:
+        _openBarcodeLookup(l10n);
+        return;
+      case MbtCatalogToolbarAction.search:
+        setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              l10n.translate('field_sales.search_products_hint'),
+            ),
+            duration: const Duration(seconds: 1),
+          ),
+        );
+        return;
+      default:
+        final label = l10n.translate(
+          'field_sales.mbt_toolbar.${_invoiceToolbarKey(action)}',
+        );
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              l10n.translate(
+                'field_sales.mbt_toolbar.stub_action',
+                args: {'action': label},
+              ),
+            ),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+    }
+  }
+
+  /// {@template _invoiceToolbarKey}
+  /// [MbtCatalogToolbarAction] → l10n alt anahtar adı.
+  /// {@endtemplate}
+  String _invoiceToolbarKey(MbtCatalogToolbarAction action) {
+    switch (action) {
+      case MbtCatalogToolbarAction.stockCard:
+        return 'stock_card';
+      case MbtCatalogToolbarAction.serviceCard:
+        return 'service_card';
+      case MbtCatalogToolbarAction.codeName:
+        return 'code_name';
+      case MbtCatalogToolbarAction.barcode:
+        return 'barcode';
+      case MbtCatalogToolbarAction.camera:
+        return 'camera';
+      case MbtCatalogToolbarAction.group:
+        return 'group';
+      case MbtCatalogToolbarAction.image:
+        return 'image';
+      case MbtCatalogToolbarAction.search:
+        return 'search';
+    }
   }
 
   Widget _buildEmptyState(String message) {
@@ -273,103 +497,182 @@ class _InvoiceEntryScreenState extends ConsumerState<InvoiceEntryScreen> with Si
 
   Widget _buildCartSummary(BuildContext context, InvoiceState state, AppLocalization l10n) {
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
       children: [
         _buildTypeSelectionCard(),
-        const SizedBox(height: 16),
+        const SizedBox(height: 8),
         if (RegionalConfig.showEInvoice) ...[
           _buildEInvoiceSwitchCard(state),
-          const SizedBox(height: 24),
+          const SizedBox(height: 10),
         ],
         if (state.items.isEmpty)
           _buildEmptyState(l10n.translate('field_sales.cart_empty'))
         else ...[
-          Text(l10n.translate('field_sales.products'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF2C3E50))),
-          const SizedBox(height: 12),
+          Text(
+            l10n.translate('field_sales.products'),
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+              color: Color(0xFF2C3E50),
+            ),
+          ),
+          const SizedBox(height: 6),
           ...state.items.map((item) => _buildCartItem(item)).toList(),
-          
           if (state.freeItems.isNotEmpty) ...[
             Padding(
-              padding: const EdgeInsets.only(top: 16, bottom: 8),
-              child: Text(l10n.translate('field_sales.gift_promotion_products'), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green, fontSize: 16)),
+              padding: const EdgeInsets.only(top: 8, bottom: 4),
+              child: Text(
+                l10n.translate('field_sales.gift_promotion_products'),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: Colors.green,
+                  fontSize: 13,
+                ),
+              ),
             ),
             ...state.freeItems.map((f) => _buildFreeItem(f)).toList(),
           ],
         ],
-        const SizedBox(height: 24),
+        const SizedBox(height: 10),
+        const VoucherDefaultsFields(),
+        const SizedBox(height: 8),
         TextField(
           controller: _notesController,
-          maxLines: 3,
+          maxLines: 2,
+          style: const TextStyle(fontSize: 13),
           decoration: InputDecoration(
             labelText: l10n.translate('field_sales.add_invoice_note'),
+            labelStyle: const TextStyle(fontSize: 13),
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 10,
+            ),
             filled: true,
             fillColor: Colors.white,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade200)),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade200)),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.grey.shade200),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.grey.shade200),
+            ),
           ),
         ),
-        const SizedBox(height: 32),
+        const SizedBox(height: 12),
       ],
     );
   }
 
   Widget _buildCartItem(InvoiceItemModel item) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.fromLTRB(10, 8, 6, 8),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade200),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: Text(item.productName ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF2C3E50))),
+                child: Text(
+                  item.productName ?? '',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    color: Color(0xFF2C3E50),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
               IconButton(
-                icon: const Icon(Icons.delete_outline, color: Colors.red),
+                icon: const Icon(Icons.delete_outline, color: Colors.red, size: 18),
                 padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                onPressed: () => ref.read(invoiceProvider.notifier).updateQuantity(item.productId, 0),
+                visualDensity: VisualDensity.compact,
+                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                onPressed: () => ref
+                    .read(invoiceProvider.notifier)
+                    .updateQuantity(item.productId, 0),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 4),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('${item.price} ', style: TextStyle(color: Colors.grey.shade600, fontSize: 14)),
+              Text(
+                '${item.price} ',
+                style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+              ),
+              const Spacer(),
               Container(
-                decoration: BoxDecoration(color: const Color(0xFFF8F9FD), borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey.shade200)),
+                height: 32,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8F9FD),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.remove, size: 18),
-                      padding: const EdgeInsets.all(8),
-                      constraints: const BoxConstraints(),
-                      onPressed: () => ref.read(invoiceProvider.notifier).updateQuantity(item.productId, item.quantity - 1),
+                      icon: const Icon(Icons.remove, size: 16),
+                      padding: const EdgeInsets.all(4),
+                      visualDensity: VisualDensity.compact,
+                      constraints: const BoxConstraints(
+                        minWidth: 28,
+                        minHeight: 28,
+                      ),
+                      onPressed: () => ref
+                          .read(invoiceProvider.notifier)
+                          .updateQuantity(
+                            item.productId,
+                            item.quantity - 1,
+                          ),
                     ),
-                    Container(
-                      width: 40,
-                      alignment: Alignment.center,
-                      child: Text('${item.quantity.toInt()}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    SizedBox(
+                      width: 28,
+                      child: Text(
+                        '${item.quantity.toInt()}',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.add, size: 18),
-                      padding: const EdgeInsets.all(8),
-                      constraints: const BoxConstraints(),
-                      onPressed: () => ref.read(invoiceProvider.notifier).updateQuantity(item.productId, item.quantity + 1),
+                      icon: const Icon(Icons.add, size: 16),
+                      padding: const EdgeInsets.all(4),
+                      visualDensity: VisualDensity.compact,
+                      constraints: const BoxConstraints(
+                        minWidth: 28,
+                        minHeight: 28,
+                      ),
+                      onPressed: () => ref
+                          .read(invoiceProvider.notifier)
+                          .updateQuantity(
+                            item.productId,
+                            item.quantity + 1,
+                          ),
                     ),
                   ],
                 ),
               ),
-              Text('${item.totalAmount} ', style: const TextStyle(color: Color(0xFF00A8E8), fontWeight: FontWeight.bold, fontSize: 16)),
+              const SizedBox(width: 8),
+              Text(
+                '${item.totalAmount} ',
+                style: const TextStyle(
+                  color: Color(0xFF00A8E8),
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                ),
+              ),
             ],
           ),
         ],
@@ -379,15 +682,35 @@ class _InvoiceEntryScreenState extends ConsumerState<InvoiceEntryScreen> with Si
 
   Widget _buildFreeItem(FreeItem f) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.green.shade200)),
+      margin: const EdgeInsets.only(bottom: 4),
+      decoration: BoxDecoration(
+        color: Colors.green.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.green.shade200),
+      ),
       child: ListTile(
-        leading: const Icon(Icons.card_giftcard, color: Colors.green),
-        title: Text('Ürün ID: ${f.productId}', style: TextStyle(color: Colors.green.shade900)),
+        dense: true,
+        visualDensity: VisualDensity.compact,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+        leading: const Icon(Icons.card_giftcard, color: Colors.green, size: 20),
+        title: Text(
+          'Ürün ID: ${f.productId}',
+          style: TextStyle(color: Colors.green.shade900, fontSize: 13),
+        ),
         trailing: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(color: Colors.green, borderRadius: BorderRadius.circular(12)),
-          child: Text('Adet: ${f.quantity.toInt()}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.green,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            'Adet: ${f.quantity.toInt()}',
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+              fontSize: 12,
+            ),
+          ),
         ),
       ),
     );
@@ -396,55 +719,93 @@ class _InvoiceEntryScreenState extends ConsumerState<InvoiceEntryScreen> with Si
   Widget _buildTypeSelectionCard() {
     final l10n = AppLocalization.of(context);
     final state = ref.watch(invoiceProvider);
-    
-    // Map of logical keys to their translation keys
+
     final Map<String, String> typeOptions = {
       'field_sales.van_sales': 'field_sales.van_sales',
       'field_sales.return_invoice': 'field_sales.return_invoice',
       'field_sales.price_difference': 'field_sales.price_difference',
       'field_sales.wholesale_invoice_8': 'field_sales.wholesale_invoice_8',
-      'field_sales.sales_return_invoice_3': 'field_sales.sales_return_invoice_3',
+      'field_sales.sales_return_invoice_3':
+          'field_sales.sales_return_invoice_3',
+      'field_sales.purchase_invoice': 'field_sales.purchase_invoice',
     };
 
-    // Current type from state
-    String currentType = state.draftInvoice?.invoiceType ?? 'field_sales.van_sales';
-    
-    // If the current type is not one of our keys (e.g. it's an old Turkish name), 
-    // try to map it or fallback to the first key
+    String currentType =
+        state.draftInvoice?.invoiceType ?? 'field_sales.van_sales';
+
     if (!typeOptions.containsKey(currentType)) {
-      if (currentType == 'Sıcak Satış (Van Sales)') currentType = 'field_sales.van_sales';
-      else if (currentType == 'İade Faturası') currentType = 'field_sales.return_invoice';
-      else if (currentType == 'Fiyat Farkı') currentType = 'field_sales.price_difference';
-      else if (currentType == 'Toptan Satış Faturası (8)') currentType = 'field_sales.wholesale_invoice_8';
-      else if (currentType == 'Satış İade Faturası (3)') currentType = 'field_sales.sales_return_invoice_3';
-      else currentType = 'field_sales.van_sales'; // Default fallback
+      if (currentType == 'Sıcak Satış (Van Sales)') {
+        currentType = 'field_sales.van_sales';
+      } else if (currentType == 'İade Faturası') {
+        currentType = 'field_sales.return_invoice';
+      } else if (currentType == 'Fiyat Farkı') {
+        currentType = 'field_sales.price_difference';
+      } else if (currentType == 'Toptan Satış Faturası (8)') {
+        currentType = 'field_sales.wholesale_invoice_8';
+      } else if (currentType == 'Satış İade Faturası (3)') {
+        currentType = 'field_sales.sales_return_invoice_3';
+      } else if (currentType == 'Satın Alma' ||
+          currentType == 'Alış Faturası' ||
+          currentType.toLowerCase().contains('purchase')) {
+        currentType = 'field_sales.purchase_invoice';
+      } else {
+        currentType = 'field_sales.van_sales';
+      }
     }
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade200),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(l10n.translate('field_sales.invoice_type'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF2C3E50))),
-          const SizedBox(height: 16),
+          Text(
+            l10n.translate('field_sales.invoice_type'),
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+              color: Color(0xFF2C3E50),
+            ),
+          ),
+          const SizedBox(height: 6),
           DropdownButtonFormField<String>(
             value: currentType,
+            isDense: true,
+            style: const TextStyle(fontSize: 13, color: Color(0xFF2C3E50)),
             decoration: InputDecoration(
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 8,
+              ),
               filled: true,
               fillColor: const Color(0xFFF8F9FD),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide.none,
+              ),
             ),
-            items: typeOptions.entries.map((e) => DropdownMenuItem<String>(
-              value: e.key, 
-              child: Text(l10n.translate(e.value))
-            )).toList(),
+            items: typeOptions.entries
+                .map(
+                  (e) => DropdownMenuItem<String>(
+                    value: e.key,
+                    child: Text(
+                      l10n.translate(e.value),
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                  ),
+                )
+                .toList(),
             onChanged: (val) {
-              if (val != null) ref.read(invoiceProvider.notifier).updateInvoiceSettings(type: val);
+              if (val != null) {
+                ref
+                    .read(invoiceProvider.notifier)
+                    .updateInvoiceSettings(type: val);
+              }
             },
           ),
         ],
@@ -454,34 +815,44 @@ class _InvoiceEntryScreenState extends ConsumerState<InvoiceEntryScreen> with Si
 
   Widget _buildEInvoiceSwitchCard(InvoiceState state) {
     final l10n = AppLocalization.of(context);
-    // The instruction snippet for `_buildEInvoiceSwitchCard` was syntactically incorrect
-    // as it tried to define functions and providers inside a Widget method.
-    // I am keeping the original `_buildEInvoiceSwitchCard` method as is,
-    // and placing the new provider definitions outside the class, as is standard for Riverpod.
     final isEInvoice = state.draftInvoice?.isEInvoice ?? true;
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade200),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(l10n.translate('field_sales.e_invoice_archive'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF2C3E50))),
-              const SizedBox(height: 4),
-              Text(l10n.translate('field_sales.issue_as_e_invoice'), style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
-            ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l10n.translate('field_sales.e_invoice_archive'),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    color: Color(0xFF2C3E50),
+                  ),
+                ),
+                Text(
+                  l10n.translate('field_sales.issue_as_e_invoice'),
+                  style: TextStyle(color: Colors.grey.shade500, fontSize: 11),
+                ),
+              ],
+            ),
           ),
           Switch(
             value: isEInvoice,
             activeColor: const Color(0xFF00A8E8),
-            onChanged: (v) => ref.read(invoiceProvider.notifier).updateInvoiceSettings(isEInvoice: v),
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            onChanged: (v) => ref
+                .read(invoiceProvider.notifier)
+                .updateInvoiceSettings(isEInvoice: v),
           ),
         ],
       ),
@@ -490,59 +861,89 @@ class _InvoiceEntryScreenState extends ConsumerState<InvoiceEntryScreen> with Si
 
   Widget _buildBottomBar(BuildContext context, InvoiceState state, AppLocalization l10n) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
       decoration: BoxDecoration(
         color: Colors.white,
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, -5))],
-        borderRadius: const BorderRadius.only(topLeft: Radius.circular(24), topRight: Radius.circular(24)),
+        border: Border(top: BorderSide(color: Colors.grey.shade200)),
       ),
       child: SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _buildTotalRow(l10n.translate('field_sales.subtotal'), '${state.subtotal.toStringAsFixed(2)} '),
-            const SizedBox(height: 4),
-            _buildTotalRow(l10n.translate('field_sales.vat_total'), '${state.vatTotal.toStringAsFixed(2)} '),
+            _buildTotalRow(
+              l10n.translate('field_sales.subtotal'),
+              '${state.subtotal.toStringAsFixed(2)} ',
+            ),
+            const SizedBox(height: 2),
+            _buildTotalRow(
+              l10n.translate('field_sales.vat_total'),
+              '${state.vatTotal.toStringAsFixed(2)} ',
+            ),
             if (state.discountTotal > 0) ...[
-              const SizedBox(height: 4),
-              _buildTotalRow(l10n.translate('field_sales.campaign_discount'), '-${state.discountTotal.toStringAsFixed(2)} ', isDiscount: true),
+              const SizedBox(height: 2),
+              _buildTotalRow(
+                l10n.translate('field_sales.campaign_discount'),
+                '-${state.discountTotal.toStringAsFixed(2)} ',
+                isDiscount: true,
+              ),
             ],
             const Padding(
-              padding: EdgeInsets.symmetric(vertical: 12),
+              padding: EdgeInsets.symmetric(vertical: 6),
               child: Divider(height: 1),
             ),
-            _buildTotalRow(l10n.translate('field_sales.grand_total_label'), '${state.grandTotal.toStringAsFixed(2)} ', isGrand: true),
-            const SizedBox(height: 20),
+            _buildTotalRow(
+              l10n.translate('field_sales.grand_total_label'),
+              '${state.grandTotal.toStringAsFixed(2)} ',
+              isGrand: true,
+            ),
+            const SizedBox(height: 10),
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
                       foregroundColor: const Color(0xFF375A7F),
                       side: const BorderSide(color: Color(0xFF375A7F)),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                     onPressed: () => _showPrintOptions(context, state),
-                    icon: const Icon(Icons.print),
+                    icon: const Icon(Icons.print, size: 18),
                     label: Text(l10n.translate('field_sales.print')),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 Expanded(
                   flex: 2,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
                       backgroundColor: const Color(0xFF00A8E8),
                       foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      elevation: 0,
                     ),
                     onPressed: state.items.isEmpty ? null : _saveInvoice,
-                    child: state.isLoading 
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : Text(l10n.translate('field_sales.issue_invoice'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    child: state.isLoading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : Text(
+                            l10n.translate('field_sales.issue_invoice'),
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                   ),
                 ),
               ],
@@ -553,20 +954,37 @@ class _InvoiceEntryScreenState extends ConsumerState<InvoiceEntryScreen> with Si
     );
   }
 
-  Widget _buildTotalRow(String label, String value, {bool isDiscount = false, bool isGrand = false}) {
+  Widget _buildTotalRow(
+    String label,
+    String value, {
+    bool isDiscount = false,
+    bool isGrand = false,
+  }) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: TextStyle(
-          fontWeight: isGrand ? FontWeight.bold : FontWeight.w500,
-          color: isDiscount ? Colors.green : (isGrand ? const Color(0xFF2C3E50) : Colors.grey.shade600),
-          fontSize: isGrand ? 16 : 14,
-        )),
-        Text(value, style: TextStyle(
-          fontWeight: FontWeight.bold,
-          color: isDiscount ? Colors.green : (isGrand ? const Color(0xFF00A8E8) : const Color(0xFF2C3E50)),
-          fontSize: isGrand ? 20 : 15,
-        )),
+        Text(
+          label,
+          style: TextStyle(
+            fontWeight: isGrand ? FontWeight.w700 : FontWeight.w500,
+            color: isDiscount
+                ? Colors.green
+                : (isGrand ? const Color(0xFF2C3E50) : Colors.grey.shade600),
+            fontSize: isGrand ? 14 : 12,
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            color: isDiscount
+                ? Colors.green
+                : (isGrand
+                    ? const Color(0xFF00A8E8)
+                    : const Color(0xFF2C3E50)),
+            fontSize: isGrand ? 16 : 13,
+          ),
+        ),
       ],
     );
   }
@@ -814,6 +1232,18 @@ class _InvoiceEntryScreenState extends ConsumerState<InvoiceEntryScreen> with Si
   }
 
   void _saveInvoice() async {
+    final l10n = AppLocalization.of(context);
+    if (!InvoiceNotifier.isValidCustomerId(widget.customerId)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            l10n.translate('field_sales.invoice_save_requires_customer'),
+          ),
+        ),
+      );
+      return;
+    }
+
     final invoiceState = ref.read(invoiceProvider);
     final invoiceId = invoiceState.draftInvoice?.id;
 
@@ -824,56 +1254,67 @@ class _InvoiceEntryScreenState extends ConsumerState<InvoiceEntryScreen> with Si
 
     final success = await ref.read(invoiceProvider.notifier).saveInvoice(_notesController.text);
 
-    if (success) {
-      if (!mounted) return;
-
-      // Navigate to signature screen for POD
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => DigitalSignatureScreen(
-            transactionId: invoiceId,
-            type: SignatureType.invoice,
-            onComplete: (signatureData) async {
-              // Try to get current position for POD
-              double lat = 0.0;
-              double lon = 0.0;
-              try {
-                final pos = await Geolocator.getCurrentPosition(
-                  desiredAccuracy: LocationAccuracy.low,
-                  timeLimit: const Duration(seconds: 5),
-                );
-                lat = pos.latitude;
-                lon = pos.longitude;
-              } catch (e) {
-                debugPrint('POD Location Error: $e');
-              }
-
-              // Save POD info
-              await PODService().saveProofOfDelivery(
-                invoiceId: invoiceId,
-                signatureData: signatureData,
-                latitude: lat,
-                longitude: lon,
-              );
-
-              if (mounted) {
-                Navigator.pop(context); // Close signature screen
-                Navigator.pop(context); // Close invoice entry screen
-
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text(AppLocalization.of(context).translate('pod.signature_saved')),
-                  behavior: SnackBarBehavior.floating,
-                ));
-
-                // Auto-print logic
-                _handleAutoPrint(invoiceState);
-              }
-            },
-          ),
-        ),
-      );
+    if (!success) {
+      final err = ref.read(invoiceProvider).error;
+      if (mounted && err != null) {
+        final msg = err.startsWith('field_sales.')
+            ? l10n.translate(err)
+            : err;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(msg)),
+        );
+      }
+      return;
     }
+
+    if (!mounted) return;
+
+    // Navigate to signature screen for POD
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => DigitalSignatureScreen(
+          transactionId: invoiceId,
+          type: SignatureType.invoice,
+          onComplete: (signatureData) async {
+            // Try to get current position for POD
+            double lat = 0.0;
+            double lon = 0.0;
+            try {
+              final pos = await Geolocator.getCurrentPosition(
+                desiredAccuracy: LocationAccuracy.low,
+                timeLimit: const Duration(seconds: 5),
+              );
+              lat = pos.latitude;
+              lon = pos.longitude;
+            } catch (e) {
+              debugPrint('POD Location Error: $e');
+            }
+
+            // Save POD info
+            await PODService().saveProofOfDelivery(
+              invoiceId: invoiceId,
+              signatureData: signatureData,
+              latitude: lat,
+              longitude: lon,
+            );
+
+            if (mounted) {
+              Navigator.pop(context); // Close signature screen
+              Navigator.pop(context); // Close invoice entry screen
+
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: Text(AppLocalization.of(context).translate('pod.signature_saved')),
+                behavior: SnackBarBehavior.floating,
+              ));
+
+              // Auto-print logic
+              _handleAutoPrint(invoiceState);
+            }
+          },
+        ),
+      ),
+    );
   }
 
   void _handleAutoPrint(InvoiceState state) async {

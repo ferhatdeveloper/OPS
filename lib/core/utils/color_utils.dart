@@ -80,6 +80,9 @@ class ColorUtils {
       return const Color(0xFF5D4037); // Brown for registration/main records
     } else if (icon == Icons.auto_stories) {
       return const Color(0xFF00ACC1); // Cyan for accounting
+    } else if (icon == Icons.money ||
+        icon == Icons.request_quote ||
+        icon == Icons.receipt_long) {
       return const Color(0xFFF06292); // Pink for checks/promissory notes
     } else if (icon == Icons.settings || icon == Icons.manage_accounts) {
       return const Color(0xFF78909C); // Blue grey for system settings

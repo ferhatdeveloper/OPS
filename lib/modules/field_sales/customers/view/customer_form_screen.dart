@@ -207,7 +207,7 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
         children: [
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
+              padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 12.0),
               child: Form(
                 key: _formKey,
                 child: Column(
@@ -279,7 +279,7 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
     int maxLines = 1,
   }) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16.0),
+      padding: const EdgeInsets.only(bottom: 12.0),
       child: TextFormField(
         controller: controller,
         keyboardType: isNumber ? TextInputType.number : TextInputType.text,
@@ -292,17 +292,18 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
           prefixIcon: icon != null ? Icon(icon, color: Colors.blueGrey, size: 20) : null,
           filled: true,
           fillColor: Colors.white,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: Colors.grey.shade300),
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: Colors.grey.shade200),
           ),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: Colors.grey.shade300),
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: Colors.grey.shade200),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(8),
             borderSide: const BorderSide(color: Color(0xFF375A7F), width: 1.5),
           ),
         ),
@@ -312,16 +313,12 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
 
   Widget _buildBottomActionRow() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, -5),
-          )
-        ],
+        border: Border(
+          top: BorderSide(color: Colors.grey.shade200),
+        ),
       ),
       child: SafeArea(
         child: Row(
@@ -331,9 +328,9 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
               child: OutlinedButton.icon(
                 onPressed: _isFetchingLocation ? null : _fetchLocation,
                 style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
                   side: BorderSide(color: _latitude != null ? Colors.green : const Color(0xFF375A7F), width: 1.5),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   foregroundColor: _latitude != null ? Colors.green : const Color(0xFF375A7F),
                 ),
                 icon: _isFetchingLocation
@@ -342,7 +339,7 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
                 label: Text(AppLocalization.of(context).translate('customer.get_location'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
               ),
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 12),
             Expanded(
               flex: 2,
               child: ElevatedButton.icon(
@@ -350,9 +347,9 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF00A8E8), // Primary Action Blue
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  elevation: 2,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  elevation: 0,
                 ),
                 icon: _isLoading
                     ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))

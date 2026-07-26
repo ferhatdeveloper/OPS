@@ -2,7 +2,7 @@
 // Açıklama: Projedeki tüm tablo ve migration SQL sorgularını merkezi olarak tutar. Her tablo için CREATE, DROP, ALTER örnekleri, varsayılan insertler ve önemli sorgular burada bulunur. Tüm servisler ve migrationlar bu dosyadan kullanmalıdır.
 // Oluşturulma Tarihi: 2024-03-21
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2024-06-08
+// Son Güncelleme: 2026-07-26
 
 /// [SqlQuerys]: Projedeki tüm tablo ve migration SQL sorgularını merkezi olarak tutar
 class SqlQuerys {
@@ -215,7 +215,8 @@ class SqlQuerys {
       nfc_tag_id TEXT,
       last_visit_at TEXT,
       created_at TEXT,
-      updated_at TEXT
+      updated_at TEXT,
+      card_role TEXT DEFAULT 'customer'
     );
   ''';
 
@@ -248,11 +249,14 @@ class SqlQuerys {
       customer_id TEXT,
       order_date TEXT,
       total_amount REAL,
-      status TEXT, -- 'Pending', 'Approved', 'Cancelled'
+      status TEXT, -- 'Pending', 'Approved', 'Cancelled', 'Proposal'
       notes TEXT,
       is_synced INTEGER DEFAULT 0,
+      approval_status INTEGER NOT NULL DEFAULT 0,
       signature_data TEXT,
+      order_type TEXT DEFAULT 'sales',
       created_at TEXT,
+      updated_at TEXT,
       FOREIGN KEY (customer_id) REFERENCES customers(id)
     );
   ''';
@@ -263,10 +267,12 @@ class SqlQuerys {
       id TEXT PRIMARY KEY,
       order_id TEXT,
       product_id TEXT,
+      unit_name TEXT,
       quantity REAL,
       price REAL,
       vat_amount REAL,
       total_amount REAL,
+      discount_percent REAL DEFAULT 0,
       FOREIGN KEY (order_id) REFERENCES orders(id),
       FOREIGN KEY (product_id) REFERENCES products(id)
     );
@@ -283,6 +289,8 @@ class SqlQuerys {
       notes TEXT,
       invoice_type TEXT, -- 'Sales', 'Return'
       is_e_invoice INTEGER DEFAULT 1,
+      ettn TEXT,
+      gib_status TEXT,
       approval_status INTEGER DEFAULT 0,
       is_synced INTEGER DEFAULT 0,
       created_at TEXT,
@@ -290,6 +298,14 @@ class SqlQuerys {
       FOREIGN KEY (customer_id) REFERENCES customers(id)
     );
   ''';
+
+  /// Mevcut invoices tablosuna ETTN kolonu.
+  static const String addInvoicesEttnColumn =
+      'ALTER TABLE invoices ADD COLUMN ettn TEXT;';
+
+  /// Mevcut invoices tablosuna GİB durum kolonu.
+  static const String addInvoicesGibStatusColumn =
+      'ALTER TABLE invoices ADD COLUMN gib_status TEXT;';
 
   static const String createInvoiceItemsTable = '''
     CREATE TABLE IF NOT EXISTS invoice_items (
@@ -306,6 +322,91 @@ class SqlQuerys {
     );
   ''';
 
+  // --- FIELD SALES: e-FATURA DURUM (dens) ---
+  static const String createEinvoiceStatusTable = '''
+    CREATE TABLE IF NOT EXISTS einvoice_status (
+      id TEXT PRIMARY KEY,
+      invoice_id TEXT,
+      document_no TEXT,
+      ettn TEXT,
+      gib_status TEXT NOT NULL DEFAULT 'DRAFT',
+      doc_side TEXT NOT NULL DEFAULT 'sales',
+      profile TEXT,
+      customer_id TEXT,
+      customer_code TEXT,
+      customer_name TEXT,
+      document_date TEXT,
+      amount REAL DEFAULT 0,
+      status_message TEXT,
+      ONAY INTEGER NOT NULL DEFAULT 0,
+      is_synced INTEGER NOT NULL DEFAULT 0,
+      is_deleted INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT,
+      updated_at TEXT
+    );
+  ''';
+
+  static const String dropEinvoiceStatusTable =
+      'DROP TABLE IF EXISTS einvoice_status;';
+
+  // --- FIELD SALES: WAYBILLS (irsaliye / dispatch) ---
+  static const String createWaybillsTable = '''
+    CREATE TABLE IF NOT EXISTS waybills (
+      id TEXT PRIMARY KEY,
+      customer_id TEXT,
+      waybill_date TEXT,
+      waybill_type TEXT NOT NULL DEFAULT 'waybill_wholesale',
+      total_amount REAL DEFAULT 0,
+      status TEXT,
+      notes TEXT,
+      approval_status INTEGER DEFAULT 0,
+      is_synced INTEGER DEFAULT 0,
+      created_at TEXT,
+      updated_at TEXT,
+      FOREIGN KEY (customer_id) REFERENCES customers(id)
+    );
+  ''';
+
+  static const String createWaybillItemsTable = '''
+    CREATE TABLE IF NOT EXISTS waybill_items (
+      id TEXT PRIMARY KEY,
+      waybill_id TEXT,
+      product_id TEXT,
+      product_code TEXT,
+      quantity REAL,
+      price REAL,
+      total_amount REAL,
+      updated_at TEXT,
+      FOREIGN KEY (waybill_id) REFERENCES waybills(id)
+    );
+  ''';
+
+  // --- FIELD SALES: e-İRSALİYE DURUM (dens) ---
+  static const String createEwaybillStatusTable = '''
+    CREATE TABLE IF NOT EXISTS ewaybill_status (
+      id TEXT PRIMARY KEY,
+      waybill_id TEXT,
+      document_no TEXT,
+      ettn TEXT,
+      gib_status TEXT NOT NULL DEFAULT 'DRAFT',
+      doc_side TEXT NOT NULL DEFAULT 'sales',
+      customer_id TEXT,
+      customer_code TEXT,
+      customer_name TEXT,
+      document_date TEXT,
+      amount REAL DEFAULT 0,
+      status_message TEXT,
+      ONAY INTEGER NOT NULL DEFAULT 0,
+      is_synced INTEGER NOT NULL DEFAULT 0,
+      is_deleted INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT,
+      updated_at TEXT
+    );
+  ''';
+
+  static const String dropEwaybillStatusTable =
+      'DROP TABLE IF EXISTS ewaybill_status;';
+
   // --- FIELD SALES: COLLECTIONS ---
   static const String createCollectionsTable = '''
     CREATE TABLE IF NOT EXISTS collections (
@@ -320,6 +421,16 @@ class SqlQuerys {
       branch_name TEXT,
       check_number TEXT,
       due_date TEXT,
+      cash_code TEXT,
+      target_cash_code TEXT,
+      document_no TEXT,
+      currency_code TEXT,
+      salesperson_code TEXT,
+      special_code_1 TEXT,
+      endorsement TEXT,
+      original_debtor TEXT,
+      workplace TEXT,
+      account_number TEXT,
       approval_status INTEGER DEFAULT 0,
       is_synced INTEGER DEFAULT 0,
       created_at TEXT,
@@ -929,6 +1040,7 @@ class SqlQuerys {
       check_out_lat REAL,
       check_out_long REAL,
       notes TEXT,
+      reason_code TEXT,
       status TEXT, -- 'Open', 'Completed'
       duration_minutes INTEGER,
       is_synced INTEGER DEFAULT 0,
@@ -938,16 +1050,109 @@ class SqlQuerys {
     );
   ''';
 
-  // --- FIELD SALES: GPS_LOGS ---
+  /// Mevcut visits tablosuna VisitReasonMaster kod kolonu ekler.
+  static const String addVisitsReasonCodeColumn =
+      "ALTER TABLE visits ADD COLUMN reason_code TEXT;";
+
+  // --- FIELD SALES: GPS_LOGS (dens son konum + GpsService) ---
   static const String createGpsLogsTable = '''
     CREATE TABLE IF NOT EXISTS gps_logs (
       id TEXT PRIMARY KEY,
       latitude REAL NOT NULL,
       longitude REAL NOT NULL,
       timestamp TEXT NOT NULL,
-      is_synced INTEGER DEFAULT 0
+      salesperson_code TEXT,
+      label TEXT,
+      accuracy REAL,
+      is_synced INTEGER DEFAULT 0,
+      is_deleted INTEGER DEFAULT 0,
+      created_at TEXT,
+      updated_at TEXT
     );
   ''';
+
+  /// Mevcut gps_logs şemasına dens kolonları (yoksa).
+  static const String addGpsLogsSalespersonCodeColumn =
+      'ALTER TABLE gps_logs ADD COLUMN salesperson_code TEXT;';
+  static const String addGpsLogsLabelColumn =
+      'ALTER TABLE gps_logs ADD COLUMN label TEXT;';
+  static const String addGpsLogsAccuracyColumn =
+      'ALTER TABLE gps_logs ADD COLUMN accuracy REAL;';
+  static const String addGpsLogsIsDeletedColumn =
+      'ALTER TABLE gps_logs ADD COLUMN is_deleted INTEGER DEFAULT 0;';
+  static const String addGpsLogsCreatedAtColumn =
+      'ALTER TABLE gps_logs ADD COLUMN created_at TEXT;';
+  static const String addGpsLogsUpdatedAtColumn =
+      'ALTER TABLE gps_logs ADD COLUMN updated_at TEXT;';
+
+  // --- FIELD SALES: WAREHOUSES (OPS master — WHMS değil) ---
+  static const String createWarehousesTable = '''
+    CREATE TABLE IF NOT EXISTS warehouses (
+      id TEXT PRIMARY KEY,
+      code TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL,
+      type TEXT NOT NULL,
+      is_active INTEGER DEFAULT 1,
+      is_synced INTEGER DEFAULT 0,
+      created_at TEXT,
+      updated_at TEXT
+    );
+  ''';
+
+  // --- WHMS Faz 1: WAREHOUSE_STOCKS (merkez ambar bakiyesi) ---
+  static const String createWarehouseStocksTable = '''
+    CREATE TABLE IF NOT EXISTS warehouse_stocks (
+      warehouse_code TEXT NOT NULL,
+      product_id TEXT NOT NULL,
+      quantity REAL NOT NULL DEFAULT 0,
+      is_synced INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT,
+      updated_at TEXT,
+      PRIMARY KEY (warehouse_code, product_id),
+      FOREIGN KEY (product_id) REFERENCES products(id)
+    );
+  ''';
+
+  // --- FIELD SALES: BATCH_EXPIRY (Parti / SKT dens) ---
+  static const String createBatchExpiryTable = '''
+    CREATE TABLE IF NOT EXISTS batch_expiry (
+      id TEXT PRIMARY KEY,
+      product_id TEXT,
+      product_code TEXT,
+      product_name TEXT,
+      lot_no TEXT NOT NULL,
+      expiry_date TEXT NOT NULL,
+      quantity REAL DEFAULT 0,
+      unit TEXT,
+      warehouse_code TEXT,
+      warehouse_name TEXT,
+      status TEXT NOT NULL DEFAULT 'OK',
+      ONAY INTEGER NOT NULL DEFAULT 0,
+      is_synced INTEGER NOT NULL DEFAULT 0,
+      is_deleted INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT,
+      updated_at TEXT
+    );
+  ''';
+
+  static const String dropBatchExpiryTable =
+      'DROP TABLE IF EXISTS batch_expiry;';
+
+  // --- FIELD SALES: CASH_CARDS (Kasa Kart Listesi master) ---
+  static const String createCashCardsTable = '''
+    CREATE TABLE IF NOT EXISTS cash_cards (
+      id TEXT PRIMARY KEY,
+      code TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL,
+      name_key TEXT NOT NULL,
+      is_active INTEGER DEFAULT 1,
+      is_synced INTEGER DEFAULT 0,
+      created_at TEXT,
+      updated_at TEXT
+    );
+  ''';
+
+  static const String dropCashCardsTable = 'DROP TABLE IF EXISTS cash_cards;';
 
   // --- FIELD SALES: WAREHOUSE_TRANSFERS ---
   static const String createWarehouseTransfersTable = '''
@@ -963,6 +1168,63 @@ class SqlQuerys {
       is_synced INTEGER DEFAULT 0,
       created_at TEXT,
       FOREIGN KEY (product_id) REFERENCES products(id)
+    );
+  ''';
+
+  // --- FIELD SALES: STOCK_COUNTS (Sayım Fişi dens) ---
+  static const String createStockCountsTable = '''
+    CREATE TABLE IF NOT EXISTS stock_counts (
+      id TEXT PRIMARY KEY,
+      workplace TEXT,
+      factory TEXT,
+      warehouse TEXT,
+      slip_date TEXT NOT NULL,
+      lines_json TEXT,
+      status TEXT,
+      ONAY INTEGER NOT NULL DEFAULT 0,
+      is_synced INTEGER NOT NULL DEFAULT 0,
+      is_deleted INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+  ''';
+
+  // --- FIELD SALES: CASH_COUNTS (Kasa Sayımı dens) ---
+  static const String createCashCountsTable = '''
+    CREATE TABLE IF NOT EXISTS cash_counts (
+      id TEXT PRIMARY KEY,
+      cash_code TEXT NOT NULL,
+      count_date TEXT NOT NULL,
+      expected_amount REAL NOT NULL DEFAULT 0,
+      counted_amount REAL NOT NULL DEFAULT 0,
+      difference REAL NOT NULL DEFAULT 0,
+      notes TEXT,
+      lines_json TEXT,
+      status TEXT,
+      ONAY INTEGER NOT NULL DEFAULT 0,
+      is_synced INTEGER NOT NULL DEFAULT 0,
+      is_deleted INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+  ''';
+
+  // --- FIELD SALES: BANK_DEPOSITS (Banka Yatırma dens) ---
+  static const String createBankDepositsTable = '''
+    CREATE TABLE IF NOT EXISTS bank_deposits (
+      id TEXT PRIMARY KEY,
+      cash_code TEXT NOT NULL,
+      bank_code TEXT NOT NULL,
+      amount REAL NOT NULL,
+      document_no TEXT,
+      deposit_date TEXT NOT NULL,
+      notes TEXT,
+      status TEXT,
+      ONAY INTEGER NOT NULL DEFAULT 0,
+      is_synced INTEGER NOT NULL DEFAULT 0,
+      is_deleted INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
     );
   ''';
 
@@ -1253,7 +1515,15 @@ class SqlQuerys {
     );
   ''';
 
+  /// Plasiyer günlük masraf (ExpenseService / expense dens Kaydet).
   static const String createExpensesTable = '''
+    CREATE TABLE IF NOT EXISTS expenses (
+      id TEXT PRIMARY KEY,
+      type TEXT NOT NULL,
+      amount REAL NOT NULL,
+      photo_path TEXT,
+      note TEXT,
+      created_at TEXT,
       is_synced INTEGER DEFAULT 0
     );
   ''';
@@ -1305,5 +1575,204 @@ class SqlQuerys {
       created_at TEXT,
       is_synced INTEGER DEFAULT 0
     );
+  ''';
+
+  // --- FIELD SALES: CARİ EKSTRE HAREKETLERİ ---
+  static const String createCustomerMovementsTable = '''
+    CREATE TABLE IF NOT EXISTS customer_movements (
+      id TEXT PRIMARY KEY,
+      customer_id TEXT NOT NULL,
+      movement_date TEXT NOT NULL,
+      document_no TEXT,
+      description TEXT,
+      debit REAL DEFAULT 0,
+      credit REAL DEFAULT 0,
+      created_at TEXT,
+      updated_at TEXT,
+      is_synced INTEGER DEFAULT 0,
+      is_deleted INTEGER DEFAULT 0
+    );
+  ''';
+
+  /// Fatura listesi dens: tüm `invoices` + cari kod/ad (tarih DESC)
+  static const String invoiceListDensRowsSql = '''
+    SELECT
+      i.id AS id,
+      i.customer_id AS customer_id,
+      i.invoice_date AS invoice_date,
+      i.total_amount AS total_amount,
+      i.status AS status,
+      i.notes AS notes,
+      i.invoice_type AS invoice_type,
+      i.is_e_invoice AS is_e_invoice,
+      i.ettn AS ettn,
+      i.gib_status AS gib_status,
+      COALESCE(i.is_synced, 0) AS is_synced,
+      COALESCE(i.approval_status, 0) AS approval_status,
+      COALESCE(c.code, '') AS customer_code,
+      COALESCE(c.name, '') AS customer_name
+    FROM invoices i
+    LEFT JOIN customers c ON c.id = i.customer_id
+    ORDER BY i.invoice_date DESC
+  ''';
+
+  /// Transfer edilmeyen fatura dens: `is_synced = 0` + cari
+  static const String invoiceUntransferredDensRowsSql = '''
+    SELECT
+      i.id AS id,
+      i.id AS document_no,
+      i.customer_id AS customer_id,
+      i.invoice_date AS invoice_date,
+      i.total_amount AS total_amount,
+      i.status AS status,
+      i.invoice_type AS invoice_type,
+      COALESCE(i.is_synced, 0) AS is_synced,
+      COALESCE(i.approval_status, 0) AS approval_status,
+      COALESCE(i.approval_status, 0) AS ONAY,
+      COALESCE(c.code, '') AS customer_code,
+      COALESCE(c.name, '') AS customer_name,
+      i.created_at AS created_at,
+      i.updated_at AS updated_at
+    FROM invoices i
+    LEFT JOIN customers c ON c.id = i.customer_id
+    WHERE COALESCE(i.is_synced, 0) = 0
+    ORDER BY i.invoice_date DESC
+  ''';
+
+  /// Satış rapor dens: tarih aralığındaki faturalar + cari adı
+  static const String reportDensSalesRowsSql = '''
+    SELECT
+      i.id AS id,
+      i.invoice_date AS event_date,
+      i.total_amount AS amount,
+      i.status AS status,
+      i.invoice_type AS detail,
+      COALESCE(c.name, i.customer_id, '') AS customer_name
+    FROM invoices i
+    LEFT JOIN customers c ON c.id = i.customer_id
+    WHERE date(i.invoice_date) >= date(?)
+      AND date(i.invoice_date) <= date(?)
+    ORDER BY i.invoice_date DESC
+  ''';
+
+  /// Tahsilat rapor dens: tarih aralığındaki tahsilatlar + cari adı
+  static const String reportDensCollectionRowsSql = '''
+    SELECT
+      col.id AS id,
+      col.collection_date AS event_date,
+      col.amount AS amount,
+      col.status AS status,
+      col.payment_type AS detail,
+      COALESCE(c.name, col.customer_id, '') AS customer_name
+    FROM collections col
+    LEFT JOIN customers c ON c.id = col.customer_id
+    WHERE date(col.collection_date) >= date(?)
+      AND date(col.collection_date) <= date(?)
+    ORDER BY col.collection_date DESC
+  ''';
+
+  /// Transfer edilen tahsilat dens: is_synced=1 + cari adı
+  static const String collectionsTransferredDensSql = '''
+    SELECT
+      col.id AS id,
+      col.customer_id AS customer_id,
+      col.amount AS amount,
+      col.payment_type AS payment_type,
+      col.collection_date AS collection_date,
+      col.document_no AS document_no,
+      col.cash_code AS cash_code,
+      col.currency_code AS currency_code,
+      col.is_synced AS is_synced,
+      COALESCE(c.name, col.customer_id, '') AS customer_name
+    FROM collections col
+    LEFT JOIN customers c ON c.id = col.customer_id
+    WHERE col.is_synced = 1
+    ORDER BY col.collection_date DESC
+  ''';
+
+  /// Ziyaret rapor dens: tarih aralığındaki ziyaretler + cari adı
+  static const String reportDensVisitRowsSql = '''
+    SELECT
+      v.id AS id,
+      v.check_in_at AS event_date,
+      v.duration_minutes AS amount,
+      v.status AS status,
+      v.status AS detail,
+      COALESCE(c.name, v.customer_id, '') AS customer_name
+    FROM visits v
+    LEFT JOIN customers c ON c.id = v.customer_id
+    WHERE date(v.check_in_at) >= date(?)
+      AND date(v.check_in_at) <= date(?)
+    ORDER BY v.check_in_at DESC
+  ''';
+
+  /// Geçmiş ziyaret dens: tüm visits + cari adı (yeniden eskiye)
+  static const String visitHistoryRowsSql = '''
+    SELECT
+      v.id AS id,
+      v.customer_id AS customer_id,
+      v.check_in_at AS check_in_at,
+      v.duration_minutes AS duration_minutes,
+      v.status AS status,
+      v.is_synced AS is_synced,
+      COALESCE(c.name, v.customer_id, '') AS customer_name
+    FROM visits v
+    LEFT JOIN customers c ON c.id = v.customer_id
+    ORDER BY v.check_in_at DESC, v.id ASC
+  ''';
+
+  /// Yönetici KPI: tek güne sipariş/fatura/tahsilat/ziyaret COUNT aggregate
+  /// Parametreler: [day, day, day, day] (`yyyy-MM-dd`)
+  static const String adminKpiTodayCountsSql = '''
+    SELECT
+      (SELECT COUNT(*) FROM orders
+        WHERE date(COALESCE(order_date, created_at)) = date(?)
+          AND COALESCE(status, '') != 'Cancelled') AS order_count,
+      (SELECT COUNT(*) FROM invoices
+        WHERE date(COALESCE(invoice_date, created_at)) = date(?)
+          AND COALESCE(status, '') != 'Cancelled') AS invoice_count,
+      (SELECT COUNT(*) FROM collections
+        WHERE date(COALESCE(collection_date, created_at)) = date(?)
+          AND COALESCE(status, '') != 'Cancelled') AS collection_count,
+      (SELECT COUNT(*) FROM visits
+        WHERE date(COALESCE(check_in_at, created_at)) = date(?)) AS visit_count
+  ''';
+
+  // --- FIELD SALES: PARTIAL DELIVERIES (kısmi teslimat iskelet) ---
+  static const String createPartialDeliveriesTable = '''
+    CREATE TABLE IF NOT EXISTS partial_deliveries (
+      id TEXT PRIMARY KEY,
+      workplace TEXT,
+      factory TEXT,
+      warehouse TEXT,
+      delivery_date TEXT NOT NULL,
+      status TEXT DEFAULT 'Pending',
+      lines_json TEXT,
+      is_synced INTEGER DEFAULT 0,
+      is_deleted INTEGER DEFAULT 0,
+      created_at TEXT,
+      updated_at TEXT
+    );
+  ''';
+
+  /// Rota haritası dens: aktif rota ziyaret noktaları + cari konum
+  static const String routeMapVisitPointsSql = '''
+    SELECT
+      rc.id AS id,
+      rc.route_id AS route_id,
+      rc.customer_id AS customer_id,
+      rc.visit_order AS visit_order,
+      COALESCE(rc.is_mandatory, 1) AS is_mandatory,
+      COALESCE(r.name, '') AS route_name,
+      COALESCE(c.code, '') AS customer_code,
+      COALESCE(c.name, '') AS customer_name,
+      COALESCE(c.address, '') AS customer_address,
+      c.latitude AS latitude,
+      c.longitude AS longitude
+    FROM route_customers rc
+    INNER JOIN routes r ON r.id = rc.route_id
+    LEFT JOIN customers c ON c.id = rc.customer_id
+    WHERE COALESCE(r.is_active, 1) = 1
+    ORDER BY rc.visit_order ASC, rc.id ASC
   ''';
 }

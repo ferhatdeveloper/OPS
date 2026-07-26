@@ -1,0 +1,35 @@
+---
+description: UI güzel — dokunma; sadece dil bağlama (l10n). Görsel redesign yasak.
+globs: lib/**/view/**/*.dart,lib/view/**/*.dart,assets/translations/**/*.json
+alwaysApply: false
+---
+
+# UI No-Touch
+
+**Kural:** Mevcut UI güzel — dokunma. Sadece dil bağlama (l10n / `translate`).
+
+## İzinli
+
+- Hardcoded metni `AppLocalization` / çeviri anahtarına bağlamak
+- Eksik çeviri anahtarı eklemek (`assets/translations/*.json`)
+- Layout bozan animasyonda **yalnızca** timing/duration/curve
+- İş kuralı için zorunlu minimal metin (SnackBar, guard mesajı) — yeni tema/renk/spacing yok
+
+## Yasak (onaysız)
+
+- Renk, gradient, tipografi, spacing, radius, elevation değiştirmek
+- Yeni kart / hero / empty-state illüstrasyon / “modernize” redesign
+- Mevcut widget ağacını görsel amaçlı yeniden yazmak
+- Login, dashboard, field_sales AppBar/palette’ini yeniden tasarlamak
+
+## Hızlı kontrol
+
+```dart
+// ❌ BAD — görsel “iyileştirme”
+decoration: BoxDecoration(borderRadius: BorderRadius.circular(20), ...)
+
+// ✅ GOOD — sadece dil
+Text(l10n.translate('auth.slogan'))
+```
+
+Login slogan animasyonu (metin döngüsü + sabit yükseklik) OK sayılır; layout kayarsa sadece timing.

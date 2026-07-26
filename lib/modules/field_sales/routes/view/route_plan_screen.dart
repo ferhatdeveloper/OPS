@@ -65,7 +65,13 @@ class _RoutePlanScreenState extends ConsumerState<RoutePlanScreen> {
       body: state.isLoading
           ? const Center(child: CircularProgressIndicator())
           : state.error != null
-              ? Center(child: Text(state.error!))
+              ? Center(
+                  child: Text(
+                    state.error!.contains('.')
+                        ? l10n.translate(state.error!)
+                        : state.error!,
+                  ),
+                )
               : _buildContent(context, state, l10n),
     );
   }
@@ -86,21 +92,14 @@ class _RoutePlanScreenState extends ConsumerState<RoutePlanScreen> {
   Widget _buildActiveVisitCard(BuildContext context, VisitState state, AppLocalization l10n) {
     final visit = state.activeVisit!;
     return Container(
-      margin: const EdgeInsets.all(16),
+      margin: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-        border: Border.all(color: const Color(0xFF00A8E8).withOpacity(0.3), width: 1.5),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey.shade200),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(12),
         child: Column(
           children: [
             Row(
@@ -124,13 +123,13 @@ class _RoutePlanScreenState extends ConsumerState<RoutePlanScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: Colors.green.shade50,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(l10n.translate('field_sales.active'), style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 12)),
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(child: _buildActionButton(context, Icons.assignment_turned_in, l10n.translate('field_sales.audit'), Colors.orange, () => _showAuditFormSelection(context, visit.id))),
@@ -144,17 +143,17 @@ class _RoutePlanScreenState extends ConsumerState<RoutePlanScreen> {
                 Expanded(child: _buildActionButton(context, Icons.analytics_outlined, "Rakip", Colors.indigo, () => Navigator.push(context, MaterialPageRoute(builder: (c) => CompetitorSurveyScreen(visitId: visit.id))))),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
-              height: 48,
+              height: 44,
               child: ElevatedButton.icon(
                 onPressed: () => _showCheckOutDialog(context, l10n),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.red.shade50,
                   foregroundColor: Colors.red.shade700,
                   elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
                 icon: const Icon(Icons.exit_to_app),
                 label: Text(
@@ -172,17 +171,17 @@ class _RoutePlanScreenState extends ConsumerState<RoutePlanScreen> {
   Widget _buildActionButton(BuildContext context, IconData icon, String label, Color color, VoidCallback onTap) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(8),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
           color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(8),
           border: Border.all(color: color.withOpacity(0.3)),
         ),
         child: Column(
           children: [
-            Icon(icon, color: color, size: 24),
+            Icon(icon, color: color, size: 22),
             const SizedBox(height: 4),
             Text(label, style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.bold)),
           ],
@@ -214,10 +213,10 @@ class _RoutePlanScreenState extends ConsumerState<RoutePlanScreen> {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(10)),
       ),
       builder: (context) => Container(
-        padding: const EdgeInsets.symmetric(vertical: 20),
+        padding: const EdgeInsets.symmetric(vertical: 12),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -225,8 +224,10 @@ class _RoutePlanScreenState extends ConsumerState<RoutePlanScreen> {
               AppLocalization.of(context).translate('field_sales.select_audit_form'),
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             ...state.availableForms.map((form) => ListTile(
+              dense: true,
+              visualDensity: VisualDensity.compact,
               leading: const Icon(Icons.description_outlined, color: Color(0xFF00A8E8)),
               title: Text(form.name),
               subtitle: form.description != null ? Text(form.description!) : null,
@@ -267,43 +268,37 @@ class _RoutePlanScreenState extends ConsumerState<RoutePlanScreen> {
 
   Widget _buildCustomerList(BuildContext context, VisitState state, AppLocalization l10n) {
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
       itemCount: state.routeCustomers.length,
       itemBuilder: (context, index) {
         final rc = state.routeCustomers[index];
         final isVisited = state.completedCustomerIds.contains(rc.customerId);
 
         return Container(
-          margin: const EdgeInsets.only(bottom: 12),
+          margin: const EdgeInsets.only(bottom: 8),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.04),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.grey.shade200),
           ),
           child: Material(
             color: Colors.transparent,
             child: InkWell(
               onTap: state.activeVisit == null ? () => _handleCheckIn(rc.customerId, l10n) : null,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(10),
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(12),
                 child: Row(
                   children: [
                     Container(
-                      width: 48,
-                      height: 48,
+                      width: 40,
+                      height: 40,
                       decoration: BoxDecoration(
                         color: isVisited ? Colors.green.shade50 : const Color(0xFFF8F9FD),
                         shape: BoxShape.circle,
                         border: Border.all(
                           color: isVisited ? Colors.green.shade200 : Colors.grey.shade200,
-                          width: 2,
+                          width: 1.5,
                         ),
                       ),
                       child: Center(
@@ -312,12 +307,12 @@ class _RoutePlanScreenState extends ConsumerState<RoutePlanScreen> {
                           style: TextStyle(
                             color: isVisited ? Colors.green.shade700 : Colors.grey.shade600,
                             fontWeight: FontWeight.bold,
-                            fontSize: 16,
+                            fontSize: 14,
                           ),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -328,7 +323,7 @@ class _RoutePlanScreenState extends ConsumerState<RoutePlanScreen> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 2),
                           Row(
                             children: [
                               Icon(Icons.location_on_outlined, size: 14, color: Colors.grey.shade500),
@@ -345,8 +340,8 @@ class _RoutePlanScreenState extends ConsumerState<RoutePlanScreen> {
                           ),
                           if (rc.isMandatory)
                             Container(
-                              margin: const EdgeInsets.only(top: 8),
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              margin: const EdgeInsets.only(top: 6),
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                               decoration: BoxDecoration(
                                 color: Colors.red.shade50,
                                 borderRadius: BorderRadius.circular(8),
@@ -361,12 +356,12 @@ class _RoutePlanScreenState extends ConsumerState<RoutePlanScreen> {
                     ),
                     if (state.activeVisit == null)
                       Container(
-                        padding: const EdgeInsets.all(8),
+                        padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
                           color: const Color(0xFF00A8E8).withOpacity(0.1),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.login, color: Color(0xFF00A8E8), size: 20),
+                        child: const Icon(Icons.login, color: Color(0xFF00A8E8), size: 18),
                       ),
                   ],
                 ),
@@ -382,6 +377,14 @@ class _RoutePlanScreenState extends ConsumerState<RoutePlanScreen> {
     final success = await ref.read(visitProvider.notifier).checkIn(customerId);
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.translate('field_sales.visit_started'))));
+    } else {
+      final err = ref.read(visitProvider).error;
+      if (err != null && mounted) {
+        final message = err.contains('.') ? l10n.translate(err) : err;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
+        );
+      }
     }
   }
 
@@ -390,7 +393,7 @@ class _RoutePlanScreenState extends ConsumerState<RoutePlanScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         title: Text(l10n.translate('field_sales.check_out'), style: const TextStyle(fontWeight: FontWeight.bold)),
         content: TextField(
           controller: notesController,
@@ -399,7 +402,7 @@ class _RoutePlanScreenState extends ConsumerState<RoutePlanScreen> {
             filled: true,
             fillColor: const Color(0xFFF8F9FD),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(10),
               borderSide: BorderSide.none,
             ),
           ),
@@ -420,7 +423,8 @@ class _RoutePlanScreenState extends ConsumerState<RoutePlanScreen> {
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF00A8E8),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
             child: Text(l10n.translate('common.ok')),
           ),

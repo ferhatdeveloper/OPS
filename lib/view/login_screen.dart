@@ -22,6 +22,9 @@ import '../service/auth_service.dart';
 import '../service/theme_service.dart';
 
 import '../service/language_service.dart';
+import '../core/tenant/postgrest_tenant_service.dart';
+import '../core/tenant/saas_origin_override_dialog.dart';
+import '../core/tenant/tenant_store.dart';
 import '../modules/admin_panel/admin_password_dialog.dart'
     show showAdminPasswordDialog;
 
@@ -211,19 +214,9 @@ class LoginScreen extends ConsumerWidget {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             ExfinLogo(height: isSmallScreen ? 80 : 120), // Adjusted size for cropped logo
-                            // Removed the SizedBox height to reduce gap
-                            SizedBox(
-                              width: isSmallScreen ? 300 : 400, // Constrain slogan width to match logo
-                              child: Text(
-                                'Operasyon Yönetim Sistemi',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 16, // Matching larger logo scale
-                                  fontWeight: FontWeight.w500, // Slightly bolder for readability 
-                                  color: isDarkMode ? Colors.white70 : exfinDarkBlue.withOpacity(0.8),
-                                  letterSpacing: 0.2, // Less letter spacing
-                                ),
-                              ),
+                            AnimatedLoginSlogan(
+                              isDarkMode: isDarkMode,
+                              isSmallScreen: isSmallScreen,
                             ),
                           ],
                         ),
@@ -522,6 +515,56 @@ class LoginScreen extends ConsumerWidget {
                                                   ),
                                                 ),
                                                 const Divider(height: 1),
+                                                Material(
+                                                  color: Colors.transparent,
+                                                  child: InkWell(
+                                                    borderRadius:
+                                                        BorderRadius.zero,
+                                                    onTap: () async {
+                                                      Navigator.pop(context);
+                                                      final ok =
+                                                          await showSaasOriginOverrideDialog(
+                                                        context,
+                                                      );
+                                                      if (ok && context.mounted) {
+                                                        ScaffoldMessenger.of(
+                                                          context,
+                                                        ).showSnackBar(
+                                                          SnackBar(
+                                                            content: Text(
+                                                              AppLocalization.of(
+                                                                context,
+                                                              ).translate(
+                                                                'auth.saas_origin_saved',
+                                                              ),
+                                                            ),
+                                                            duration:
+                                                                const Duration(
+                                                              seconds: 2,
+                                                            ),
+                                                          ),
+                                                        );
+                                                      }
+                                                    },
+                                                    child: ListTile(
+                                                      leading: const Icon(
+                                                        Icons.dns_outlined,
+                                                        color: Colors.indigo,
+                                                      ),
+                                                      title: Text(
+                                                        AppLocalization.of(
+                                                          context,
+                                                        ).translate(
+                                                          'auth.saas_origin_menu',
+                                                        ),
+                                                      ),
+                                                      trailing: const Icon(
+                                                        Icons.chevron_right,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                                const Divider(height: 1),
                                                 Padding(
                                                   padding:
                                                       const EdgeInsets.only(
@@ -623,6 +666,7 @@ class ExfinLoginForm extends StatefulWidget {
 
 class _ExfinLoginFormState extends State<ExfinLoginForm> {
   final _formKey = GlobalKey<FormState>();
+  final _tenantCodeController = TextEditingController();
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _rememberMe = false;
@@ -696,8 +740,33 @@ class _ExfinLoginFormState extends State<ExfinLoginForm> {
   Future<void> _initializeDbAndLoad() async {
     final dbService = await DatabaseService.getInstance();
     await dbService.initialize();
+    await _loadSavedTenantCode();
     _loadSavedCredentials();
     _cihazOnayKontrol();
+  }
+
+  /// Son kiracı kodunu prefs'ten yükler (PostgREST bağlamını restore eder).
+  Future<void> _loadSavedTenantCode() async {
+    try {
+      final ctx = await PostgrestTenantService().restoreActiveContext();
+      if (!mounted) return;
+      if (ctx != null && ctx.tenantCode.isNotEmpty) {
+        setState(() {
+          _tenantCodeController.text = ctx.tenantCode;
+        });
+      } else {
+        final store = const TenantStore();
+        final loaded = await store.load();
+        if (!mounted) return;
+        if (loaded.tenantCode.isNotEmpty) {
+          setState(() {
+            _tenantCodeController.text = loaded.tenantCode;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Kiracı kodu yüklenemedi: $e');
+    }
   }
 
   // Kaydedilen firma bilgisini yükle
@@ -720,7 +789,10 @@ class _ExfinLoginFormState extends State<ExfinLoginForm> {
         
         // Wait a short duration to ensure companies are loaded from stream, then auto-login
         Future.delayed(const Duration(milliseconds: 500), () {
-          if (mounted && _usernameController.text.isNotEmpty && _passwordController.text.isNotEmpty) {
+          if (mounted &&
+              _tenantCodeController.text.trim().isNotEmpty &&
+              _usernameController.text.isNotEmpty &&
+              _passwordController.text.isNotEmpty) {
             _handleLogin();
           }
         });
@@ -775,6 +847,54 @@ class _ExfinLoginFormState extends State<ExfinLoginForm> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Kiracı kodu (RetailEX PostgREST / tenant) — dens stil, redesign yok
+          TextFormField(
+            controller: _tenantCodeController,
+            style: TextStyle(color: inputTextColor),
+            textDirection: Directionality.of(context),
+            textCapitalization: TextCapitalization.none,
+            keyboardType: TextInputType.text,
+            textInputAction: TextInputAction.next,
+            decoration: InputDecoration(
+              labelText:
+                  AppLocalization.of(context).translate('auth.tenant_code'),
+              hintText: AppLocalization.of(context)
+                  .translate('auth.enter_tenant_code'),
+              prefixIcon: GestureDetector(
+                onLongPress: () async {
+                  final ok = await showSaasOriginOverrideDialog(context);
+                  if (ok && mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          AppLocalization.of(context)
+                              .translate('auth.saas_origin_saved'),
+                        ),
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  }
+                },
+                child: Tooltip(
+                  message: AppLocalization.of(context)
+                      .translate('auth.saas_origin_long_press_hint'),
+                  child: const Icon(Icons.apartment),
+                ),
+              ),
+              filled: true,
+              fillColor: inputFillColor,
+              labelStyle: TextStyle(color: inputTextColor),
+              hintStyle: TextStyle(color: inputHintColor),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            validator: (value) => (value == null || value.trim().isEmpty)
+                ? AppLocalization.of(context)
+                    .translate('auth.tenant_code_required')
+                : null,
+          ),
+          const SizedBox(height: 16),
+
           // Kullanıcı adı alanı:
           TextFormField(
             controller: _usernameController,
@@ -1154,12 +1274,40 @@ class _ExfinLoginFormState extends State<ExfinLoginForm> {
     // }
     
     if (_formKey.currentState!.validate()) {
+      final tenantCode = _tenantCodeController.text.trim();
       final username = _usernameController.text.trim();
       final password = _passwordController.text.trim();
 
+      setState(() => _isLoading = true);
+      final tenantResult =
+          await PostgrestTenantService().applyTenantCode(tenantCode);
+      if (!mounted) return;
+
+      if (!tenantResult.ok || tenantResult.context == null) {
+        setState(() => _isLoading = false);
+        final key = tenantResult.errorKey ?? 'auth.tenant_resolve_failed';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(AppLocalization.of(context).translate(key)),
+          ),
+        );
+        return;
+      }
+
+      if (tenantResult.usedOfflineCache && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalization.of(context)
+                  .translate('auth.tenant_offline_using_last'),
+            ),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+
       // DEMO GİRİŞ KONTROLÜ
       if (username.toLowerCase() == 'demo' && password == 'demo') {
-        setState(() => _isLoading = true);
         await Future.delayed(const Duration(seconds: 1)); // Simülasyon
         
         final dbService = await DatabaseService.getInstance();
@@ -1198,19 +1346,18 @@ class _ExfinLoginFormState extends State<ExfinLoginForm> {
       }
 
       if (_maxUserLimit) {
+        setState(() => _isLoading = false);
         _showMaxUserDialog(context);
         return;
       }
 
       if (_selectedCompany == null) {
+        setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(AppLocalization.of(context).translate('auth.please_select_company'))),
         );
         return;
       }
-      setState(() {
-        _isLoading = true;
-      });
       try {
         final dbService = await DatabaseService.getInstance();
         if (_rememberMe) {
@@ -1515,6 +1662,7 @@ class _ExfinLoginFormState extends State<ExfinLoginForm> {
   @override
   void dispose() {
     _companyStreamSub?.cancel();
+    _tenantCodeController.dispose();
     _usernameController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -1825,6 +1973,143 @@ Future<void> showForceLogoutDialog(BuildContext context, String username,
       );
     },
   );
+}
+
+/// {@template animated_login_slogan}
+/// Login sloganını mevcut dil + İngilizce (veya TR↔EN) arasında
+/// soft fade/slide ile döngüleyen widget.
+///
+/// Kullanım örneği:
+/// ```dart
+/// AnimatedLoginSlogan(isDarkMode: false, isSmallScreen: true)
+/// ```
+/// {@endtemplate}
+class AnimatedLoginSlogan extends StatefulWidget {
+  /// [isDarkMode]: Karanlık tema durumu
+  final bool isDarkMode;
+
+  /// [isSmallScreen]: Dar ekran düzeni
+  final bool isSmallScreen;
+
+  /// {@macro animated_login_slogan}
+  const AnimatedLoginSlogan({
+    Key? key,
+    required this.isDarkMode,
+    required this.isSmallScreen,
+  }) : super(key: key);
+
+  @override
+  State<AnimatedLoginSlogan> createState() => _AnimatedLoginSloganState();
+}
+
+class _AnimatedLoginSloganState extends State<AnimatedLoginSlogan> {
+  static const Duration _switchInterval = Duration(seconds: 4);
+  static const Duration _fadeDuration = Duration(milliseconds: 650);
+  static const String _fallbackTr = 'Operasyon Yönetim Sistemi';
+  static const String _fallbackEn = 'Operations Management System';
+
+  /// [_index]: Gösterilen slogan indeksi
+  int _index = 0;
+
+  /// [_slogans]: Döngüdeki slogan metinleri
+  List<String> _slogans = const [_fallbackTr, _fallbackEn];
+
+  /// [_timer]: Dil değiştirme zamanlayıcısı
+  Timer? _timer;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _rebuildSloganPair();
+    _timer ??= Timer.periodic(_switchInterval, (_) {
+      if (!mounted || _slogans.length < 2) return;
+      setState(() => _index = (_index + 1) % _slogans.length);
+    });
+  }
+
+  /// {@template rebuild_slogan_pair}
+  /// Mevcut locale'e göre birincil + ikincil slogan çiftini kurar.
+  /// {@endtemplate}
+  void _rebuildSloganPair() {
+    final code = Localizations.localeOf(context).languageCode.toLowerCase();
+    final localized = AppLocalization.of(context).translate('auth.slogan');
+    final primary = (localized.isEmpty || localized == 'auth.slogan')
+        ? (code == 'en' ? _fallbackEn : _fallbackTr)
+        : localized;
+
+    final List<String> next;
+    if (code == 'en') {
+      next = [primary, _fallbackTr];
+    } else if (code == 'tr') {
+      next = [primary, _fallbackEn];
+    } else {
+      next = primary == _fallbackEn
+          ? [_fallbackEn, _fallbackTr]
+          : [primary, _fallbackEn];
+    }
+
+    if (!_listEquals(next, _slogans)) {
+      _slogans = next;
+      _index = 0;
+    }
+  }
+
+  /// {@template list_equals}
+  /// İki string listesinin eşitliğini kontrol eder.
+  /// {@endtemplate}
+  bool _listEquals(List<String> a, List<String> b) {
+    if (identical(a, b)) return true;
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final text = _slogans[_index % _slogans.length];
+    return SizedBox(
+      width: widget.isSmallScreen ? 300 : 400,
+      height: 28,
+      child: AnimatedSwitcher(
+        duration: _fadeDuration,
+        switchInCurve: Curves.easeOut,
+        switchOutCurve: Curves.easeIn,
+        transitionBuilder: (child, animation) {
+          final slide = Tween<Offset>(
+            begin: const Offset(0, 0.2),
+            end: Offset.zero,
+          ).animate(animation);
+          return FadeTransition(
+            opacity: animation,
+            child: SlideTransition(position: slide, child: child),
+          );
+        },
+        child: Text(
+          text,
+          key: ValueKey<String>(text),
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+            color: widget.isDarkMode
+                ? Colors.white70
+                : exfinDarkBlue.withOpacity(0.8),
+            letterSpacing: 0.2,
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 // Bayrak widget'ı

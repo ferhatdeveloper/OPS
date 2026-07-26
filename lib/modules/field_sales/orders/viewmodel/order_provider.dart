@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 import '../model/order_model.dart';
 import '../../campaigns/engine/campaign_engine.dart';
 import '../../campaigns/model/campaign_model.dart' as cm;
+import '../../customers/model/customer_model.dart';
 import '../../../../service/database_service.dart';
 import '../../../../service/job_queue_service.dart';
 import '../../../../core/services/logo_payload_mapper.dart';
@@ -60,16 +61,118 @@ class OrderNotifier extends StateNotifier<OrderState> {
   final Ref ref;
   OrderNotifier(this.ref) : super(OrderState());
 
-  void startNewOrder(String customerId) {
+  /// {@template isValidCustomerId}
+  /// Cari kart kimliğinin sipariş için geçerli olup olmadığını kontrol eder.
+  ///
+  /// Parametreler:
+  /// - [customerId]: Kontrol edilecek cari kimliği
+  ///
+  /// Dönüş değeri:
+  /// - [bool]: Boş/whitespace değilse true
+  /// {@endtemplate}
+  static bool isValidCustomerId(String? customerId) {
+    return customerId != null && customerId.trim().isNotEmpty;
+  }
+
+  /// {@template isValidPartyForOrder}
+  /// Sipariş tipi ile cari rolünün uyumunu doğrular.
+  ///
+  /// Alış → tedarikçi/both zorunlu (null fail-closed).
+  /// Satış → null geriye uyumlu (customer varsayılır); salt supplier engelli.
+  ///
+  /// Parametreler:
+  /// - [customerId]: Cari kimliği
+  /// - [orderType]: Satış / Alış
+  /// - [cardRole]: Cari kart rolü
+  ///
+  /// Dönüş değeri:
+  /// - [bool]: Uyumluysa true
+  /// {@endtemplate}
+  static bool isValidPartyForOrder({
+    required String? customerId,
+    required OrderType orderType,
+    CariCardRole? cardRole,
+  }) {
+    if (!isValidCustomerId(customerId)) return false;
+    if (orderType == OrderType.purchase) {
+      if (cardRole == null) return false;
+      return cardRole.allowsPurchaseOrder;
+    }
+    final role = cardRole ?? CariCardRole.customer;
+    return role.allowsSalesOrder;
+  }
+
+  /// {@template filterForOrderType}
+  /// Cari listesini sipariş tipine göre süzer.
+  ///
+  /// Parametreler:
+  /// - [customers]: Ham cari listesi
+  /// - [orderType]: Satış / Alış
+  ///
+  /// Dönüş değeri:
+  /// - [List]: Tip ile uyumlu cariler
+  /// {@endtemplate}
+  static List<CustomerModel> filterForOrderType(
+    List<CustomerModel> customers,
+    OrderType orderType,
+  ) {
+    return customers
+        .where((c) {
+          if (!isValidCustomerId(c.id)) return false;
+          return orderType == OrderType.purchase
+              ? c.cardRole.allowsPurchaseOrder
+              : c.cardRole.allowsSalesOrder;
+        })
+        .toList();
+  }
+
+  /// {@template resolveQueueType}
+  /// Sipariş tipi → Logo / job queue `type` anahtarı.
+  ///
+  /// Parametreler:
+  /// - [orderType]: [OrderType], saklama string veya null
+  ///
+  /// Dönüş değeri:
+  /// - [String]: `sales` | `purchase`
+  /// {@endtemplate}
+  static String resolveQueueType(Object? orderType) {
+    if (orderType is OrderType) {
+      return orderType.storageValue;
+    }
+    return OrderType.fromStorage(orderType?.toString()).storageValue;
+  }
+
+  /// {@template startNewOrder}
+  /// Yeni sipariş taslağı başlatır (cari + tip + rol).
+  ///
+  /// Parametreler:
+  /// - [customerId]: Cari kart kimliği
+  /// - [orderType]: Satış / Alış (varsayılan satış)
+  /// - [cardRole]: Tedarikçi/müşteri rolü (alış guard)
+  /// {@endtemplate}
+  void startNewOrder(
+    String customerId, {
+    OrderType orderType = OrderType.sales,
+    CariCardRole? cardRole,
+  }) {
     state = OrderState(
       draftOrder: OrderModel(
         id: const Uuid().v4(),
-        customerId: customerId,
+        customerId: customerId.trim(),
         orderDate: DateTime.now(),
         totalAmount: 0.0,
         status: 'Pending',
+        orderType: orderType,
+        cariCardRole: cardRole,
       ),
     );
+  }
+
+  /// {@template discardDraft}
+  /// Kaydedilmemiş sipariş taslağını siler (MBT Sil aksiyonu).
+  /// {@endtemplate}
+  void discardDraft() {
+    state = OrderState();
   }
 
   Future<void> addItem(String productId, String name, double quantity, {String? unitName, double vatRate = 20.0}) async {
@@ -90,10 +193,15 @@ class OrderNotifier extends StateNotifier<OrderState> {
         id: existing.id,
         orderId: existing.orderId,
         productId: productId,
+        unitName: unitName ?? existing.unitName,
         quantity: newQty,
         price: price,
-        vatAmount: (price * newQty) * (vatRate / 100),
-        totalAmount: price * newQty,
+        discountPercent: existing.discountPercent,
+        vatAmount: (price * newQty) *
+            (1 - existing.discountPercent / 100) *
+            (vatRate / 100),
+        totalAmount:
+            price * newQty * (1 - existing.discountPercent / 100),
         productName: name,
       );
     } else {
@@ -127,22 +235,58 @@ class OrderNotifier extends StateNotifier<OrderState> {
 
     final newItems = state.items.map((i) {
       if (i.productId == productId) {
-        return OrderItemModel(
-          id: i.id,
-          orderId: i.orderId,
-          productId: i.productId,
-          quantity: quantity,
-          price: i.price,
-          vatAmount: (i.price * quantity) * 0.2, // Assuming 20% default if not saved
-          totalAmount: i.price * quantity,
-          productName: i.productName,
-        );
+        return _recalcLine(i, quantity: quantity);
       }
       return i;
     }).toList();
 
     state = state.copyWith(items: newItems);
     _calculateTotals();
+  }
+
+  /// {@template updateDiscount}
+  /// Satır iskonto yüzdesini günceller (0–100).
+  ///
+  /// Parametreler:
+  /// - [productId]: Kalem ürün kimliği
+  /// - [discountPercent]: İskonto %
+  /// {@endtemplate}
+  void updateDiscount(String productId, double discountPercent) {
+    final clamped = discountPercent.clamp(0.0, 100.0).toDouble();
+    final newItems = state.items.map((i) {
+      if (i.productId == productId) {
+        return _recalcLine(i, discountPercent: clamped);
+      }
+      return i;
+    }).toList();
+    state = state.copyWith(items: newItems);
+    _calculateTotals();
+  }
+
+  /// {@template _recalcLine}
+  /// Miktar / iskonto sonrası satır tutarlarını yeniden hesaplar.
+  /// {@endtemplate}
+  OrderItemModel _recalcLine(
+    OrderItemModel i, {
+    double? quantity,
+    double? discountPercent,
+  }) {
+    final qty = quantity ?? i.quantity;
+    final disc = discountPercent ?? i.discountPercent;
+    final net = i.price * qty * (1 - disc / 100);
+    return OrderItemModel(
+      id: i.id,
+      orderId: i.orderId,
+      productId: i.productId,
+      unitName: i.unitName,
+      quantity: qty,
+      price: i.price,
+      discountPercent: disc,
+      vatAmount: net * 0.2,
+      totalAmount: net,
+      productName: i.productName,
+      productCode: i.productCode,
+    );
   }
 
   Future<void> _calculateTotals() async {
@@ -183,6 +327,7 @@ class OrderNotifier extends StateNotifier<OrderState> {
       print('Campaign processing error: $e');
     }
 
+    if (!mounted) return;
     state = state.copyWith(
       subtotal: subtotal,
       vatTotal: vatTotal,
@@ -193,8 +338,34 @@ class OrderNotifier extends StateNotifier<OrderState> {
   }
 
   Future<bool> saveOrder(String? notes) async {
+    final customerId = state.draftOrder?.customerId;
+    final orderType = state.draftOrder?.orderType ?? OrderType.sales;
+    final cardRole = state.draftOrder?.cariCardRole;
+
+    if (!isValidCustomerId(customerId)) {
+      state = state.copyWith(
+        error: orderType == OrderType.purchase
+            ? 'field_sales.order_save_requires_supplier'
+            : 'field_sales.order_save_requires_customer',
+      );
+      return false;
+    }
+
+    if (!isValidPartyForOrder(
+      customerId: customerId,
+      orderType: orderType,
+      cardRole: cardRole,
+    )) {
+      state = state.copyWith(
+        error: orderType == OrderType.purchase
+            ? 'field_sales.order_save_requires_supplier'
+            : 'field_sales.order_save_requires_customer',
+      );
+      return false;
+    }
+
     if (state.items.isEmpty) {
-      state = state.copyWith(error: 'Sipariş için en az bir ürün eklemelisiniz.');
+      state = state.copyWith(error: 'field_sales.order_min_products');
       return false;
     }
 
@@ -210,6 +381,7 @@ class OrderNotifier extends StateNotifier<OrderState> {
         totalAmount: state.grandTotal,
         status: 'Pending',
         notes: notes,
+        orderType: state.draftOrder!.orderType,
       );
 
       final savedItems = List<OrderItemModel>.from(state.items);
@@ -217,6 +389,7 @@ class OrderNotifier extends StateNotifier<OrderState> {
       await sqliteDb.transaction((txn) async {
         final orderMap = order.toMap();
         orderMap['is_synced'] = 0;
+        orderMap['approval_status'] = order.approvalStatus;
         await txn.insert('orders', orderMap);
         for (var item in savedItems) {
           await txn.insert('order_items', item.toMap());
@@ -253,17 +426,21 @@ class OrderNotifier extends StateNotifier<OrderState> {
           'product_code': productCode,
           'quantity': item.quantity,
           'price': item.price,
+          'discount_percent': item.discountPercent,
         });
       }
 
+      final queueType = resolveQueueType(order.orderType);
       final logoPayload = LogoPayloadMapper.orderFromLocal(
         order: {
           'id': order.id,
           'order_date': order.orderDate.toIso8601String(),
           'notes': notes,
+          'order_type': queueType,
         },
         items: lines,
         customerCode: customerCode,
+        orderType: queueType,
       );
 
       await JobQueueService().enqueue(

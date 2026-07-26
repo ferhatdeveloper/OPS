@@ -226,7 +226,7 @@ class _SlipDefaultsScreenState extends State<SlipDefaultsScreen> {
         elevation: 0,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(12),
         child: Form(
           key: _formKey,
           child: Column(

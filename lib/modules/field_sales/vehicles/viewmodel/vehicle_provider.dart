@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../model/vehicle_model.dart';
+import '../../vehicle/engine/vehicle_load_service.dart';
+import '../../vehicle/engine/vehicle_unload_service.dart';
 import '../../../../service/database_service.dart';
 
 class VehicleState {
@@ -93,11 +95,22 @@ class VehicleNotifier extends StateNotifier<VehicleState> {
 
   Future<void> loadVehicleStocks(String vehicleId) => loadVehicleStock(vehicleId);
 
+  /// {@template load_stock_into_vehicle}
+  /// Yükleme fişi yazar; merkez `products.stock_quantity` düşer,
+  /// `vehicle_stocks` artar.
+  ///
+  /// Parametreler:
+  /// - [items]: `{productId, quantity, unit?}` listesi
+  ///
+  /// Dönüş değeri:
+  /// - [bool]: Başarılıysa true
+  /// {@endtemplate}
   Future<bool> loadStockIntoVehicle({
     required List<Map<String, dynamic>> items, // {productId, quantity, unit}
   }) async {
     if (state.selectedVehicle == null) return false;
-    
+    if (items.isEmpty) return false;
+
     state = state.copyWith(isLoading: true);
     try {
       final db = await DatabaseService.getInstance();
@@ -107,23 +120,22 @@ class VehicleNotifier extends StateNotifier<VehicleState> {
 
       await sqliteDb.transaction((txn) async {
         final loadingId = const Uuid().v4();
-        
-        // 1. Insert Loading Record
+        final now = DateTime.now().toIso8601String();
+
         await txn.insert('vehicle_loadings', {
           'id': loadingId,
           'vehicle_id': state.selectedVehicle!.id,
           'salesperson_id': userId,
-          'loading_date': DateTime.now().toIso8601String(),
+          'loading_date': now,
           'status': 'Completed',
           'is_synced': 0,
-          'created_at': DateTime.now().toIso8601String(),
+          'created_at': now,
         });
 
-        for (var item in items) {
+        for (final item in items) {
           final productId = item['productId'] as String;
           final qty = (item['quantity'] as num).toDouble();
 
-          // 2. Insert Loading Item
           await txn.insert('vehicle_loading_items', {
             'id': const Uuid().v4(),
             'loading_id': loadingId,
@@ -131,26 +143,50 @@ class VehicleNotifier extends StateNotifier<VehicleState> {
             'quantity': qty,
             'unit': item['unit'] ?? 'Adet',
           });
-
-          // 3. Update Vehicle Stock
-          final existingStock = await txn.query('vehicle_stocks', 
-            where: 'vehicle_id = ? AND product_id = ?',
-            whereArgs: [state.selectedVehicle!.id, productId]);
-
-          if (existingStock.isNotEmpty) {
-            final currentQty = (existingStock.first['quantity'] as num).toDouble();
-            await txn.update('vehicle_stocks', 
-              {'quantity': currentQty + qty},
-              where: 'vehicle_id = ? AND product_id = ?',
-              whereArgs: [state.selectedVehicle!.id, productId]);
-          } else {
-            await txn.insert('vehicle_stocks', {
-              'vehicle_id': state.selectedVehicle!.id,
-              'product_id': productId,
-              'quantity': qty,
-            });
-          }
         }
+
+        await VehicleLoadService.applyLoad(
+          db: txn,
+          vehicleId: state.selectedVehicle!.id,
+          items: items,
+        );
+      });
+
+      await loadVehicleStock(state.selectedVehicle!.id);
+      state = state.copyWith(isLoading: false);
+      return true;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+      return false;
+    }
+  }
+
+  /// {@template unload_stock_from_vehicle}
+  /// Araç stoğunu düşer; merkez `products.stock_quantity` artırır.
+  ///
+  /// Parametreler:
+  /// - [items]: `{productId, quantity}` listesi
+  ///
+  /// Dönüş değeri:
+  /// - [bool]: Başarılıysa true
+  /// {@endtemplate}
+  Future<bool> unloadStockFromVehicle({
+    required List<Map<String, dynamic>> items,
+  }) async {
+    if (state.selectedVehicle == null) return false;
+    if (items.isEmpty) return false;
+
+    state = state.copyWith(isLoading: true);
+    try {
+      final db = await DatabaseService.getInstance();
+      final sqliteDb = await db.getDatabase();
+
+      await sqliteDb.transaction((txn) async {
+        await VehicleUnloadService.applyUnload(
+          db: txn,
+          vehicleId: state.selectedVehicle!.id,
+          items: items,
+        );
       });
 
       await loadVehicleStock(state.selectedVehicle!.id);

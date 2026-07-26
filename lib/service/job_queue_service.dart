@@ -2,16 +2,20 @@
 // Açıklama: Offline sync kuyruğu — Logo REST aktarımı
 // Oluşturulma Tarihi: 2026-02-22
 // Geliştirici: EXFIN OPS Team
-// Son Güncelleme: 2026-07-15
+// Son Güncelleme: 2026-07-26
 
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
+import '../core/database/migrations/SqlQuerys.dart';
 import '../core/services/logo_api_service.dart';
 import '../core/services/logo_payload_mapper.dart';
 import 'database_service.dart';
+import 'job_queue_entity_map.dart';
+
+export 'job_queue_entity_map.dart';
 
 class JobQueueService {
   static final JobQueueService _instance = JobQueueService._internal();
@@ -48,6 +52,8 @@ class JobQueueService {
   Future<List<Map<String, dynamic>>> getPendingJobs() async {
     final dbService = await DatabaseService.getInstance();
     final db = await dbService.getDatabase();
+    // Tablo yoksa oluştur (LogoJobStore / dens ekranlarla uyumlu)
+    await db.execute(SqlQuerys.createSyncQueueTable);
     final jobs = await db.query(
       'sync_queue',
       orderBy: 'priority DESC, created_at ASC',
@@ -95,7 +101,7 @@ class JobQueueService {
 
         if (result.success) {
           await db.delete('sync_queue', where: 'id = ?', whereArgs: [jobId]);
-          await _markEntitySynced(type, entityId);
+          await _markEntitySynced(type, entityId, payload);
           debugPrint('Job Completed: $jobId');
         } else {
           final currentRetry = (job['retry_count'] as int? ?? 0) + 1;
@@ -143,17 +149,74 @@ class JobQueueService {
           return await _syncCollection(logo, entityId, payload);
         case 'dispatch':
         case 'dispatches':
+        case 'waybill':
+        case 'waybills':
           if (payload == null) {
             return LogoApiResult.fail('İrsaliye payload boş');
           }
           final items = (payload['items'] as List?)
                   ?.map((e) => Map<String, dynamic>.from(e as Map))
                   .toList() ??
+              (payload['lines'] as List?)
+                  ?.map((e) => Map<String, dynamic>.from(e as Map))
+                  .toList() ??
               const [];
-          return logo.createDispatch(payload, items);
+          final customerCode = (payload['customer_code'] ??
+                  payload['arp_code'] ??
+                  payload['ARP_CODE'] ??
+                  '')
+              .toString();
+          if (customerCode.isEmpty) {
+            return LogoApiResult.fail('İrsaliye ARP_CODE / customer_code boş');
+          }
+          // Dispatch TYPE — invoice entity / TYPE 8 flatten yasak
+          final header = LogoPayloadMapper.dispatchHeaderFromLocal(
+            customerCode: customerCode,
+            header: Map<String, dynamic>.from(payload)
+              ..remove('items')
+              ..remove('lines'),
+            dispatchType: (payload['dispatch_type'] ??
+                    payload['waybill_type'] ??
+                    payload['type'])
+                ?.toString(),
+          );
+          final mappedItems =
+              LogoPayloadMapper.dispatchItemsFromLocal(items);
+          return logo.createDispatch(header, mappedItems);
         case 'campaign':
         case 'campaigns':
           return logo.createCampaign(payload ?? {'id': entityId});
+        case 'day_close':
+        case 'audit':
+          // Gün sonu plaka/km + denetim: yerel audit_log; Logo endpoint yok
+          return LogoApiResult.ok({
+            'skipped': true,
+            'entity_type': type,
+            'entity_id': entityId,
+          });
+        case 'production_receipt':
+        case 'production_receipts':
+        case 'stock_production':
+          // Üretimden giriş — Logo material slip API henüz yok; kuyrukta tut
+          if (payload == null || payload.isEmpty) {
+            return LogoApiResult.fail('Üretimden giriş payload boş');
+          }
+          return LogoApiResult.fail(
+            'Üretimden giriş Logo aktarımı henüz bağlanmadı',
+          );
+        case 'stock_transfer':
+        case 'warehouse_transfer':
+        case 'warehouse_transfers':
+          if (payload == null || payload.isEmpty) {
+            return LogoApiResult.fail('Ambar transfer payload boş');
+          }
+          return logo.createStockTransfer(payload);
+        case 'visit':
+        case 'visits':
+          if (!isVisitQueuePayloadReady(payload)) {
+            return LogoApiResult.fail('Ziyaret payload boş');
+          }
+          return LogoApiResult.ok(visitQueueSkippedData(payload!));
         default:
           debugPrint('Bilinmeyen entity_type: $type — atlanıyor');
           return LogoApiResult.ok({'skipped': true});
@@ -170,7 +233,7 @@ class JobQueueService {
   ) async {
     if (payload != null &&
         (payload.containsKey('lines') || payload.containsKey('customer_code'))) {
-      return logo.createOrder(payload);
+      return logo.createOrder(_ensureOrderTypeFields(payload));
     }
 
     final built = await _buildOrderPayload(entityId);
@@ -180,30 +243,38 @@ class JobQueueService {
     return logo.createOrder(built);
   }
 
+  /// Sipariş payload'ında sales/purchase kanalını garanti eder.
+  /// Fatura `wholesale` / TYPE 8 alanlarına flatten etmez.
+  Map<String, dynamic> _ensureOrderTypeFields(Map<String, dynamic> payload) {
+    final body = Map<String, dynamic>.from(payload);
+    final apiType = LogoPayloadMapper.resolveOrderApiType(
+      body['type']?.toString() ??
+          body['order_type']?.toString() ??
+          body['order_channel']?.toString(),
+    );
+    body['type'] = apiType;
+    body['order_type'] = apiType;
+    body['order_channel'] = LogoPayloadMapper.orderChannelKey(apiType);
+    return body;
+  }
+
   Future<LogoApiResult> _syncInvoice(
     LogoApiService logo,
     String entityId,
     Map<String, dynamic>? payload,
   ) async {
-    // ExfinApi: query param local_invoice_id — PG'deki sipariş/fatura id
-    final type = payload?['type']?.toString() ??
+    // ExfinApi: local_invoice_id + type (wholesale|return|purchase|retail)
+    // logo_type/TRCODE: 8 toptan, 3 iade, 1 alış — return→wholesale flatten yok
+    // Sipariş endpoint'ine düşürme: order sales/purchase kanalı fatura TYPE ezmez
+    final rawType = payload?['type']?.toString() ??
         payload?['invoice_type']?.toString() ??
-        'wholesale';
-    final mappedType = type.toLowerCase().contains('return')
-        ? 'wholesale'
-        : (type.toLowerCase().contains('retail') ? 'retail' : 'wholesale');
+        LogoPayloadMapper.invoiceQueueWholesale;
+    final mappedType = LogoPayloadMapper.resolveInvoiceQueueType(rawType);
 
-    if (payload != null && payload.containsKey('lines')) {
-      final customerCode =
-          (payload['customer_code'] ?? payload['arp_code'] ?? '').toString();
-      if (customerCode.isNotEmpty) {
-        // Satırlı fatura varsa sipariş endpoint'i üzerinden de denenebilir
-        final asOrder = await logo.createOrder(payload);
-        if (asOrder.success) return asOrder;
-      }
-    }
-
-    return logo.createInvoice(localInvoiceId: entityId, type: mappedType);
+    return logo.createInvoice(
+      localInvoiceId: entityId,
+      type: mappedType,
+    );
   }
 
   Future<LogoApiResult> _syncCollection(
@@ -212,9 +283,16 @@ class JobQueueService {
     Map<String, dynamic>? payload,
   ) async {
     if (payload != null) {
+      final paymentType =
+          (payload['payment_type'] ?? '').toString().toLowerCase();
+      final isVirman = paymentType == 'virman';
       final code =
           (payload['customer_code'] ?? payload['arp_code'] ?? '').toString();
       final amount = (payload['amount'] as num?)?.toDouble();
+      // Virman: ARP zorunlu değil; payment_type=virman korunur (cash flatten yok)
+      if (isVirman && amount != null && amount > 0) {
+        return logo.createCollectionSync(payload);
+      }
       if (code.isNotEmpty && amount != null) {
         final sync = await logo.createCollectionSync(payload);
         if (sync.success) return sync;
@@ -229,10 +307,15 @@ class JobQueueService {
     if (built == null) {
       return LogoApiResult.fail('Tahsilat bulunamadı: $entityId');
     }
+    final builtType =
+        (built['payment_type'] ?? '').toString().toLowerCase();
+    if (builtType == 'virman') {
+      return logo.createCollectionSync(built);
+    }
     final sync = await logo.createCollectionSync(built);
     if (sync.success) return sync;
     return logo.createCollectionSimple(
-      customerCode: built['customer_code']?.toString() ?? '',
+      customerCode: (built['customer_code'] ?? '').toString(),
       amount: (built['amount'] as num?)?.toDouble() ?? 0,
     );
   }
@@ -277,11 +360,17 @@ class JobQueueService {
         'product_code': code,
         'quantity': row['quantity'],
         'price': row['price'],
+        'discount_percent': row['discount_percent'] ?? 0,
       });
     }
 
+    final orderMap = Map<String, dynamic>.from(order);
+    // DB order_type → queue type (sales|purchase); satışa flatten yok
+    if (!orderMap.containsKey('type') && orderMap['order_type'] != null) {
+      orderMap['type'] = orderMap['order_type'];
+    }
     return LogoPayloadMapper.orderFromLocal(
-      order: Map<String, dynamic>.from(order),
+      order: orderMap,
       items: lines,
       customerCode: customerCode,
     );
@@ -300,13 +389,41 @@ class JobQueueService {
     );
     if (rows.isEmpty) return null;
     final c = rows.first;
+    final paymentType = c['payment_type']?.toString() ?? 'Cash';
+    final amount = (c['amount'] as num?)?.toDouble() ?? 0;
+    if (paymentType.toLowerCase() == 'virman') {
+      return LogoPayloadMapper.virmanFromLocal(
+        amount: amount,
+        fromSafeCode: c['cash_code']?.toString() ?? '',
+        toSafeCode: c['target_cash_code']?.toString() ?? '',
+        description: c['notes']?.toString(),
+      );
+    }
     final customerCode =
         await _resolveCustomerCode(c['customer_id']?.toString());
+    DateTime? due;
+    final dueRaw = c['due_date']?.toString();
+    if (dueRaw != null && dueRaw.isNotEmpty) {
+      due = DateTime.tryParse(dueRaw);
+    }
     return LogoPayloadMapper.collectionFromLocal(
       customerCode: customerCode,
-      amount: (c['amount'] as num?)?.toDouble() ?? 0,
-      paymentType: c['payment_type']?.toString() ?? 'Cash',
+      amount: amount,
+      paymentType: paymentType,
+      safeCode: c['cash_code']?.toString(),
       description: c['notes']?.toString(),
+      documentNo: c['document_no']?.toString(),
+      currencyCode: c['currency_code']?.toString(),
+      salesmanCode: c['salesperson_code']?.toString(),
+      specialCode1: c['special_code_1']?.toString(),
+      bankName: c['bank_name']?.toString(),
+      branchName: c['branch_name']?.toString(),
+      checkNumber: c['check_number']?.toString(),
+      dueDate: due,
+      endorsement: c['endorsement']?.toString(),
+      originalDebtor: c['original_debtor']?.toString(),
+      workplace: c['workplace']?.toString(),
+      accountNumber: c['account_number']?.toString(),
     );
   }
 
@@ -338,13 +455,16 @@ class JobQueueService {
     }
   }
 
-  Future<void> _markEntitySynced(String type, String entityId) async {
-    final table = switch (type) {
-      'order' || 'orders' => 'orders',
-      'invoice' || 'invoices' => 'invoices',
-      'collection' || 'collections' => 'collections',
-      _ => null,
-    };
+  Future<void> _markEntitySynced(
+    String type,
+    String entityId, [
+    Map<String, dynamic>? payload,
+  ]) async {
+    final table = jobQueueEntityTable(type);
+    if (table == 'warehouse_transfers') {
+      await _markWarehouseTransfersSynced(entityId, payload);
+      return;
+    }
     if (table == null) return;
     try {
       final dbService = await DatabaseService.getInstance();
@@ -357,6 +477,37 @@ class JobQueueService {
       );
     } catch (e) {
       debugPrint('is_synced update failed ($table): $e');
+    }
+  }
+
+  /// Ambar transfer satırlarını `transfer_ids` veya entityId ile işaretler.
+  Future<void> _markWarehouseTransfersSynced(
+    String entityId,
+    Map<String, dynamic>? payload,
+  ) async {
+    final ids = <String>[];
+    final raw = payload?['transfer_ids'];
+    if (raw is List) {
+      for (final e in raw) {
+        final s = e?.toString() ?? '';
+        if (s.isNotEmpty) ids.add(s);
+      }
+    }
+    if (ids.isEmpty) ids.add(entityId);
+
+    try {
+      final dbService = await DatabaseService.getInstance();
+      final db = await dbService.getDatabase();
+      for (final id in ids) {
+        await db.update(
+          'warehouse_transfers',
+          {'is_synced': 1, 'status': 'Completed'},
+          where: 'id = ?',
+          whereArgs: [id],
+        );
+      }
+    } catch (e) {
+      debugPrint('warehouse_transfers is_synced update failed: $e');
     }
   }
 }

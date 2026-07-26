@@ -2,14 +2,27 @@
 // Açıklama: Logo REST'e bekleyen sync_queue belgelerini listeler / yeniden dener
 // Oluşturulma Tarihi: 2026-02-22
 // Geliştirici: EXFIN OPS Team
-// Son Güncelleme: 2026-07-15
+// Son Güncelleme: 2026-07-26
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/localization/app_localization.dart';
 import '../../../../service/job_queue_service.dart';
+import 'logo_sync_queue_list.dart';
 
+/// {@template pending_transfers_screen}
+/// Bekleyen Logo aktarımlarını sekmeli listeler.
+///
+/// Kullanım örneği:
+/// ```dart
+/// const PendingTransfersScreen();
+/// ```
+/// {@endtemplate}
 class PendingTransfersScreen extends StatefulWidget {
+  /// [initialTabIndex]: Başlangıç sekmesi (0–3)
   final int initialTabIndex;
+
+  /// {@macro pending_transfers_screen}
   const PendingTransfersScreen({Key? key, this.initialTabIndex = 0})
       : super(key: key);
 
@@ -19,9 +32,16 @@ class PendingTransfersScreen extends StatefulWidget {
 
 class _PendingTransfersScreenState extends State<PendingTransfersScreen>
     with SingleTickerProviderStateMixin {
+  /// [_tabController]: Tip sekmeleri
   late TabController _tabController;
+
+  /// [_jobs]: Bekleyen kuyruk satırları
   List<Map<String, dynamic>> _jobs = [];
+
+  /// [_loading]: İlk yükleme
   bool _loading = true;
+
+  /// [_processing]: Yeniden gönderim sürüyor
   bool _processing = false;
 
   @override
@@ -41,9 +61,17 @@ class _PendingTransfersScreenState extends State<PendingTransfersScreen>
     super.dispose();
   }
 
+  /// {@template _load}
+  /// Bekleyen işleri yükler.
+  /// {@endtemplate}
   Future<void> _load() async {
     setState(() => _loading = true);
-    final jobs = await JobQueueService().getPendingJobs();
+    List<Map<String, dynamic>> jobs = const [];
+    try {
+      jobs = await JobQueueService().getPendingJobs();
+    } catch (_) {
+      jobs = const [];
+    }
     if (!mounted) return;
     setState(() {
       _jobs = jobs;
@@ -51,6 +79,9 @@ class _PendingTransfersScreenState extends State<PendingTransfersScreen>
     });
   }
 
+  /// {@template _retry_all}
+  /// Tüm kuyruğu yeniden işler.
+  /// {@endtemplate}
   Future<void> _retryAll() async {
     setState(() => _processing = true);
     await JobQueueService().processQueue();
@@ -58,6 +89,9 @@ class _PendingTransfersScreenState extends State<PendingTransfersScreen>
     if (mounted) setState(() => _processing = false);
   }
 
+  /// {@template _filter}
+  /// Tip filtresi uygular.
+  /// {@endtemplate}
   List<Map<String, dynamic>> _filter(String type) {
     if (type == 'all') return _jobs;
     return _jobs
@@ -70,12 +104,13 @@ class _PendingTransfersScreenState extends State<PendingTransfersScreen>
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalization.of(context);
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FD),
       appBar: AppBar(
-        title: const Text(
-          'Bekleyen Aktarımlar',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+        title: Text(
+          l10n.translate('field_sales.stubs.sync_queue_status'),
+          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
         backgroundColor: const Color(0xFF375A7F),
         iconTheme: const IconThemeData(color: Colors.white),
@@ -92,21 +127,22 @@ class _PendingTransfersScreenState extends State<PendingTransfersScreen>
                   )
                 : const Icon(Icons.sync),
             onPressed: _processing ? null : _retryAll,
-            tooltip: 'Logo\'ya yeniden gönder',
+            tooltip: l10n.translate('field_sales.resend_to_logo_tooltip'),
           ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _load,
+            tooltip: l10n.translate('common.reload'),
           ),
         ],
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: Colors.white,
-          tabs: const [
-            Tab(text: 'Tümü'),
-            Tab(text: 'Sipariş'),
-            Tab(text: 'Fatura'),
-            Tab(text: 'Tahsilat'),
+          tabs: [
+            Tab(text: l10n.translate('common.all')),
+            Tab(text: l10n.translate('field_sales.order')),
+            Tab(text: l10n.translate('field_sales.invoice')),
+            Tab(text: l10n.translate('field_sales.collection')),
           ],
         ),
       ),
@@ -124,66 +160,18 @@ class _PendingTransfersScreenState extends State<PendingTransfersScreen>
     );
   }
 
+  /// {@template _build_list}
+  /// Filtrelenmiş iş listesini dens Logo durum chip’leriyle çizer.
+  /// {@endtemplate}
   Widget _buildList(List<Map<String, dynamic>> jobs) {
-    if (jobs.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.check_circle_outline,
-                size: 64, color: Colors.green.shade300),
-            const SizedBox(height: 12),
-            const Text(
-              'Bekleyen Logo aktarımı yok',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.all(12),
-      cacheExtent: 500,
-      itemCount: jobs.length,
-      itemBuilder: (context, index) {
-        final job = jobs[index];
-        final type = job['entity_type']?.toString() ?? '-';
-        final entityId = job['entity_id']?.toString() ?? '-';
-        final retry = job['retry_count'] ?? 0;
-        final error = job['last_error']?.toString();
-        return Card(
-          child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: error != null
-                  ? Colors.orange.shade100
-                  : const Color(0xFF375A7F).withOpacity(0.15),
-              child: Icon(
-                error != null ? Icons.sync_problem : Icons.cloud_queue,
-                color: error != null ? Colors.orange : const Color(0xFF375A7F),
-              ),
-            ),
-            title: Text('$type · $entityId'),
-            subtitle: Text(
-              error != null
-                  ? 'Hata ($retry deneme): $error'
-                  : 'Oluşturulma: ${job['created_at'] ?? '-'}',
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-            ),
-            trailing: IconButton(
-              icon: const Icon(Icons.send),
-              onPressed: _processing
-                  ? null
-                  : () async {
-                      setState(() => _processing = true);
-                      await JobQueueService().processQueue();
-                      await _load();
-                      if (mounted) setState(() => _processing = false);
-                    },
-            ),
-          ),
-        );
+    return LogoSyncQueueList(
+      jobs: jobs,
+      processing: _processing,
+      onRetryOne: () async {
+        setState(() => _processing = true);
+        await JobQueueService().processQueue();
+        await _load();
+        if (mounted) setState(() => _processing = false);
       },
     );
   }

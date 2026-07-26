@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../../../../core/localization/app_localization.dart';
 import '../engine/stock_transfer_service.dart';
 import '../model/stock_transfer_model.dart';
-import 'package:uuid/uuid.dart';
 
 class StockTransferScreen extends StatefulWidget {
   const StockTransferScreen({Key? key}) : super(key: key);
@@ -54,7 +53,7 @@ class _StockTransferScreenState extends State<StockTransferScreen> {
           : _transfers.isEmpty
               ? _buildEmptyState()
               : ListView.builder(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(12),
                   itemCount: _transfers.length,
                   itemBuilder: (context, index) {
                     final t = _transfers[index];
@@ -71,18 +70,21 @@ class _StockTransferScreenState extends State<StockTransferScreen> {
 
   Widget _buildTransferCard(StockTransferModel t) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey.shade200),
       ),
       child: ListTile(
-        contentPadding: const EdgeInsets.all(16),
+        contentPadding: const EdgeInsets.all(12),
         leading: Container(
           width: 48,
           height: 48,
-          decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(12)),
+          decoration: BoxDecoration(
+            color: Colors.blue.shade50,
+            borderRadius: BorderRadius.circular(8),
+          ),
           child: const Icon(Icons.swap_horiz, color: Color(0xFF00A8E8)),
         ),
         title: Text(t.productName ?? 'Bilinmeyen Ürün', style: const TextStyle(fontWeight: FontWeight.bold)),

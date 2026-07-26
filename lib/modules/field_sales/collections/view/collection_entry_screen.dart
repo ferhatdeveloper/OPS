@@ -1,29 +1,292 @@
+// Dosya Adı: collection_entry_screen.dart
+// Açıklama: Tahsilat girişi — cari guard + nakit MBT dens alan seti
+// Oluşturulma Tarihi: 2024-03-20
+// Geliştirici: Ferhat NAS
+// Son Güncelleme: 2026-07-26
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/localization/app_localization.dart';
+import '../../../../service/database_service.dart';
+import '../../shared/view/unsaved_voucher_scope.dart';
+import '../model/finance_movement_type.dart';
+import '../model/session_salesperson_code.dart';
 import '../viewmodel/collection_provider.dart';
+import '../widgets/cash_card_code_field.dart';
+import '../widgets/check_collection_mbt_fields.dart';
+import '../widgets/collection_cash_mbt_fields.dart';
+import 'collection_customer_selection_screen.dart';
 
+/// {@template collection_entry_screen}
+/// Tahsilat girişi ekranı.
+///
+/// Kullanım örneği:
+/// ```dart
+/// CollectionEntryScreen(customerId: 'C001');
+/// CollectionEntryScreen(
+///   customerId: 'C001',
+///   initialPaymentType: 'check',
+/// );
+/// ```
+/// {@endtemplate}
 class CollectionEntryScreen extends ConsumerStatefulWidget {
+  /// [customerId]: Seçili cari kimliği
   final String customerId;
-  const CollectionEntryScreen({Key? key, required this.customerId}) : super(key: key);
+
+  /// [initialPaymentType]: cash | credit_card | check | note
+  /// (legacy: Cash | CreditCard | Check | Note)
+  final String? initialPaymentType;
+
+  /// [initialSalespersonCode]: Plasiyer ön-doldurma (test / enjeksiyon).
+  /// Null ise oturum kullanıcı kodundan okunur.
+  final String? initialSalespersonCode;
+
+  /// {@macro collection_entry_screen}
+  const CollectionEntryScreen({
+    Key? key,
+    required this.customerId,
+    this.initialPaymentType,
+    this.initialSalespersonCode,
+  }) : super(key: key);
 
   @override
-  ConsumerState<CollectionEntryScreen> createState() => _CollectionEntryScreenState();
+  ConsumerState<CollectionEntryScreen> createState() =>
+      _CollectionEntryScreenState();
 }
 
 class _CollectionEntryScreenState extends ConsumerState<CollectionEntryScreen> {
+  /// [_amountController]: Tutar alanı
   final _amountController = TextEditingController();
+
+  /// [_notesController]: Not / açıklama alanı (çek-senet)
   final _notesController = TextEditingController();
+
+  /// [_bankController]: Çek banka adı
   final _bankController = TextEditingController();
+
+  /// [_branchController]: Çek şube adı
   final _branchController = TextEditingController();
+
+  /// [_checkNoController]: Çek numarası
   final _checkNoController = TextEditingController();
+
+  /// [_currencyController]: Nakit — işlem dövizi
+  final _currencyController = TextEditingController(text: 'TRY');
+
+  /// [_documentNoController]: Nakit — evrak no
+  final _documentNoController = TextEditingController();
+
+  /// [_cashCodeController]: Nakit — kasa kodu
+  final _cashCodeController = TextEditingController();
+
+  /// [_descriptionController]: Nakit — açıklama
+  final _descriptionController = TextEditingController();
+
+  /// [_salespersonController]: Nakit — plasiyer
+  final _salespersonController = TextEditingController();
+
+  /// [_specialCodeController]: Nakit — özelkod 1
+  final _specialCodeController = TextEditingController();
+
+  /// [_endorsementController]: Çek — ciro
+  final _endorsementController = TextEditingController();
+
+  /// [_originalDebtorController]: Çek — asıl borçlu
+  final _originalDebtorController = TextEditingController();
+
+  /// [_workplaceController]: Çek — işyeri
+  final _workplaceController = TextEditingController();
+
+  /// [_accountNoController]: Çek — hesap no
+  final _accountNoController = TextEditingController();
+
+  /// [_dueDate]: Çek vade tarihi
   DateTime? _dueDate;
-  String _selectedPaymentType = 'Cash';
+
+  /// [_selectedPaymentType]: API ödeme tipi (cash / credit_card / …)
+  late String _selectedPaymentType;
+
+  /// [_missingCustomer]: Cari eksik — yönlendirme
+  bool _missingCustomer = false;
+
+  /// [_isCash]: Nakit tahsilat seçili mi
+  bool get _isCash {
+    final t = FinanceMovementType.fromStorage(_selectedPaymentType);
+    return t == FinanceMovementType.cashCollection;
+  }
+
+  /// [_isCreditCard]: KK tahsilat dens alanları
+  bool get _isCreditCard {
+    return FinanceMovementType.fromStorage(_selectedPaymentType).isCreditCard;
+  }
+
+  /// [_hasUnsavedDraft]: Kullanıcı formu doldurduysa taslak uyarısı
+  bool get _hasUnsavedDraft {
+    return _amountController.text.trim().isNotEmpty ||
+        _notesController.text.trim().isNotEmpty ||
+        _bankController.text.trim().isNotEmpty ||
+        _branchController.text.trim().isNotEmpty ||
+        _checkNoController.text.trim().isNotEmpty ||
+        _documentNoController.text.trim().isNotEmpty ||
+        _cashCodeController.text.trim().isNotEmpty ||
+        _descriptionController.text.trim().isNotEmpty ||
+        _specialCodeController.text.trim().isNotEmpty ||
+        _endorsementController.text.trim().isNotEmpty ||
+        _originalDebtorController.text.trim().isNotEmpty ||
+        _workplaceController.text.trim().isNotEmpty ||
+        _accountNoController.text.trim().isNotEmpty ||
+        _dueDate != null;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    final parsed = FinanceMovementType.fromStorage(widget.initialPaymentType);
+    _selectedPaymentType = parsed.kind == FinanceMovementKind.collection
+        ? parsed.apiCode
+        : FinanceMovementType.cashCollection.apiCode;
+    _amountController.addListener(_onDraftFieldChanged);
+    _notesController.addListener(_onDraftFieldChanged);
+    _bankController.addListener(_onDraftFieldChanged);
+    _branchController.addListener(_onDraftFieldChanged);
+    _checkNoController.addListener(_onDraftFieldChanged);
+    _documentNoController.addListener(_onDraftFieldChanged);
+    _cashCodeController.addListener(_onDraftFieldChanged);
+    _descriptionController.addListener(_onDraftFieldChanged);
+    _specialCodeController.addListener(_onDraftFieldChanged);
+    _endorsementController.addListener(_onDraftFieldChanged);
+    _originalDebtorController.addListener(_onDraftFieldChanged);
+    _workplaceController.addListener(_onDraftFieldChanged);
+    _accountNoController.addListener(_onDraftFieldChanged);
+    Future.microtask(() async {
+      await _prefillSalespersonFromSession();
+      if (!CollectionNotifier.isValidCustomerId(widget.customerId)) {
+        if (!mounted) return;
+        setState(() => _missingCustomer = true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalization.of(context).translate(
+                'field_sales.collection_requires_customer',
+              ),
+            ),
+          ),
+        );
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => CollectionCustomerSelectionScreen(
+              purpose: CollectionSelectionPurpose.collection,
+              initialPaymentType: _selectedPaymentType,
+            ),
+          ),
+        );
+      }
+    });
+  }
+
+  /// {@template _onDraftFieldChanged}
+  /// Form değişince UnsavedVoucherScope yeniden kurulur.
+  /// {@endtemplate}
+  void _onDraftFieldChanged() {
+    if (mounted) setState(() {});
+  }
+
+  /// {@template _discardCollectionDraft}
+  /// Kaydedilmemiş tahsilat formunu temizler (MBT Sil).
+  /// {@endtemplate}
+  void _discardCollectionDraft() {
+    _amountController.clear();
+    _notesController.clear();
+    _bankController.clear();
+    _branchController.clear();
+    _checkNoController.clear();
+    _documentNoController.clear();
+    _cashCodeController.clear();
+    _descriptionController.clear();
+    _specialCodeController.clear();
+    _endorsementController.clear();
+    _originalDebtorController.clear();
+    _workplaceController.clear();
+    _accountNoController.clear();
+    _dueDate = null;
+    _currencyController.text = 'TRY';
+  }
+
+  /// {@template _prefillSalespersonFromSession}
+  /// Nakit PLASIYER alanını oturum / kullanıcı kodundan ön-doldurur.
+  /// Dolu controller ezilmez; yalnızca boşsa yazılır.
+  /// {@endtemplate}
+  Future<void> _prefillSalespersonFromSession() async {
+    if (_salespersonController.text.trim().isNotEmpty) return;
+
+    final injected = widget.initialSalespersonCode?.trim();
+    if (injected != null && injected.isNotEmpty) {
+      _salespersonController.text = injected;
+      return;
+    }
+
+    try {
+      final db = await DatabaseService.getInstance();
+      final session = await db.getUserSession();
+      final code = resolveSalespersonCodeFromSession(session);
+      if (!mounted) return;
+      if (code != null &&
+          code.isNotEmpty &&
+          _salespersonController.text.trim().isEmpty) {
+        _salespersonController.text = code;
+      }
+    } catch (_) {
+      // Oturum yoksa dens alan boş kalır; kayıtta opsiyonel
+    }
+  }
+
+  @override
+  void dispose() {
+    _amountController.removeListener(_onDraftFieldChanged);
+    _notesController.removeListener(_onDraftFieldChanged);
+    _bankController.removeListener(_onDraftFieldChanged);
+    _branchController.removeListener(_onDraftFieldChanged);
+    _checkNoController.removeListener(_onDraftFieldChanged);
+    _documentNoController.removeListener(_onDraftFieldChanged);
+    _cashCodeController.removeListener(_onDraftFieldChanged);
+    _descriptionController.removeListener(_onDraftFieldChanged);
+    _specialCodeController.removeListener(_onDraftFieldChanged);
+    _endorsementController.removeListener(_onDraftFieldChanged);
+    _originalDebtorController.removeListener(_onDraftFieldChanged);
+    _workplaceController.removeListener(_onDraftFieldChanged);
+    _accountNoController.removeListener(_onDraftFieldChanged);
+    _amountController.dispose();
+    _notesController.dispose();
+    _bankController.dispose();
+    _branchController.dispose();
+    _checkNoController.dispose();
+    _currencyController.dispose();
+    _documentNoController.dispose();
+    _cashCodeController.dispose();
+    _descriptionController.dispose();
+    _salespersonController.dispose();
+    _specialCodeController.dispose();
+    _endorsementController.dispose();
+    _originalDebtorController.dispose();
+    _workplaceController.dispose();
+    _accountNoController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(collectionProvider);
+    final l10n = AppLocalization.of(context);
+    if (_missingCustomer) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
 
-    return Scaffold(
+    return UnsavedVoucherScope(
+      hasUnsaved: _hasUnsavedDraft,
+      onDiscard: _discardCollectionDraft,
+      child: Scaffold(
       backgroundColor: const Color(0xFFF8F9FD),
       appBar: AppBar(
         flexibleSpace: Container(
@@ -35,111 +298,192 @@ class _CollectionEntryScreenState extends ConsumerState<CollectionEntryScreen> {
             ),
           ),
         ),
-        title: const Text('Tahsilat Girişi', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
+        title: Text(
+          l10n.translate('field_sales.collection_entry_title'),
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+        ),
         elevation: 0,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         child: Column(
           children: [
-            _buildAmountCard(),
-            const SizedBox(height: 16),
-            _buildPaymentTypeCard(),
-            const SizedBox(height: 16),
-            _buildNotesCard(),
-            if (_selectedPaymentType == 'Check') ...[
-              const SizedBox(height: 16),
-              _buildCheckDetailsCard(),
+            _buildAmountCard(l10n),
+            const SizedBox(height: 12),
+            _buildPaymentTypeCard(l10n),
+            if (_isCash) ...[
+              const SizedBox(height: 12),
+              _buildCashMbtCard(),
             ],
-            const SizedBox(height: 32),
+            if (!_isCash) ...[
+              const SizedBox(height: 12),
+              _buildNotesCard(l10n),
+            ],
+            if (_isCreditCard) ...[
+              const SizedBox(height: 12),
+              _buildCreditCardDetailsCard(l10n),
+            ],
+            if (_selectedPaymentType ==
+                    FinanceMovementType.checkCollection.apiCode ||
+                _selectedPaymentType == 'Check') ...[
+              const SizedBox(height: 12),
+              _buildCheckDetailsCard(l10n),
+            ],
+            if (_selectedPaymentType ==
+                    FinanceMovementType.noteCollection.apiCode ||
+                _selectedPaymentType == 'Note') ...[
+              const SizedBox(height: 12),
+              _buildNoteDetailsCard(l10n),
+            ],
+            const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
-              height: 56,
+              height: 48,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF00A8E8),
                   foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                  elevation: 2,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  elevation: 0,
                 ),
                 onPressed: state.isLoading ? null : _handleSave,
                 child: state.isLoading
                     ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text('Tahsilatı Onayla', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    : Text(
+                        l10n.translate('field_sales.collection_confirm'),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
               ),
             ),
           ],
         ),
       ),
+    ),
     );
   }
 
-  Widget _buildAmountCard() {
+  /// {@template _buildCashMbtCard}
+  /// Nakit MBT dens alan kartı.
+  /// {@endtemplate}
+  Widget _buildCashMbtCard() {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF375A7F).withOpacity(0.08),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          )
-        ],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: CollectionCashMbtFields(
+        currencyController: _currencyController,
+        documentNoController: _documentNoController,
+        cashCodeController: _cashCodeController,
+        descriptionController: _descriptionController,
+        amountController: _amountController,
+        salespersonController: _salespersonController,
+        specialCodeController: _specialCodeController,
+        // Üst tutar kartı zaten var; dens tutar aynı controller ile tutulur
+        showAmountField: true,
+      ),
+    );
+  }
+
+  Widget _buildAmountCard(AppLocalization l10n) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade200),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          const Text('Tahsil Edilecek Tutar', style: TextStyle(color: Colors.grey, fontSize: 14)),
-          const SizedBox(height: 16),
+          Text(
+            l10n.translate('field_sales.amount_to_collect'),
+            style: const TextStyle(color: Colors.grey, fontSize: 13),
+          ),
+          const SizedBox(height: 8),
           TextField(
             controller: _amountController,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             textAlign: TextAlign.center,
-            decoration: InputDecoration(
+            decoration: const InputDecoration(
               hintText: '0.00',
               suffixText: '',
-              suffixStyle: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Color(0xFF00A8E8)),
+              suffixStyle: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF00A8E8),
+              ),
               border: InputBorder.none,
+              isDense: true,
+              contentPadding: EdgeInsets.symmetric(vertical: 4),
             ),
-            style: const TextStyle(fontSize: 48, fontWeight: FontWeight.bold, color: Color(0xFF2C3E50)),
+            style: const TextStyle(
+              fontSize: 36,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF2C3E50),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildPaymentTypeCard() {
+  Widget _buildPaymentTypeCard(AppLocalization l10n) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF375A7F).withOpacity(0.08),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          )
-        ],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade200),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Ödeme Türü', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF2C3E50))),
-          const SizedBox(height: 16),
-          _buildPaymentTypeSelector(),
+          Text(
+            l10n.translate('field_sales.payment_type_label'),
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+              color: Color(0xFF2C3E50),
+            ),
+          ),
+          const SizedBox(height: 10),
+          _buildPaymentTypeSelector(l10n),
         ],
       ),
     );
   }
 
-  Widget _buildPaymentTypeSelector() {
+  Widget _buildPaymentTypeSelector(AppLocalization l10n) {
+    // Senet (payment_note) MBT §6.5 — 4. tip; layout aynı Expanded satır
     final types = [
-      {'val': 'Cash', 'label': 'Nakit', 'icon': Icons.money},
-      {'val': 'CreditCard', 'label': 'Kredi', 'icon': Icons.credit_card},
-      {'val': 'Check', 'label': 'Çek', 'icon': Icons.description},
+      {
+        'val': FinanceMovementType.cashCollection.apiCode,
+        'label': l10n.translate('field_sales.payment_cash'),
+        'icon': Icons.money,
+      },
+      {
+        'val': FinanceMovementType.creditCardCollection.apiCode,
+        'label': l10n.translate('field_sales.payment_credit_short'),
+        'icon': Icons.credit_card,
+      },
+      {
+        'val': FinanceMovementType.checkCollection.apiCode,
+        'label': l10n.translate('field_sales.payment_check'),
+        'icon': Icons.description,
+      },
+      {
+        'val': FinanceMovementType.noteCollection.apiCode,
+        'label': l10n.translate('field_sales.payment_note'),
+        'icon': Icons.note_alt,
+      },
     ];
 
     return Row(
@@ -150,24 +494,44 @@ class _CollectionEntryScreenState extends ConsumerState<CollectionEntryScreen> {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4.0),
             child: InkWell(
-              onTap: () => setState(() => _selectedPaymentType = t['val'] as String),
-              borderRadius: BorderRadius.circular(12),
+              onTap: () =>
+                  setState(() => _selectedPaymentType = t['val'] as String),
+              borderRadius: BorderRadius.circular(8),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(vertical: 16),
+                padding: const EdgeInsets.symmetric(vertical: 8),
                 decoration: BoxDecoration(
-                  color: isSelected ? const Color(0xFF00A8E8) : Colors.grey.shade50,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: isSelected ? const Color(0xFF00A8E8) : Colors.transparent),
-                  boxShadow: isSelected ? [BoxShadow(color: const Color(0xFF00A8E8).withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))] : [],
+                  color: isSelected
+                      ? const Color(0xFF00A8E8)
+                      : Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: isSelected
+                        ? const Color(0xFF00A8E8)
+                        : Colors.grey.shade200,
+                  ),
                 ),
                 child: Column(
                   children: [
-                    Icon(t['icon'] as IconData, color: isSelected ? Colors.white : Colors.grey.shade500, size: 28),
-                    const SizedBox(height: 8),
+                    Icon(
+                      t['icon'] as IconData,
+                      color: isSelected ? Colors.white : Colors.grey.shade500,
+                      size: 22,
+                    ),
+                    const SizedBox(height: 4),
                     Text(
                       t['label'] as String,
-                      style: TextStyle(color: isSelected ? Colors.white : Colors.grey.shade700, fontWeight: isSelected ? FontWeight.bold : FontWeight.w500, fontSize: 13),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: isSelected
+                            ? Colors.white
+                            : Colors.grey.shade700,
+                        fontWeight:
+                            isSelected ? FontWeight.bold : FontWeight.w500,
+                        fontSize: 11,
+                      ),
                     ),
                   ],
                 ),
@@ -179,33 +543,42 @@ class _CollectionEntryScreenState extends ConsumerState<CollectionEntryScreen> {
     );
   }
 
-  Widget _buildNotesCard() {
+  Widget _buildNotesCard(AppLocalization l10n) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF375A7F).withOpacity(0.08),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          )
-        ],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade200),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Notlar (Opsiyonel)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF2C3E50))),
-          const SizedBox(height: 16),
+          Text(
+            l10n.translate('field_sales.notes_optional'),
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+              color: Color(0xFF2C3E50),
+            ),
+          ),
+          const SizedBox(height: 10),
           TextField(
             controller: _notesController,
             maxLines: 3,
             decoration: InputDecoration(
               filled: true,
               fillColor: const Color(0xFFF8F9FD),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-              hintText: 'Ödeme detaylarını buraya yazabilirsiniz...',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.grey.shade200),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.grey.shade200),
+              ),
+              contentPadding: const EdgeInsets.all(10),
+              hintText: l10n.translate('field_sales.collection_notes_hint'),
               hintStyle: TextStyle(color: Colors.grey.shade400),
             ),
           ),
@@ -213,66 +586,200 @@ class _CollectionEntryScreenState extends ConsumerState<CollectionEntryScreen> {
       ),
     );
   }
-  Widget _buildCheckDetailsCard() {
+
+  /// {@template _buildCreditCardDetailsCard}
+  /// Kredi kartı dens alanları — EVRAK NO + POS/Kasa (nakit dens parity).
+  /// {@endtemplate}
+  Widget _buildCreditCardDetailsCard(AppLocalization l10n) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF375A7F).withOpacity(0.08),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          )
-        ],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade200),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Çek Detayları', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF2C3E50))),
-          const SizedBox(height: 16),
-          _buildTextField(_bankController, 'Banka Adı', Icons.account_balance),
-          const SizedBox(height: 12),
-          _buildTextField(_branchController, 'Şube Adı', Icons.location_on),
-          const SizedBox(height: 12),
-          _buildTextField(_checkNoController, 'Çek Numarası', Icons.confirmation_number),
-          const SizedBox(height: 12),
-          InkWell(
-            onTap: _selectDueDate,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8F9FD),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.calendar_today, size: 20, color: Color(0xFF00A8E8)),
-                  const SizedBox(width: 12),
-                  Text(
-                    _dueDate == null ? 'Vade Tarihi Seçin' : 'Vade: ${_dueDate!.day}.${_dueDate!.month}.${_dueDate!.year}',
-                    style: TextStyle(color: _dueDate == null ? Colors.grey.shade600 : Colors.black, fontSize: 14),
-                  ),
-                ],
-              ),
+          Text(
+            l10n.translate('field_sales.cc_details'),
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+              color: Color(0xFF2C3E50),
             ),
+          ),
+          const SizedBox(height: 10),
+          _buildTextField(
+            _documentNoController,
+            l10n.translate('field_sales.cc_document_no'),
+            Icons.receipt_long,
+          ),
+          const SizedBox(height: 8),
+          CashCardCodeField(
+            controller: _cashCodeController,
+            label: l10n.translate('field_sales.cc_pos_code'),
+            prefixIcon: Icons.point_of_sale,
+            prefixIconColor: const Color(0xFF375A7F),
+            fillColor: const Color(0xFFF8F9FD),
+            labelAsHint: true,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String hint, IconData icon) {
+  Widget _buildCheckDetailsCard(AppLocalization l10n) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            l10n.translate('field_sales.check_details'),
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+              color: Color(0xFF2C3E50),
+            ),
+          ),
+          const SizedBox(height: 10),
+          CheckCollectionMbtFields(
+            documentNoController: _documentNoController,
+            endorsementController: _endorsementController,
+            originalDebtorController: _originalDebtorController,
+            bankController: _bankController,
+            branchController: _branchController,
+            workplaceController: _workplaceController,
+            checkNoController: _checkNoController,
+            accountNoController: _accountNoController,
+            dueDate: _dueDate,
+            onDueDateTap: _selectDueDate,
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// {@template _buildNoteDetailsCard}
+  /// Senet (Note) için çek formuna benzer minimal alanlar.
+  /// {@endtemplate}
+  Widget _buildNoteDetailsCard(AppLocalization l10n) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            l10n.translate('field_sales.note_details'),
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+              color: Color(0xFF2C3E50),
+            ),
+          ),
+          const SizedBox(height: 10),
+          _buildTextField(
+            _checkNoController,
+            l10n.translate('field_sales.note_number'),
+            Icons.confirmation_number,
+          ),
+          const SizedBox(height: 8),
+          _buildTextField(
+            _bankController,
+            l10n.translate('field_sales.note_bank_name'),
+            Icons.account_balance,
+          ),
+          const SizedBox(height: 8),
+          _buildDueDateField(
+            l10n,
+            emptyLabel: l10n.translate('field_sales.note_due_date'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// {@template _buildDueDateField}
+  /// Vade tarihi seçici (çek / senet ortak).
+  /// {@endtemplate}
+  Widget _buildDueDateField(
+    AppLocalization l10n, {
+    required String emptyLabel,
+  }) {
+    return InkWell(
+      onTap: _selectDueDate,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8F9FD),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey.shade200),
+        ),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.calendar_today,
+              size: 18,
+              color: Color(0xFF00A8E8),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              _dueDate == null
+                  ? emptyLabel
+                  : l10n.translate(
+                      'field_sales.due_date_prefix',
+                      args: {
+                        'date':
+                            '${_dueDate!.day}.${_dueDate!.month}.${_dueDate!.year}',
+                      },
+                    ),
+              style: TextStyle(
+                color: _dueDate == null ? Colors.grey.shade600 : Colors.black,
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextField(
+    TextEditingController controller,
+    String hint,
+    IconData icon,
+  ) {
     return TextField(
       controller: controller,
       decoration: InputDecoration(
-        prefixIcon: Icon(icon, size: 20, color: const Color(0xFF375A7F)),
+        prefixIcon: Icon(icon, size: 18, color: const Color(0xFF375A7F)),
         hintText: hint,
         filled: true,
         fillColor: const Color(0xFFF8F9FD),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        isDense: true,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: Colors.grey.shade200),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: Colors.grey.shade200),
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 10,
+          vertical: 10,
+        ),
       ),
     );
   }
@@ -288,28 +795,66 @@ class _CollectionEntryScreenState extends ConsumerState<CollectionEntryScreen> {
   }
 
   void _handleSave() async {
-    final amount = double.tryParse(_amountController.text) ?? 0.0;
+    final l10n = AppLocalization.of(context);
+    final amount = double.tryParse(
+          _amountController.text.trim().replaceAll(',', '.'),
+        ) ??
+        0.0;
     if (amount <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lütfen geçerli bir tutar girin.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.translate('target.enter_amount_error')),
+        ),
+      );
       return;
     }
 
+    final type = FinanceMovementType.fromStorage(_selectedPaymentType);
+    final isCheck = type.isCheck;
+    final isNote = type.isNote;
+    final isCard = type.isCreditCard;
+    final notes = _isCash
+        ? _descriptionController.text.trim()
+        : _notesController.text;
+
     final success = await ref.read(collectionProvider.notifier).saveCollection(
-      customerId: widget.customerId,
-      amount: amount,
-      paymentType: _selectedPaymentType,
-      notes: _notesController.text,
-      bankName: _selectedPaymentType == 'Check' ? _bankController.text : null,
-      branchName: _selectedPaymentType == 'Check' ? _branchController.text : null,
-      checkNumber: _selectedPaymentType == 'Check' ? _checkNoController.text : null,
-      dueDate: _selectedPaymentType == 'Check' ? _dueDate : null,
-    );
+          customerId: widget.customerId,
+          amount: amount,
+          paymentType: FinanceMovementType.normalizeApiCode(
+            _selectedPaymentType,
+          ),
+          notes: notes,
+          bankName: (isCheck || isNote) ? _bankController.text : null,
+          branchName: isCheck ? _branchController.text : null,
+          checkNumber: (isCheck || isNote) ? _checkNoController.text : null,
+          dueDate: (isCheck || isNote) ? _dueDate : null,
+          cashCode: (_isCash || isCard) ? _cashCodeController.text : null,
+          documentNo:
+              (_isCash || isCheck || isCard) ? _documentNoController.text : null,
+          currencyCode: _isCash ? _currencyController.text : null,
+          salespersonCode: _isCash ? _salespersonController.text : null,
+          specialCode1: _isCash ? _specialCodeController.text : null,
+          endorsement: isCheck ? _endorsementController.text : null,
+          originalDebtor: isCheck ? _originalDebtorController.text : null,
+          workplace: isCheck ? _workplaceController.text : null,
+          accountNumber: isCheck ? _accountNoController.text : null,
+        );
 
     if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tahsilat başarıyla kaydedildi.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.translate('field_sales.collection_saved')),
+        ),
+      );
       Navigator.pop(context);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: \${ref.read(collectionProvider).error}')));
+      final error = ref.read(collectionProvider).error;
+      final message = (error != null && error.startsWith('field_sales.'))
+          ? l10n.translate(error)
+          : '${l10n.translate('common.error')}: ${error ?? ''}';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
     }
   }
 }

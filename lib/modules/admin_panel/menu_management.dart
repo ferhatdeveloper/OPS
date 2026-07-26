@@ -6,7 +6,6 @@
 
 import 'package:flutter/material.dart';
 import '../../core/services/supabase_service.dart';
-import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 import '../../core/constants/mdi_icon_map.dart';
 
 /// {@template MenuManagement}
@@ -535,7 +534,7 @@ class _MenuEditPanelState extends State<MenuEditPanel> {
 
   @override
   Widget build(BuildContext context) {
-    final iconData = MdiIcons.fromString(_iconName) ?? Icons.menu;
+    final iconData = mdiIconMap[_iconName] ?? Icons.menu;
     return SingleChildScrollView(
       child: Form(
         key: _formKey,

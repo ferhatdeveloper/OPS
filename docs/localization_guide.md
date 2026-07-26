@@ -88,3 +88,4 @@ Arapça (`ar`), Farsça (`fa`) ve Kürtçe (`ku`/`ckb`) gibi diller için sistem
 
 -   **İç içe JSON yapısı:** Anahtarlar `.` (nokta) operatörü ile erişilebilir (Örn: `settings.account.name`).
 -   **Riverpod Entegrasyonu:** `localeProvider` watch edilerek uygulama genelinde anlık dil değişimi tetiklenebilir.
+-   **ku / field_sales finans:** Yeni MBT finans–virman metinleri Latin Kurmanji + ERP ödünç (`Virman`, `Tahsîlat`, `Nakit`, `Kasa`, `Finans`) tutarlı tutulur. Ayrıntı: `docs/plans/2026-07-26-ku-latin-finance-polish.md`.

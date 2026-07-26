@@ -73,7 +73,40 @@ class AppLocalization {
   bool _isLoaded = false;
   static const String _fallbackLanguage = 'tr';
 
+  /// [_instance]: Son başarılı yüklenen örnek (provider / bildirim)
+  static AppLocalization? _instance;
+
   AppLocalization(this.locale);
+
+  /// {@template app_localization_instance}
+  /// Context olmayan katmanlar için son yüklenen örnek (yoksa TR).
+  ///
+  /// Kullanım örneği:
+  /// ```dart
+  /// final text = AppLocalization.instance.translate('common.ok');
+  /// ```
+  /// {@endtemplate}
+  static AppLocalization get instance =>
+      _instance ?? AppLocalization(const Locale('tr', 'TR'));
+
+  /// [isLoaded]: Çeviri haritası yüklendi mi
+  bool get isLoaded => _isLoaded;
+
+  /// {@template app_localization_resolve}
+  /// Yüklü instance döner; yoksa TR yükleyip kaydeder.
+  ///
+  /// Dönüş değeri:
+  /// - [AppLocalization]: Kullanıma hazır örnek
+  /// {@endtemplate}
+  static Future<AppLocalization> resolve() async {
+    final existing = _instance;
+    if (existing != null && existing._isLoaded) {
+      return existing;
+    }
+    final loc = existing ?? AppLocalization(const Locale('tr', 'TR'));
+    await loc.load();
+    return loc;
+  }
 
   static AppLocalization of(BuildContext context) {
     try {
@@ -112,6 +145,7 @@ class AppLocalization {
       if (fileName == null || fileName == _fallbackLanguage) {
         _localizedValues = _turkishValues;
         _isLoaded = true;
+        _instance = this;
         return true;
       }
 
@@ -123,11 +157,13 @@ class AppLocalization {
         debugLog('Başarılı: $filePath');
         _localizedValues = json.decode(jsonString);
         _isLoaded = true;
+        _instance = this;
         return true;
       } catch (e) {
         debugLog('Hata: $filePath - $e. Sadece Türkçe kullanılıyor.');
         _localizedValues = _turkishValues;
         _isLoaded = true;
+        _instance = this;
         return true;
       }
     } catch (e) {

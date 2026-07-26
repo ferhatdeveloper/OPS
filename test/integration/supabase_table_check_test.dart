@@ -4,8 +4,8 @@
 // Geliştirici: Ferhat NAS
 // Son Güncelleme: 2024-03-21
 
+import 'package:flutter_test/flutter_test.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:test/test.dart';
 
 void main() {
   // Test edilecek tablo isimleri

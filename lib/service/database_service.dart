@@ -1,5 +1,12 @@
 import 'package:sqflite/sqflite.dart' show ConflictAlgorithm, Sqflite, Database;
 import '../core/database/migrations/SqlQuerys.dart';
+import '../modules/field_sales/announcements/model/campaign_announcement_seed.dart';
+import '../modules/field_sales/collections/model/cash_card_seed.dart';
+import '../modules/field_sales/invoices/model/einvoice_status_seed.dart';
+import '../modules/field_sales/pricing/model/price_list_seed.dart';
+import '../modules/field_sales/stock/model/batch_expiry_seed.dart';
+import '../modules/field_sales/stock/model/warehouse_master_seed.dart';
+import '../modules/field_sales/waybills/model/ewaybill_status_seed.dart';
 import 'postgres_service.dart';
 import 'dart:convert';
 import '../core/services/postgre_service.dart';
@@ -219,6 +226,15 @@ class DatabaseService {
       await ensureCompaniesTableSchema();
       await ensureOrdersTableSchema();
       await ensureCustomersCodeColumn();
+      await ensureCustomersCardRoleColumn();
+      await ensureCollectionsTableSchema();
+      await ensureVisitsTableSchema();
+      await ensureEinvoiceStatusSchema();
+      await ensureEwaybillStatusSchema();
+      await ensureWarehousesSchema();
+      await ensurePriceListsSchema();
+      await ensureBatchExpirySchema();
+      await ensureCashCardsSchema();
 
       // Menü tablosu reset kontrolü ve otomatik sıfırlama kaldırıldı
       // Dil tablosunu oluştur
@@ -917,7 +933,7 @@ class DatabaseService {
     }
   }
 
-  /// Orders tablosuna imza alanı ekler (if missing)
+  /// Orders tablosuna imza / tip alanları ekler (if missing)
   Future<void> ensureOrdersTableSchema() async {
     if (await _storage.hasSQLiteSupport()) {
       final db = await _storage.getDatabase();
@@ -934,7 +950,66 @@ class DatabaseService {
       } else if (columns.isEmpty) {
         await db.execute(SqlQuerys.createOrdersTable);
       }
-      
+
+      final refreshed = await db.rawQuery('PRAGMA table_info(orders)');
+      final hasOrderType =
+          refreshed.any((col) => col['name'] == 'order_type');
+      if (!hasOrderType && refreshed.isNotEmpty) {
+        try {
+          await db.execute(
+            "ALTER TABLE orders ADD COLUMN order_type TEXT DEFAULT 'sales'",
+          );
+        } catch (e) {
+          print('❌ order_type kolonu ekleme hatası: $e');
+        }
+      }
+
+      final afterType = await db.rawQuery('PRAGMA table_info(orders)');
+      final hasApproval =
+          afterType.any((col) => col['name'] == 'approval_status');
+      if (!hasApproval && afterType.isNotEmpty) {
+        try {
+          await db.execute(
+            'ALTER TABLE orders ADD COLUMN approval_status '
+            'INTEGER NOT NULL DEFAULT 0',
+          );
+          // Onaylı / sevk durumlarını ONAY=1 ile hizala (DEFAULT 0 yanılgısı)
+          await db.execute('''
+            UPDATE orders
+            SET approval_status = 1
+            WHERE LOWER(COALESCE(status, '')) IN (
+              'approved', 'shippable'
+            )
+          ''');
+          print('✅ orders.approval_status kolonu eklendi');
+        } catch (e) {
+          print('❌ orders.approval_status kolon ekleme hatası: $e');
+        }
+      }
+
+      final itemCols = await db.rawQuery('PRAGMA table_info(order_items)');
+      if (itemCols.isNotEmpty) {
+        final hasDisc =
+            itemCols.any((col) => col['name'] == 'discount_percent');
+        if (!hasDisc) {
+          try {
+            await db.execute(
+              'ALTER TABLE order_items ADD COLUMN discount_percent REAL DEFAULT 0',
+            );
+          } catch (e) {
+            print('❌ discount_percent kolonu ekleme hatası: $e');
+          }
+        }
+        final hasUnit = itemCols.any((col) => col['name'] == 'unit_name');
+        if (!hasUnit) {
+          try {
+            await db.execute(
+              'ALTER TABLE order_items ADD COLUMN unit_name TEXT',
+            );
+          } catch (_) {}
+        }
+      }
+
       // POD tablosu var mı kontrol et
       await db.execute(SqlQuerys.createPodTable);
     }
@@ -954,6 +1029,352 @@ class DatabaseService {
       } catch (e) {
         print('❌ customers.code kolon ekleme hatası: $e');
       }
+    }
+  }
+
+  /// {@template ensureCustomersCardRoleColumn}
+  /// customers.card_role: customer | supplier | both (alış tedarikçi gate).
+  /// {@endtemplate}
+  Future<void> ensureCustomersCardRoleColumn() async {
+    if (!await _storage.hasSQLiteSupport()) return;
+    final db = await _storage.getDatabase();
+    final columns = await db.rawQuery('PRAGMA table_info(customers)');
+    if (columns.isEmpty) return;
+    final hasRole = columns.any((col) => col['name'] == 'card_role');
+    if (!hasRole) {
+      try {
+        await db.execute(
+          "ALTER TABLE customers ADD COLUMN card_role TEXT DEFAULT 'customer'",
+        );
+        print('✅ customers.card_role kolonu eklendi');
+      } catch (e) {
+        print('❌ customers.card_role kolon ekleme hatası: $e');
+      }
+    }
+  }
+
+  /// {@template ensureCollectionsTableSchema}
+  /// Collections tablosuna nakit/çek MBT alanlarını ekler (eksikse).
+  /// {@endtemplate}
+  Future<void> ensureCollectionsTableSchema() async {
+    if (!await _storage.hasSQLiteSupport()) return;
+    final db = await _storage.getDatabase();
+    var columns = await db.rawQuery('PRAGMA table_info(collections)');
+    if (columns.isEmpty) {
+      await db.execute(SqlQuerys.createCollectionsTable);
+      return;
+    }
+    const extras = <String, String>{
+      'cash_code': 'TEXT',
+      'target_cash_code': 'TEXT',
+      'document_no': 'TEXT',
+      'currency_code': 'TEXT',
+      'salesperson_code': 'TEXT',
+      'special_code_1': 'TEXT',
+      'endorsement': 'TEXT',
+      'original_debtor': 'TEXT',
+      'workplace': 'TEXT',
+      'account_number': 'TEXT',
+      'approval_status': 'INTEGER DEFAULT 0',
+      'updated_at': 'TEXT',
+    };
+    for (final entry in extras.entries) {
+      final has = columns.any((col) => col['name'] == entry.key);
+      if (has) continue;
+      try {
+        await db.execute(
+          'ALTER TABLE collections ADD COLUMN ${entry.key} ${entry.value}',
+        );
+      } catch (e) {
+        print('❌ collections.${entry.key} kolon ekleme hatası: $e');
+      }
+    }
+  }
+
+  /// {@template ensureVisitsTableSchema}
+  /// Visits tablosuna `reason_code` (VisitReasonMaster) ekler (eksikse).
+  /// {@endtemplate}
+  Future<void> ensureVisitsTableSchema() async {
+    if (!await _storage.hasSQLiteSupport()) return;
+    final db = await _storage.getDatabase();
+    final columns = await db.rawQuery('PRAGMA table_info(visits)');
+    if (columns.isEmpty) {
+      await db.execute(SqlQuerys.createVisitsTable);
+      return;
+    }
+    final hasReasonCode =
+        columns.any((col) => col['name'] == 'reason_code');
+    if (hasReasonCode) return;
+    try {
+      await db.execute(SqlQuerys.addVisitsReasonCodeColumn);
+      print('✅ visits.reason_code kolonu eklendi');
+    } catch (e) {
+      print('❌ visits.reason_code kolon ekleme hatası: $e');
+    }
+  }
+
+  /// {@template ensureEinvoiceStatusSchema}
+  /// e-Fatura dens tablosu + `invoices.ettn` / `gib_status` kolonları;
+  /// tablo boşsa stub seed satırları yazar.
+  /// {@endtemplate}
+  Future<void> ensureEinvoiceStatusSchema() async {
+    if (!await _storage.hasSQLiteSupport()) return;
+    final db = await _storage.getDatabase();
+
+    await db.execute(SqlQuerys.createEinvoiceStatusTable);
+
+    final invCols = await db.rawQuery('PRAGMA table_info(invoices)');
+    if (invCols.isNotEmpty) {
+      final hasEttn = invCols.any((c) => c['name'] == 'ettn');
+      if (!hasEttn) {
+        try {
+          await db.execute(SqlQuerys.addInvoicesEttnColumn);
+          print('✅ invoices.ettn kolonu eklendi');
+        } catch (e) {
+          print('❌ invoices.ettn kolon ekleme hatası: $e');
+        }
+      }
+      final refreshed = await db.rawQuery('PRAGMA table_info(invoices)');
+      final hasGib = refreshed.any((c) => c['name'] == 'gib_status');
+      if (!hasGib) {
+        try {
+          await db.execute(SqlQuerys.addInvoicesGibStatusColumn);
+          print('✅ invoices.gib_status kolonu eklendi');
+        } catch (e) {
+          print('❌ invoices.gib_status kolon ekleme hatası: $e');
+        }
+      }
+    }
+
+    try {
+      final countRows = await db.rawQuery(
+        'SELECT COUNT(*) AS c FROM einvoice_status',
+      );
+      final count = (countRows.first['c'] as num?)?.toInt() ?? 0;
+      if (count == 0) {
+        final batch = db.batch();
+        for (final map in EinvoiceStatusSeed.defaultMaps) {
+          batch.insert(
+            EinvoiceStatusSeed.tableName,
+            map,
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+        }
+        await batch.commit(noResult: true);
+        print('✅ einvoice_status stub seed yazıldı');
+      }
+    } catch (e) {
+      print('❌ einvoice_status seed hatası: $e');
+    }
+  }
+
+  /// {@template ensureEwaybillStatusSchema}
+  /// e-İrsaliye dens tablosu; boşsa stub seed satırları yazar.
+  /// {@endtemplate}
+  Future<void> ensureEwaybillStatusSchema() async {
+    if (!await _storage.hasSQLiteSupport()) return;
+    final db = await _storage.getDatabase();
+
+    await db.execute(SqlQuerys.createEwaybillStatusTable);
+
+    try {
+      final countRows = await db.rawQuery(
+        'SELECT COUNT(*) AS c FROM ewaybill_status',
+      );
+      final count = (countRows.first['c'] as num?)?.toInt() ?? 0;
+      if (count == 0) {
+        final batch = db.batch();
+        for (final map in EwaybillStatusSeed.defaultMaps) {
+          batch.insert(
+            EwaybillStatusSeed.tableName,
+            map,
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+        }
+        await batch.commit(noResult: true);
+        print('✅ ewaybill_status stub seed yazıldı');
+      }
+    } catch (e) {
+      print('❌ ewaybill_status seed hatası: $e');
+    }
+  }
+
+  /// {@template ensureCampaignAnnouncementSeed}
+  /// `campaigns` boşsa MBT DUYURULAR demo satırını yazar.
+  /// {@endtemplate}
+  Future<void> ensureCampaignAnnouncementSeed() async {
+    if (!await _storage.hasSQLiteSupport()) return;
+    final db = await _storage.getDatabase();
+    await db.execute(SqlQuerys.createCampaignsTable);
+    try {
+      final countRows = await db.rawQuery(
+        'SELECT COUNT(*) AS c FROM campaigns',
+      );
+      final count = (countRows.first['c'] as num?)?.toInt() ?? 0;
+      if (count == 0) {
+        final batch = db.batch();
+        for (final map in CampaignAnnouncementSeed.defaultMaps) {
+          batch.insert(
+            CampaignAnnouncementSeed.tableName,
+            map,
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+        }
+        await batch.commit(noResult: true);
+        print('✅ campaigns duyuru seed yazıldı');
+      }
+    } catch (e) {
+      print('❌ campaigns duyuru seed hatası: $e');
+    }
+  }
+
+  /// {@template ensureWarehousesSchema}
+  /// OPS ambar master tablosu + boşsa MRK/ARC/IAD seed (WHMS yok).
+  /// {@endtemplate}
+  Future<void> ensureWarehousesSchema() async {
+    if (!await _storage.hasSQLiteSupport()) return;
+    final db = await _storage.getDatabase();
+
+    await db.execute(SqlQuerys.createWarehousesTable);
+    await db.execute(SqlQuerys.createWarehouseStocksTable);
+
+    try {
+      final countRows = await db.rawQuery(
+        'SELECT COUNT(*) AS c FROM warehouses',
+      );
+      final count = (countRows.first['c'] as num?)?.toInt() ?? 0;
+      if (count == 0) {
+        final batch = db.batch();
+        for (final map in WarehouseMasterSeed.defaultMaps) {
+          batch.insert(
+            WarehouseMasterSeed.tableName,
+            map,
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+        }
+        await batch.commit(noResult: true);
+        print('✅ warehouses stub seed yazıldı');
+      }
+    } catch (e) {
+      print('❌ warehouses seed hatası: $e');
+    }
+  }
+
+  /// {@template ensureWarehouseStocksSchema}
+  /// WHMS Faz 1 — `warehouse_stocks` tablosu (bakiye portu).
+  /// {@endtemplate}
+  Future<void> ensureWarehouseStocksSchema() async {
+    if (!await _storage.hasSQLiteSupport()) return;
+    final db = await _storage.getDatabase();
+    await db.execute(SqlQuerys.createWarehouseStocksTable);
+  }
+
+  /// {@template ensurePriceListsSchema}
+  /// Fiyat listesi tabloları; boşsa dens stub seed yazar.
+  /// {@endtemplate}
+  Future<void> ensurePriceListsSchema() async {
+    if (!await _storage.hasSQLiteSupport()) return;
+    final db = await _storage.getDatabase();
+
+    await db.execute(SqlQuerys.createPriceListsTable);
+    await db.execute(SqlQuerys.createPriceListItemsTable);
+    await db.execute(SqlQuerys.createCustomerPriceMapsTable);
+
+    try {
+      final countRows = await db.rawQuery(
+        'SELECT COUNT(*) AS c FROM ${PriceListSeed.listsTable}',
+      );
+      final count = (countRows.first['c'] as num?)?.toInt() ?? 0;
+      if (count == 0) {
+        final batch = db.batch();
+        for (final map in PriceListSeed.listMaps) {
+          batch.insert(
+            PriceListSeed.listsTable,
+            map,
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+        }
+        for (final map in PriceListSeed.itemMaps) {
+          batch.insert(
+            PriceListSeed.itemsTable,
+            map,
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+        }
+        for (final map in PriceListSeed.mapMaps) {
+          batch.insert(
+            PriceListSeed.mapsTable,
+            map,
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+        }
+        await batch.commit(noResult: true);
+        print('✅ price_lists dens seed yazıldı');
+      }
+    } catch (e) {
+      print('❌ price_lists seed hatası: $e');
+    }
+  }
+
+  /// {@template ensureBatchExpirySchema}
+  /// Parti / SKT dens tablosu; boşsa stub seed satırları yazar.
+  /// {@endtemplate}
+  Future<void> ensureBatchExpirySchema() async {
+    if (!await _storage.hasSQLiteSupport()) return;
+    final db = await _storage.getDatabase();
+
+    await db.execute(SqlQuerys.createBatchExpiryTable);
+
+    try {
+      final countRows = await db.rawQuery(
+        'SELECT COUNT(*) AS c FROM batch_expiry',
+      );
+      final count = (countRows.first['c'] as num?)?.toInt() ?? 0;
+      if (count == 0) {
+        final batch = db.batch();
+        for (final map in BatchExpirySeed.defaultMaps) {
+          batch.insert(
+            BatchExpirySeed.tableName,
+            map,
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+        }
+        await batch.commit(noResult: true);
+        print('✅ batch_expiry stub seed yazıldı');
+      }
+    } catch (e) {
+      print('❌ batch_expiry seed hatası: $e');
+    }
+  }
+
+  /// {@template ensureCashCardsSchema}
+  /// Kasa kart master tablosu + boşsa CashCardMaster seed.
+  /// {@endtemplate}
+  Future<void> ensureCashCardsSchema() async {
+    if (!await _storage.hasSQLiteSupport()) return;
+    final db = await _storage.getDatabase();
+
+    await db.execute(SqlQuerys.createCashCardsTable);
+
+    try {
+      final countRows = await db.rawQuery(
+        'SELECT COUNT(*) AS c FROM cash_cards',
+      );
+      final count = (countRows.first['c'] as num?)?.toInt() ?? 0;
+      if (count == 0) {
+        final batch = db.batch();
+        for (final map in CashCardSeed.defaultMaps) {
+          batch.insert(
+            CashCardSeed.tableName,
+            map,
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+        }
+        await batch.commit(noResult: true);
+        print('✅ cash_cards stub seed yazıldı');
+      }
+    } catch (e) {
+      print('❌ cash_cards seed hatası: $e');
     }
   }
 
@@ -1000,40 +1421,63 @@ class DatabaseService {
   }
 
   /// Saha satış için mock menü ve verileri ekler
-  Future<void> seedFieldSalesMockData() async {
+  /// {@template seedFieldSalesMockData}
+  /// FieldSales menü (ve isteğe bağlı mock kayıt) seed’i.
+  ///
+  /// Parametreler:
+  /// - [menusOnly]: `true` ise yalnızca `menu` / `menu_permissions`
+  ///   FieldSales satırlarını yeniler; tablo DROP ve mock kayıt yok.
+  /// {@endtemplate}
+  Future<void> seedFieldSalesMockData({bool menusOnly = false}) async {
     if (!await _storage.hasSQLiteSupport()) return;
     
     final db = await _storage.getDatabase();
     
-    // Saha satış tablolarının varlığından emin ol (migration atlanmış olabilir)
-    await db.execute(SqlQuerys.createCustomersTable);
-    await db.execute(SqlQuerys.createProductsTable);
-    await db.execute(SqlQuerys.createOrdersTable);
-    await db.execute(SqlQuerys.createOrderItemsTable);
-    await db.execute('DROP TABLE IF EXISTS collections');
-    await db.execute(SqlQuerys.createCollectionsTable);
-    await db.execute('DROP TABLE IF EXISTS targets');
-    await db.execute(SqlQuerys.createTargetsTable);
-    await db.execute(SqlQuerys.createInvoicesTable);
-    await db.execute(SqlQuerys.createInvoiceItemsTable);
-    await db.execute(SqlQuerys.createVisitsTable);
-    await db.execute(SqlQuerys.createWarehouseTransfersTable);
-    await db.execute(SqlQuerys.createRoutesTable);
-    await db.execute(SqlQuerys.createRouteCustomersTable);
-    await db.execute(SqlQuerys.createAuditFormsTable);
-    await db.execute(SqlQuerys.createAuditFormFieldsTable);
-    await db.execute(SqlQuerys.createVisitAuditsTable);
-    await db.execute(SqlQuerys.createAuditAnswersTable);
-    await db.execute(SqlQuerys.createPriceListsTable);
-    await db.execute(SqlQuerys.createPriceListItemsTable);
-    await db.execute(SqlQuerys.createCampaignsTable);
-    await db.execute(SqlQuerys.createCampaignRulesTable);
-    await db.execute(SqlQuerys.createVehiclesTable);
-    await db.execute(SqlQuerys.createVehicleStocksTable);
-    await db.execute(SqlQuerys.createVehicleLoadingsTable);
-    await db.execute(SqlQuerys.createVehicleLoadingItemsTable);
-    await db.execute(SqlQuerys.createLocationHistoryTable);
-    await db.execute(SqlQuerys.createGpsLogsTable);
+    if (!menusOnly) {
+      // Saha satış tablolarının varlığından emin ol (migration atlanmış olabilir)
+      await db.execute(SqlQuerys.createCustomersTable);
+      await db.execute(SqlQuerys.createProductsTable);
+      await db.execute(SqlQuerys.createOrdersTable);
+      await db.execute(SqlQuerys.createOrderItemsTable);
+      await db.execute('DROP TABLE IF EXISTS collections');
+      await db.execute(SqlQuerys.createCollectionsTable);
+      await db.execute('DROP TABLE IF EXISTS targets');
+      await db.execute(SqlQuerys.createTargetsTable);
+      await db.execute(SqlQuerys.createInvoicesTable);
+      await db.execute(SqlQuerys.createInvoiceItemsTable);
+      await db.execute(SqlQuerys.createEinvoiceStatusTable);
+      await db.execute(SqlQuerys.createWaybillsTable);
+      await db.execute(SqlQuerys.createWaybillItemsTable);
+      await db.execute(SqlQuerys.createEwaybillStatusTable);
+      await db.execute(SqlQuerys.createVisitsTable);
+      await db.execute(SqlQuerys.createWarehousesTable);
+      await db.execute(SqlQuerys.createBatchExpiryTable);
+      await db.execute(SqlQuerys.createCashCardsTable);
+      await db.execute(SqlQuerys.createWarehouseTransfersTable);
+      await db.execute(SqlQuerys.createStockCountsTable);
+      await db.execute(SqlQuerys.createRoutesTable);
+      await db.execute(SqlQuerys.createRouteCustomersTable);
+      await db.execute(SqlQuerys.createAuditFormsTable);
+      await db.execute(SqlQuerys.createAuditFormFieldsTable);
+      await db.execute(SqlQuerys.createCompaniesTable);
+      await db.execute(SqlQuerys.createCompanyPeriodTable);
+      await db.execute(SqlQuerys.createVisitAuditsTable);
+      await db.execute(SqlQuerys.createAuditAnswersTable);
+      await db.execute(SqlQuerys.createPriceListsTable);
+      await db.execute(SqlQuerys.createPriceListItemsTable);
+      await db.execute(SqlQuerys.createCampaignsTable);
+      await db.execute(SqlQuerys.createCampaignRulesTable);
+      await ensureCampaignAnnouncementSeed();
+      await db.execute(SqlQuerys.createVehiclesTable);
+      await db.execute(SqlQuerys.createVehicleStocksTable);
+      await db.execute(SqlQuerys.createVehicleLoadingsTable);
+      await db.execute(SqlQuerys.createVehicleLoadingItemsTable);
+      await db.execute(SqlQuerys.createLocationHistoryTable);
+      await db.execute(SqlQuerys.createGpsLogsTable);
+      await db.execute(SqlQuerys.createExpensesTable);
+      await db.execute(SqlQuerys.createCustomerMovementsTable);
+      await db.execute(SqlQuerys.createPartialDeliveriesTable);
+    }
     await db.execute(SqlQuerys.createMenuTable);
     await db.execute(SqlQuerys.createMenuPermissionsTable);
 
@@ -1048,9 +1492,11 @@ class DatabaseService {
       companyNo = int.tryParse(session!['company_no'].toString()) ?? 1;
     }
 
-    // Menü Tanımları (Ana Menüler - 14 Grid Öğesi)
+    // Menü Tanımları (Ana Menüler — MBT grid + Favoriler + Ayarlar)
+    // is_favorite=0: kullanıcı kalp ile ekler; grid her ana menüyü gösterir
     final mainMenus = [
-      {'uuid': 'fs_manager', 'title': 'Yönetici', 'icon': 'manage_accounts', 'order': 1},
+      {'uuid': 'fs_favorites', 'title': 'Favoriler', 'icon': 'star', 'order': 0},
+      {'uuid': 'fs_admin', 'title': 'Yönetici', 'icon': 'manage_accounts', 'order': 1},
       {'uuid': 'fs_customers', 'title': 'Cari', 'icon': 'person', 'order': 2},
       {'uuid': 'fs_invoice', 'title': 'Fatura', 'icon': 'receipt', 'order': 3},
       {'uuid': 'fs_waybill', 'title': 'İrsaliye', 'icon': 'description', 'order': 4},
@@ -1063,8 +1509,9 @@ class DatabaseService {
       {'uuid': 'fs_currency', 'title': 'Döviz', 'icon': 'currency_exchange', 'order': 11},
       {'uuid': 'fs_companies', 'title': 'Şirketler', 'icon': 'business', 'order': 12},
       {'uuid': 'fs_sync', 'title': 'Güncelleme', 'icon': 'sync', 'order': 13},
-      {'uuid': 'fs_settings', 'title': 'Ayarlar', 'icon': 'settings', 'order': 14},
-      {'uuid': 'fs_other', 'title': 'Diğer', 'icon': 'more_horiz', 'order': 15},
+      {'uuid': 'fs_announcements', 'title': 'Duyurular', 'icon': 'campaign', 'order': 14},
+      {'uuid': 'fs_settings', 'title': 'Ayarlar', 'icon': 'settings', 'order': 15},
+      {'uuid': 'fs_other', 'title': 'Diğer', 'icon': 'more_horiz', 'order': 16},
     ];
 
     for (final menu in mainMenus) {
@@ -1075,7 +1522,7 @@ class DatabaseService {
         'display_order': menu['order'],
         'parent_id': null,
         'is_visible': 1,
-        'is_favorite': 1, // Ana ekrandaki kutucuklar olduğu için favori=1 diyoruz
+        'is_favorite': 0,
         'module_name': 'FieldSales',
         'created_at': DateTime.now().toIso8601String(),
         'updated_at': DateTime.now().toIso8601String(),
@@ -1102,7 +1549,8 @@ class DatabaseService {
         'fs_favorites': [
            // Dinamik dolacak
         ],
-        'fs_manager': [
+        'fs_admin': [
+          {'uuid': 'sub_admin_kpi', 'title': 'Yönetici Özet', 'icon': 'dashboard', 'route': '/field-sales/admin'},
           {'uuid': 'sub_mgr_dashboard', 'title': 'Yönetici Raporları', 'icon': 'insert_chart', 'route': '/field-sales/manager-dashboard'},
           {'uuid': 'sub_mgr_comp', 'title': 'Dönem Karşılaştırma', 'icon': 'compare_arrows', 'route': '/field-sales/period-comparison'},
           {'uuid': 'sub_mgr_assign', 'title': 'Hedef Atama', 'icon': 'track_changes', 'route': '/field-sales/target-assignment'},
@@ -1117,35 +1565,54 @@ class DatabaseService {
         ],
         'fs_invoice': [
           {'uuid': 'sub_inv_wholesale', 'title': 'Toptan Satış', 'icon': 'receipt_long', 'route': '/field-sales/invoice-wholesale'},
+          {'uuid': 'sub_inv_purchase', 'title': 'Satın Alma', 'icon': 'shopping_basket', 'route': '/field-sales/invoice-purchase'},
           {'uuid': 'sub_inv_return', 'title': 'Toptan Satış İade', 'icon': 'assignment_return', 'route': '/field-sales/invoice-return'},
-          {'uuid': 'sub_inv_list', 'title': 'Fatura Listesi', 'icon': 'list_alt', 'route': '/invoice-create'},
-          {'uuid': 'sub_inv_untransferred', 'title': 'Transfer Edilmeyen Faturalar', 'icon': 'sync_disabled', 'route': '/field-sales/invoice-untransferred'},
-          {'uuid': 'sub_inv_pending', 'title': 'Bekleyen Faturalar', 'icon': 'pending_actions', 'route': '/field-sales/invoice-pending'},
+          {'uuid': 'sub_inv_list', 'title': 'Fatura Listesi', 'icon': 'list_alt', 'route': '/field-sales/invoices-list-mbt'},
+          {'uuid': 'sub_inv_untransferred', 'title': 'Transfer Edilmeyen Faturalar', 'icon': 'sync_disabled', 'route': '/field-sales/invoices-untransferred'},
+          {'uuid': 'sub_inv_pending', 'title': 'Bekleyen Faturalar', 'icon': 'pending_actions', 'route': '/field-sales/invoices-pending'},
+          {'uuid': 'sub_inv_defaults', 'title': 'Fiş Ön Değerleri', 'icon': 'settings', 'route': '/field-sales/voucher-defaults'},
+          {'uuid': 'sub_inv_approval', 'title': 'Onaylama', 'icon': 'fact_check', 'route': '/field-sales/invoices-approval'},
+          {'uuid': 'sub_inv_einvoice', 'title': 'e-Fatura Durum', 'icon': 'file_present', 'route': '/field-sales/einvoice-status'},
         ],
         'fs_waybill': [
           {'uuid': 'sub_way_wholesale', 'title': 'Toptan Satış', 'icon': 'receipt_long', 'route': '/field-sales/waybill-wholesale'},
           {'uuid': 'sub_way_purchase', 'title': 'Satın Alma', 'icon': 'shopping_basket', 'route': '/field-sales/waybill-purchase'},
-          {'uuid': 'sub_way_list', 'title': 'İrsaliye Listesi', 'icon': 'list_alt', 'route': '/field-sales/waybill-list'},
-          {'uuid': 'sub_way_untransferred', 'title': 'Transfer Edilmeyen İrsaliyeler', 'icon': 'sync_disabled', 'route': '/field-sales/waybill-untransferred'},
-          {'uuid': 'sub_way_pending', 'title': 'Bekleyen İrsaliyeler', 'icon': 'pending_actions', 'route': '/field-sales/waybill-pending'},
+          {'uuid': 'sub_way_list', 'title': 'İrsaliye Listesi', 'icon': 'list_alt', 'route': '/field-sales/waybills'},
+          {'uuid': 'sub_way_untransferred', 'title': 'Transfer Edilmeyen İrsaliyeler', 'icon': 'sync_disabled', 'route': '/field-sales/waybills-untransferred'},
+          {'uuid': 'sub_way_pending', 'title': 'Bekleyen İrsaliyeler', 'icon': 'pending_actions', 'route': '/field-sales/waybills-pending'},
+          {'uuid': 'sub_way_defaults', 'title': 'Fiş Ön Değerleri', 'icon': 'settings', 'route': '/field-sales/voucher-defaults'},
+          {'uuid': 'sub_way_ewaybill', 'title': 'e-İrsaliye Durum', 'icon': 'local_shipping', 'route': '/field-sales/ewaybill-status'},
         ],
         'fs_order': [
-          {'uuid': 'sub_ord_entry', 'title': 'Sipariş Girişi', 'icon': 'add_shopping_cart', 'route': '/sales-order'},
-          {'uuid': 'sub_ord_history', 'title': 'Geçmiş Satışlar', 'icon': 'history', 'route': '/sales-history'},
+          {'uuid': 'sub_ord_sales', 'title': 'Satış', 'icon': 'cart', 'route': '/field-sales/orders-sales'},
+          {'uuid': 'sub_ord_purchase', 'title': 'Alış', 'icon': 'shopping', 'route': '/field-sales/orders-purchase'},
+          {'uuid': 'sub_ord_entry', 'title': 'Sipariş Girişi', 'icon': 'cart', 'route': '/field-sales/orders'},
+          {'uuid': 'sub_ord_history', 'title': 'Geçmiş Satışlar', 'icon': 'history', 'route': '/field-sales/orders-list'},
+          {'uuid': 'sub_ord_approval', 'title': 'Sipariş Onaylama', 'icon': 'verified', 'route': '/field-sales/orders-approval'},
+          {'uuid': 'sub_ord_list', 'title': 'Sipariş Listesi', 'icon': 'list_alt', 'route': '/field-sales/orders-list'},
+          {'uuid': 'sub_ord_untransferred', 'title': 'Transfer Edilmeyen Siparişler', 'icon': 'sync_disabled', 'route': '/field-sales/orders-untransferred'},
+          {'uuid': 'sub_ord_tracking', 'title': 'Sipariş Takibi', 'icon': 'history', 'route': '/field-sales/orders-tracking'},
+          {'uuid': 'sub_ord_pending', 'title': 'Bekleyen Siparişler', 'icon': 'pending_actions', 'route': '/field-sales/orders-pending'},
         ],
         'fs_delivery': [
-          {'uuid': 'sub_del_list', 'title': 'Teslimat Listesi', 'icon': 'local_shipping', 'route': '/field-sales/delivery-list'},
+          {'uuid': 'sub_del_list', 'title': 'Teslimat', 'icon': 'local_shipping', 'route': '/field-sales/delivery-list'},
+          {'uuid': 'sub_del_hold', 'title': 'Beklemeye Alınanlar', 'icon': 'pending_actions', 'route': '/field-sales/delivery-hold'},
+          {'uuid': 'sub_del_untransferred', 'title': 'Aktarılamayan Teslimatlar', 'icon': 'sync_disabled', 'route': '/field-sales/delivery-untransferred'},
         ],
         'fs_visit': [
-          {'uuid': 'sub_route_daily', 'title': 'Bugünkü Rotam', 'icon': 'directions_car', 'route': '/field-sales/routes/plan'},
-          {'uuid': 'sub_route_map', 'title': 'Rota Haritası', 'icon': 'map', 'route': '/field-sales/routes/map'},
-          {'uuid': 'sub_route_opt', 'title': 'Rota Optimizasyonu', 'icon': 'route', 'route': '/field-sales/routes/optimize'},
+          {'uuid': 'sub_visit_existing', 'title': 'Mevcut Cari Hesap', 'icon': 'person', 'route': '/field-sales/visit-existing'},
+          {'uuid': 'sub_visit_new', 'title': 'Yeni Cari Hesap', 'icon': 'person_add', 'route': '/field-sales/visit-new'},
+          {'uuid': 'sub_visit_history', 'title': 'Geçmiş Ziyaretler', 'icon': 'history', 'route': '/field-sales/visit-history'},
+          {'uuid': 'sub_visit_untransferred', 'title': 'Transfer Edilmeyenler', 'icon': 'sync_disabled', 'route': '/field-sales/visit-untransferred'},
         ],
         'fs_finance': [
-          {'uuid': 'sub_fin_new', 'title': 'Yeni Hareket', 'icon': 'add_card', 'route': '/field-sales/collection'},
+          {'uuid': 'sub_fin_new', 'title': 'Yeni Hareket', 'icon': 'add_card', 'route': '/field-sales/collections'},
+          {'uuid': 'sub_fin_payment', 'title': 'Nakit/KK Ödeme', 'icon': 'payments', 'route': '/field-sales/payment-entry'},
+          {'uuid': 'sub_fin_virman', 'title': 'Virman Fişi', 'icon': 'swap_horiz', 'route': '/field-sales/virman'},
           {'uuid': 'sub_fin_transferred', 'title': 'Transfer Edilen Tahsilatlar', 'icon': 'sync', 'route': '/field-sales/finance-transferred'},
           {'uuid': 'sub_fin_untransferred', 'title': 'Transfer Edilmeyen Tahsilatlar', 'icon': 'sync_disabled', 'route': '/field-sales/finance-untransferred'},
-          {'uuid': 'sub_fin_acc', 'title': 'Kasa Kart Listesi', 'icon': 'account_balance_wallet', 'route': '/statement'},
+          {'uuid': 'sub_fin_acc', 'title': 'Kasa Kart Listesi', 'icon': 'account_balance_wallet', 'route': '/field-sales/cash-cards'},
+          {'uuid': 'sub_fin_checks', 'title': 'Çek Listesi', 'icon': 'fact_check', 'route': '/field-sales/checks'},
         ],
         'fs_stock': [
           {'uuid': 'sub_stk_detail', 'title': 'Detay', 'icon': 'info', 'route': '/field-sales/products'},
@@ -1154,20 +1621,31 @@ class DatabaseService {
           {'uuid': 'sub_stk_count', 'title': 'Sayım Fişi', 'icon': 'fact_check', 'route': '/field-sales/stock-count'},
           {'uuid': 'sub_stk_warehouse', 'title': 'Ambar Fişi', 'icon': 'store', 'route': '/field-sales/stock-warehouse'},
           {'uuid': 'sub_stk_production', 'title': 'Üretimden Giriş Fişi', 'icon': 'precision_manufacturing', 'route': '/field-sales/stock-production'},
+          {'uuid': 'sub_stk_multi_wh', 'title': 'Çoklu Ambar', 'icon': 'warehouse', 'route': '/field-sales/multi-warehouse'},
+          {'uuid': 'sub_stk_wh_query', 'title': 'Ambar Stok Sorgu', 'icon': 'inventory', 'route': '/field-sales/warehouse-stock-query'},
+          {'uuid': 'sub_stk_wh_transfer', 'title': 'Ambar Transferi', 'icon': 'swap_horiz', 'route': '/field-sales/warehouse-transfer'},
+          {'uuid': 'sub_stk_movement', 'title': 'Stok Hareketi', 'icon': 'sync', 'route': '/field-sales/stock-movement'},
+          {'uuid': 'sub_stk_batch', 'title': 'Parti / SKT', 'icon': 'date_range', 'route': '/field-sales/batch-expiry'},
+          {'uuid': 'sub_stk_consign', 'title': 'Konsinye', 'icon': 'local_shipping', 'route': '/field-sales/consignment'},
           {'uuid': 'sub_stk_transferred', 'title': 'Transfer Edilenler', 'icon': 'sync', 'route': '/field-sales/stock-transferred'},
           {'uuid': 'sub_stk_untransferred', 'title': 'Transfer Edilmeyenler', 'icon': 'sync_disabled', 'route': '/field-sales/stock-untransferred'},
         ],
         'fs_reports': [
           {'uuid': 'sub_rep_cari', 'title': 'Cari', 'icon': 'person', 'route': '/field-sales/report-cari'},
           {'uuid': 'sub_rep_stok', 'title': 'Stok', 'icon': 'qr_code', 'route': '/field-sales/report-stock'},
-          {'uuid': 'sub_rep_siparis', 'title': 'Sipariş', 'icon': 'shopping_cart', 'route': '/sales-report'},
+          {'uuid': 'sub_rep_siparis', 'title': 'Sipariş', 'icon': 'shopping_cart', 'route': '/field-sales/report-sales'},
           {'uuid': 'sub_rep_fatura', 'title': 'Fatura', 'icon': 'receipt', 'route': '/field-sales/report-invoice'},
           {'uuid': 'sub_rep_irsaliye', 'title': 'İrsaliye', 'icon': 'description', 'route': '/field-sales/report-waybill'},
           {'uuid': 'sub_rep_diger', 'title': 'Diğer', 'icon': 'more_horiz', 'route': '/field-sales/report-other'},
           {'uuid': 'sub_rep_backup', 'title': 'Rapor Yedekle/İndir', 'icon': 'cloud_download', 'route': '/field-sales/report-backup'},
         ],
         'fs_currency': [
-          {'uuid': 'sub_cur_rates', 'title': 'Döviz Kurları', 'icon': 'currency_exchange', 'route': '/field-sales/currency-rates'},
+          {
+            'uuid': 'sub_cur_rates',
+            'title': 'Döviz Kuru',
+            'icon': 'currency_exchange',
+            'route': '/field-sales/currency-rates',
+          },
         ],
         'fs_companies': [
           {'uuid': 'sub_comp_list', 'title': 'Mobil Şirket Listesi', 'icon': 'business', 'route': '/field-sales/companies'},
@@ -1177,8 +1655,11 @@ class DatabaseService {
           {'uuid': 'sub_sync_update', 'title': 'Veri Güncelleme', 'icon': 'update', 'route': '/field-sales/data-update'},
           {'uuid': 'sub_sync_untransferred', 'title': 'Transfer Edilmemiş Fişler', 'icon': 'error_outline', 'route': '/field-sales/untransferred-slips'},
         ],
+        'fs_announcements': [
+          {'uuid': 'sub_ann_list', 'title': 'Duyurular', 'icon': 'campaign', 'route': '/field-sales/announcements'},
+        ],
         'fs_settings': [
-          {'uuid': 'sub_set_defaults', 'title': 'Fiş Ön Değerleri', 'icon': 'settings', 'route': '/field-sales/invoice-defaults'},
+          {'uuid': 'sub_set_defaults', 'title': 'Fiş Ön Değerleri', 'icon': 'settings', 'route': '/field-sales/voucher-defaults'},
           {'uuid': 'sub_set_logs', 'title': 'Sistem Logları', 'icon': 'history', 'route': '/system/logs'},
         ],
         'fs_other': [
@@ -1214,10 +1695,26 @@ class DatabaseService {
         }
       }
     }
-    print('Saha satış mock verileri başarıyla yüklendi.');
+    print(
+      menusOnly
+          ? 'FieldSales menü seed yenilendi (menusOnly).'
+          : 'Saha satış mock verileri başarıyla yüklendi.',
+    );
 
-    // 2. Mock Veri Kayıtlarını Ekle (Müşteriler, Ürünler, vb.)
-    await _seedMockRecords(db, userId);
+    if (!menusOnly) {
+      // 2. Mock Veri Kayıtlarını Ekle (Müşteriler, Ürünler, vb.)
+      await _seedMockRecords(db, userId);
+    }
+  }
+
+  /// {@template reseedFieldSalesMenus}
+  /// FieldSales menü seed’ini yeniden yazar; cari/sipariş vb. silmez.
+  ///
+  /// Eski SQLite menüde yeni route / Duyurular görünmüyorsa Ayarlar →
+  /// Geliştirici aksiyonundan çağrılır.
+  /// {@endtemplate}
+  Future<void> reseedFieldSalesMenus() async {
+    await seedFieldSalesMockData(menusOnly: true);
   }
 
   Future<void> _seedMockRecords(Database db, String userId) async {
@@ -1304,14 +1801,51 @@ class DatabaseService {
         'balance': 125000.00,
         'latitude': 36.9833,
         'longitude': 30.6333,
-      }
+      },
+      {
+        'id': 'sup_1',
+        'code': 'TDR-001',
+        'name': 'Anadolu Tedarik A.Ş.',
+        'tax_no': '6080123456',
+        'tax_office': 'Büyük Mükellefler VD',
+        'yetkili': 'Ali Vural',
+        'address': 'İkitelli OSB Metal İş Sanayi Sitesi 12. Blok No:8 Başakşehir/İstanbul',
+        'il': 'İstanbul',
+        'ilce': 'Başakşehir',
+        'phone': '0212 671 4400',
+        'email': 'siparis@anadolutedarik.com',
+        'balance': -8500.00,
+        'latitude': 41.0700,
+        'longitude': 28.8000,
+        'card_role': 'supplier',
+      },
+      {
+        'id': 'sup_2',
+        'code': 'TDR-002',
+        'name': 'Ege Ambalaj Sanayi Ltd.',
+        'tax_no': '3509876543',
+        'tax_office': 'Bornova VD',
+        'yetkili': 'Selin Kara',
+        'address': 'Atatürk Org. San. Böl. 10006 Sk. No:3 Çiğli/İzmir',
+        'il': 'İzmir',
+        'ilce': 'Çiğli',
+        'phone': '0232 376 2211',
+        'email': 'info@egeambalaj.com',
+        'balance': 0.00,
+        'latitude': 38.5000,
+        'longitude': 27.0300,
+        'card_role': 'supplier',
+      },
     ];
 
+    final now = DateTime.now().toIso8601String();
     for (final cust in customers) {
       await db.insert('customers', {
         ...cust,
-        'created_at': DateTime.now().toIso8601String(),
+        'created_at': now,
+        'updated_at': now,
         'is_active': 1,
+        'card_role': cust['card_role'] ?? 'customer',
       }, conflictAlgorithm: ConflictAlgorithm.ignore);
     }
 
@@ -1412,13 +1946,31 @@ class DatabaseService {
     // Depo Transferleri (Araç Yükleme)
     await db.insert('warehouse_transfers', {
       'id': 'trf_1',
-      'from_warehouse': 'Merkez Depo',
-      'to_warehouse': '06 AB 123 - Plaka Araç',
+      'from_warehouse': WarehouseMasterSeed.defaultRows.first.code,
+      'to_warehouse': WarehouseMasterSeed.defaultRows[1].code,
       'product_id': 'prod_1',
       'quantity': 100.0,
       'transfer_date': DateTime.now().toIso8601String(),
       'status': 'Approved',
     }, conflictAlgorithm: ConflictAlgorithm.replace);
+
+    // OPS ambar master (WHMS değil — prep adım 3)
+    for (final map in WarehouseMasterSeed.defaultMaps) {
+      await db.insert(
+        WarehouseMasterSeed.tableName,
+        map,
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    }
+
+    // Kasa kart master (CashCardMaster → cash_cards)
+    for (final map in CashCardSeed.defaultMaps) {
+      await db.insert(
+        CashCardSeed.tableName,
+        map,
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    }
 
     // Rutlar
     final todayWeekday = DateTime.now().weekday;
@@ -1475,6 +2027,31 @@ class DatabaseService {
       'field_type': 'photo',
       'is_required': 1,
       'sort_order': 3,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+
+    // MBT Şirketler: Firma 001 · Dönem 01 · 01-01-2024…31-12-2024
+    await db.insert('companies', {
+      'id': 'mbt_001',
+      'company_no': '001',
+      'name': 'MBT',
+      'description': 'MBT demo firma',
+      'is_active': 1,
+      'created_at': '2024-01-01',
+      'updated_at': '2024-12-31',
+      'is_selected': 1,
+      'approval_status': 0,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+
+    await db.insert('company_period', {
+      'id': 'mbt_period_01',
+      'company_id': 'mbt_001',
+      'period_name': '01',
+      'start_date': '2024-01-01',
+      'end_date': '2024-12-31',
+      'is_active': 1,
+      'created_at': '2024-01-01',
+      'updated_at': '2024-12-31',
+      'company_no': '001',
     }, conflictAlgorithm: ConflictAlgorithm.replace);
 
     print('Mock saha satış kayıtları başarıyla oluşturuldu.');
@@ -1867,6 +2444,26 @@ class DatabaseService {
   Future<void> ensureAllTables() async {
     await ensureCompaniesTableSchema();
     await ensureCompanyPeriodTable();
+    await ensureCustomerMovementsTable();
+    await ensurePartialDeliveriesTable();
+  }
+
+  /// {@template ensureCustomerMovementsTable}
+  /// Cari ekstre `customer_movements` tablosunu oluşturur (yoksa).
+  /// {@endtemplate}
+  Future<void> ensureCustomerMovementsTable() async {
+    if (!await _storage.hasSQLiteSupport()) return;
+    final db = await _storage.getDatabase();
+    await db.execute(SqlQuerys.createCustomerMovementsTable);
+  }
+
+  /// {@template ensurePartialDeliveriesTable}
+  /// Kısmi teslimat `partial_deliveries` tablosunu oluşturur (yoksa).
+  /// {@endtemplate}
+  Future<void> ensurePartialDeliveriesTable() async {
+    if (!await _storage.hasSQLiteSupport()) return;
+    final db = await _storage.getDatabase();
+    await db.execute(SqlQuerys.createPartialDeliveriesTable);
   }
 
   /// Belirli bir company_no için aktif dönemi getirir (period_name döner)

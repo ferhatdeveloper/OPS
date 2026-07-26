@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import '../model/route_model.dart';
+
+import '../../../../core/localization/app_localization.dart';
 import '../engine/route_optimizer.dart';
+import '../model/route_model.dart';
 
 class RouteMapScreen extends StatefulWidget {
   final List<RouteCustomerModel> customers;
@@ -24,6 +26,7 @@ class _RouteMapScreenState extends State<RouteMapScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalization.of(context);
     // Initial center point (first customer or defaults)
     final LatLng center = _optimizedCustomers.isNotEmpty
         ? LatLng(_optimizedCustomers.first.latitude ?? 0.0, _optimizedCustomers.first.longitude ?? 0.0)
@@ -64,7 +67,7 @@ class _RouteMapScreenState extends State<RouteMapScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Rota Optimizasyonu & Harita'),
+        title: Text(l10n.translate('field_sales.route_optimization_map')),
         actions: [
           IconButton(
             icon: const Icon(Icons.my_location),
@@ -88,11 +91,11 @@ class _RouteMapScreenState extends State<RouteMapScreen> {
         ],
       ),
       bottomSheet: Container(
-        height: 100,
-        padding: const EdgeInsets.all(16),
+        height: 88,
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: Colors.white,
-          boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10)],
+          border: Border(top: BorderSide(color: Colors.grey.shade200)),
         ),
         child: Row(
           children: [
@@ -100,7 +103,10 @@ class _RouteMapScreenState extends State<RouteMapScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                'Toplam ${_optimizedCustomers.length} durak optimize edildi. Yeşil nokta başlangıç noktasını gösterir.',
+                l10n.translate(
+                  'field_sales.route_optimized_stops_info',
+                  args: {'count': '${_optimizedCustomers.length}'},
+                ),
                 style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
               ),
             ),

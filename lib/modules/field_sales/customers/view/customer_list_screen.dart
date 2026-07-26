@@ -61,7 +61,7 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> with Si
                   children: [
                     // Başlık ve İkonlar
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 24, 16, 16),
+                      padding: const EdgeInsets.fromLTRB(12, 12, 10, 10),
                       child: Row(
                         children: [
                           const Text(
@@ -88,13 +88,13 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> with Si
 
                     // Arama Çubuğu
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                      padding: const EdgeInsets.symmetric(horizontal: 12.0),
                       child: Container(
-                        height: 52,
+                        height: 44,
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.grey.shade200),
                         ),
                         child: Row(
                           children: [
@@ -169,7 +169,7 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> with Si
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: primaryBlue,
-        elevation: 4,
+        elevation: 0,
         child: const Icon(Icons.add, color: Colors.white),
         onPressed: () async {
           final result = await Navigator.push(
@@ -210,7 +210,7 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> with Si
       separatorBuilder: (context, index) => Divider(
         color: Colors.grey.shade200,
         height: 1,
-        indent: 80, // Çizgiyi avatardan sonra başlat
+        indent: 64, // Çizgiyi avatardan sonra başlat
       ),
       itemBuilder: (context, index) {
         return _buildListItem(context, state.customers[index], index);
@@ -234,14 +234,14 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> with Si
         );
       },
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+        padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 10.0),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             // Avatar
             Container(
-              width: 48,
-              height: 48,
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
                 color: avatarColor.withOpacity(0.1),
                 shape: BoxShape.circle,
@@ -253,12 +253,12 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> with Si
                   style: TextStyle(
                     color: avatarColor,
                     fontWeight: FontWeight.bold,
-                    fontSize: 18,
+                    fontSize: 16,
                   ),
                 ),
               ),
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 12),
             
             // Text Content
             Expanded(
@@ -268,7 +268,7 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> with Si
                   Text(
                     customer.name.toUpperCase(),
                     style: const TextStyle(
-                      fontSize: 14,
+                      fontSize: 13,
                       fontWeight: FontWeight.w700,
                       color: Color(0xFF2C3E50),
                       letterSpacing: 0.2,
@@ -276,13 +276,13 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> with Si
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 2),
                   Text(
                     "${customer.taxNo ?? 'CARI1000${index}'} •\n${customer.address?.toUpperCase() ?? 'ADRES BILGISI YOK'}",
                     style: TextStyle(
                       fontSize: 11,
                       color: Colors.grey.shade500,
-                      height: 1.4,
+                      height: 1.3,
                       fontWeight: FontWeight.w500,
                     ),
                     maxLines: 2,
@@ -293,7 +293,7 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> with Si
             ),
             
             // Arrow
-            Icon(Icons.chevron_right, color: Colors.grey.shade400, size: 24),
+            Icon(Icons.chevron_right, color: Colors.grey.shade400, size: 22),
           ],
         ),
       ),

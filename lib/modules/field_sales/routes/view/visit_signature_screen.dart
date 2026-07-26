@@ -58,19 +58,19 @@ class _VisitSignatureScreenState extends ConsumerState<VisitSignatureScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const SizedBox(height: 20),
+            const SizedBox(height: 12),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(AppLocalization.of(context).translate('field_sales.visit_outcome'), style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
                     decoration: BoxDecoration(
                       color: const Color(0xFF2C2C2C),
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: Colors.grey.shade800),
                     ),
                     child: DropdownButtonHideUnderline(
@@ -94,7 +94,7 @@ class _VisitSignatureScreenState extends ConsumerState<VisitSignatureScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
                   Text(AppLocalization.of(context).translate('field_sales.visit_note'), style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   TextField(
@@ -107,20 +107,20 @@ class _VisitSignatureScreenState extends ConsumerState<VisitSignatureScreen> {
                       hintText: AppLocalization.of(context).translate('field_sales.visit_notes_placeholder'),
                       hintStyle: TextStyle(color: Colors.grey.shade600),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(10),
                         borderSide: BorderSide(color: Colors.grey.shade800),
                       ),
                       enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(10),
                         borderSide: BorderSide(color: Colors.grey.shade800),
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(10),
                         borderSide: const BorderSide(color: Color(0xFF00A8E8)),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 20),
                   Text(
                     AppLocalization.of(context).translate('field_sales.digital_signature'),
                     style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
@@ -130,9 +130,9 @@ class _VisitSignatureScreenState extends ConsumerState<VisitSignatureScreen> {
                     AppLocalization.of(context).translate('field_sales.digital_signature_hint'),
                     style: TextStyle(color: Colors.grey.shade400, fontSize: 14),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(10),
                     child: Container(
                       height: 250,
                       width: double.infinity,
@@ -148,7 +148,7 @@ class _VisitSignatureScreenState extends ConsumerState<VisitSignatureScreen> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(12),
               child: Column(
                 children: [
                   Row(
@@ -162,16 +162,17 @@ class _VisitSignatureScreenState extends ConsumerState<VisitSignatureScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 12),
                   SizedBox(
                     width: double.infinity,
-                    height: 56,
+                    height: 48,
                     child: ElevatedButton(
                       onPressed: _completeCheckOut,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF00A8E8),
                         foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
                       child: Text(AppLocalization.of(context).translate('field_sales.complete_visit_and_sign'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                     ),

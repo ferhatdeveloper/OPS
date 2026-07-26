@@ -2,7 +2,7 @@
 // Açıklama: ExfinApi Logo REST istemcisi (auth, ERP okuma/yazma, senkron)
 // Oluşturulma Tarihi: 2026-07-15
 // Geliştirici: EXFINOPS Team
-// Son Güncelleme: 2026-07-15
+// Son Güncelleme: 2026-07-26
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
@@ -41,14 +41,18 @@ class LogoApiResult {
   List<Map<String, dynamic>> asMapList() {
     if (data is List) {
       return data
-          .map((e) => e is Map<String, dynamic>
-              ? e
-              : Map<String, dynamic>.from(e as Map))
+          .map<Map<String, dynamic>>(
+            (e) => e is Map<String, dynamic>
+                ? e
+                : Map<String, dynamic>.from(e as Map),
+          )
           .toList();
     }
     if (data is Map && data['items'] is List) {
       return (data['items'] as List)
-          .map((e) => Map<String, dynamic>.from(e as Map))
+          .map<Map<String, dynamic>>(
+            (e) => Map<String, dynamic>.from(e as Map),
+          )
           .toList();
     }
     return [];
@@ -284,6 +288,12 @@ class LogoApiService {
         query: {if (search != null && search.isNotEmpty) 'search': search},
       );
 
+  /// Ürün resmi manifesti (stub endpoint — sunucu yoksa 404 beklenir)
+  Future<LogoApiResult> getProductImages({String? search}) => _get(
+        '/api/v1/logo/erp/items/images',
+        query: {if (search != null && search.isNotEmpty) 'search': search},
+      );
+
   Future<LogoApiResult> getStock(String itemCode) =>
       _get('/api/v1/logo/erp/stock/$itemCode');
 
@@ -378,6 +388,10 @@ class LogoApiService {
         '/api/v1/logo/erp/dispatches/sync',
         data: {'dispatch_data': header, 'items': items},
       );
+
+  /// Ambar / stok transferi (dens → Logo stock-transfers/sync).
+  Future<LogoApiResult> createStockTransfer(Map<String, dynamic> body) =>
+      _post('/api/v1/logo/erp/stock-transfers/sync', data: body);
 
   Future<LogoApiResult> createCustomerSync(Map<String, dynamic> clientData) =>
       _post('/api/v1/logo/erp/clients/sync', data: clientData);

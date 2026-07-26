@@ -27,17 +27,100 @@ class PostgresService {
   String _activeFirmNr = '01';
   String _activePeriodNr = '01';
 
+  // ── Aktif Kiracı PostgREST Bağlamı (RetailEX parity) ─────────────────────
+  // Logo REST'ten bağımsız veri katmanı; ActiveCompanyStore firma/dönem ile uyumlu
+  String _activeTenantCode = '';
+  String _activeRemoteRestUrl = '';
+  String _activePostgrestSchema = 'public';
+  String? _activeTenantApiKey;
+  String? _activeTenantJwt;
+
   PostgresService._internal();
 
   // ── Getter'lar ───────────────────────────────────────────────────────────
   String get activeFirmNr => _activeFirmNr;
   String get activePeriodNr => _activePeriodNr;
 
+  /// [activeTenantCode]: Login'de seçilen kiracı kodu
+  String get activeTenantCode => _activeTenantCode;
+
+  /// [activeRemoteRestUrl]: Kiracı PostgREST base URL
+  String get activeRemoteRestUrl => _activeRemoteRestUrl;
+
+  /// [activePostgrestSchema]: Accept-Profile şeması
+  String get activePostgrestSchema => _activePostgrestSchema;
+
+  /// [activeTenantApiKey]: Opsiyonel API key
+  String? get activeTenantApiKey => _activeTenantApiKey;
+
+  /// [activeTenantJwt]: Opsiyonel JWT Bearer
+  String? get activeTenantJwt => _activeTenantJwt;
+
   /// Aktif firma ve dönemi ayarla (wizard tamamlandığında çağrılır)
   void setActiveContext({required String firmNr, required String periodNr}) {
     _activeFirmNr = firmNr.padLeft(2, '0');
     _activePeriodNr = periodNr.padLeft(2, '0');
     debugPrint('🏢 Aktif bağlam güncellendi: Firma=$_activeFirmNr / Dönem=$_activePeriodNr');
+  }
+
+  /// {@template set_active_tenant_context}
+  /// Kiracı PostgREST bağlamını ayarlar (login / TenantStore restore).
+  /// Logo REST ayarlarına dokunmaz.
+  ///
+  /// Parametreler:
+  /// - [tenantCode]: Kiracı kodu
+  /// - [remoteRestUrl]: PostgREST base URL
+  /// - [schema]: Accept-Profile / Content-Profile
+  /// - [apiKey]: Opsiyonel
+  /// - [jwt]: Opsiyonel Bearer
+  /// {@endtemplate}
+  void setActiveTenantContext({
+    required String tenantCode,
+    required String remoteRestUrl,
+    String schema = 'public',
+    String? apiKey,
+    String? jwt,
+  }) {
+    _activeTenantCode = tenantCode.trim();
+    _activeRemoteRestUrl = remoteRestUrl.trim().replaceAll(RegExp(r'/+$'), '');
+    _activePostgrestSchema =
+        schema.trim().isEmpty ? 'public' : schema.trim();
+    _activeTenantApiKey = (apiKey ?? '').trim().isEmpty ? null : apiKey!.trim();
+    _activeTenantJwt = (jwt ?? '').trim().isEmpty ? null : jwt!.trim();
+    debugPrint(
+      '🏢 Kiracı PostgREST: code=$_activeTenantCode '
+      'url=$_activeRemoteRestUrl schema=$_activePostgrestSchema',
+    );
+  }
+
+  /// PostgREST istek yolu: `{remoteRestUrl}{path}`
+  String postgrestUrl(String path) {
+    final base = _activeRemoteRestUrl;
+    if (base.isEmpty) return '';
+    final p = path.startsWith('/') ? path : '/$path';
+    return '$base$p';
+  }
+
+  /// PostgREST profil header'ları (+ isteğe bağlı auth).
+  Map<String, String> postgrestHeaders({String? schemaOverride}) {
+    final schema = (schemaOverride ?? _activePostgrestSchema).trim();
+    final h = <String, String>{
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'Accept-Profile': schema.isEmpty ? 'public' : schema,
+      'Content-Profile': schema.isEmpty ? 'public' : schema,
+    };
+    final jwt = _activeTenantJwt;
+    if (jwt != null && jwt.isNotEmpty) {
+      h['Authorization'] = 'Bearer $jwt';
+    } else {
+      final key = _activeTenantApiKey;
+      if (key != null && key.isNotEmpty) {
+        h['apikey'] = key;
+        h['Authorization'] = 'Bearer $key';
+      }
+    }
+    return h;
   }
 
   // ── Tablo Adı Üretici ────────────────────────────────────────────────────

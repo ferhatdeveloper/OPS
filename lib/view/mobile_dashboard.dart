@@ -24,9 +24,28 @@ import '../modules/field_sales/vehicles/view/vehicle_stock_screen.dart';
 import '../modules/field_sales/vehicles/view/vehicle_eod_screen.dart';
 import '../modules/field_sales/maps/view/map_screen.dart';
 import '../modules/field_sales/collections/view/collection_entry_screen.dart';
+import '../modules/field_sales/collections/view/collection_customer_selection_screen.dart';
+import '../modules/field_sales/collections/view/payment_entry_screen.dart';
+import '../modules/field_sales/collections/view/virman_screen.dart';
+import '../modules/field_sales/collections/view/finance_type_sheet.dart';
+import '../modules/field_sales/collections/view/credit_card_collection_screen.dart';
+import '../modules/field_sales/collections/view/promissory_note_screen.dart';
+import '../modules/field_sales/collections/model/finance_movement_type.dart';
+import '../modules/field_sales/collections/viewmodel/collection_provider.dart';
 import '../modules/field_sales/invoices/view/invoice_list_screen.dart';
 import '../modules/field_sales/invoices/view/invoice_entry_screen.dart';
+import '../modules/field_sales/invoices/view/invoice_customer_selection_screen.dart';
+import '../modules/field_sales/invoices/viewmodel/invoice_provider.dart';
 import '../modules/field_sales/orders/view/order_entry_screen.dart';
+import '../modules/field_sales/orders/view/order_customer_selection_screen.dart';
+import '../modules/field_sales/orders/view/order_approval_screen.dart';
+import '../modules/field_sales/orders/view/order_type_sheet.dart';
+import '../modules/field_sales/orders/model/order_model.dart';
+import '../modules/field_sales/routes/viewmodel/visit_provider.dart';
+import '../modules/field_sales/orders/viewmodel/order_provider.dart';
+import '../modules/field_sales/yonetici/view/admin_kpi_summary_screen.dart';
+import '../core/init/navigation/routes.dart';
+
 import '../modules/manager/reports/view/manager_reports_dashboard.dart';
 import '../modules/manager/reports/view/period_comparison_report.dart';
 import '../modules/manager/reports/view/advanced_analysis_screen.dart';
@@ -40,6 +59,11 @@ import '../modules/inventory/view/warehouse_management_screen.dart';
 import '../modules/inventory/view/stock_count_screen.dart';
 import '../modules/field_sales/stock/view/price_check_screen.dart';
 import '../modules/field_sales/other/view/day_status_screen.dart';
+import '../modules/field_sales/other/viewmodel/day_sales_gate.dart';
+import '../modules/field_sales/other/viewmodel/day_status_store.dart';
+import '../modules/field_sales/other/widgets/day_status_dens_chip.dart';
+import '../core/tenant/widgets/tenant_dens_chip.dart';
+import '../modules/field_sales/eod/view/day_open_screen.dart';
 import '../modules/field_sales/stock/view/warehouse_receipt_screen.dart';
 import '../modules/manager/reports/view/target_assignment_screen.dart';
 import '../modules/manager/reports/view/leaderboard_screen.dart';
@@ -47,7 +71,11 @@ import '../modules/field_sales/sync/view/pending_transfers_screen.dart';
 import '../modules/field_sales/sync/view/slip_defaults_screen.dart';
 import '../modules/field_sales/other/view/gallery_screen.dart';
 import '../modules/field_sales/gamification/view/gamification_dashboard.dart';
+import '../modules/field_sales/announcements/view/announcements_screen.dart';
+import '../modules/field_sales/favorites/view/favorites_screen.dart';
 
+/// MBT dolu kalp rengi (RGB ≈ 247,170,35)
+const Color _kFavoriteHeartColor = Color(0xFFF7AA23);
 
 class MobileDashboard extends ConsumerStatefulWidget {
   final String username;
@@ -86,6 +114,7 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
         await db.syncMenusFromPostgres();
         await db.syncVisitsToPostgres();
         await db.syncOrdersToPostgres();
+        await AnnouncementsScreen.refreshDensCache();
 
         if (mounted) {
            setState(() {}); // Refresh UI after seeding
@@ -372,29 +401,38 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
                               ),
                             ),
                             const SizedBox(height: 12),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: isDarkMode
-                                    ? ColorUtils.withAlpha(
-                                        colorScheme.surface,
-                                        0.5,
-                                      )
-                                    : Colors.grey[200],
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Text(
-                                currentDate,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: isDarkMode
-                                      ? Colors.grey[400]
-                                      : Colors.grey[700],
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 6,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isDarkMode
+                                        ? ColorUtils.withAlpha(
+                                            colorScheme.surface,
+                                            0.5,
+                                          )
+                                        : Colors.grey[200],
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: Text(
+                                    currentDate,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: isDarkMode
+                                          ? Colors.grey[400]
+                                          : Colors.grey[700],
+                                    ),
+                                  ),
                                 ),
-                              ),
+                                const DayStatusDensChip(),
+                                const TenantDensChip(),
+                              ],
                             ),
                           ],
                         ),
@@ -453,9 +491,11 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
                                 color: Colors.transparent,
                                 child: InkWell(
                                   borderRadius: BorderRadius.circular(10),
-                                  onTap: () => _showFavoriteMenuDialog(context),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(6.0),
+                                  onTap: () => _showFavoritesSheet(context),
+                                  onLongPress: () =>
+                                      _showFavoriteMenuDialog(context),
+                                  child: const Padding(
+                                    padding: EdgeInsets.all(6.0),
                                     child: Icon(
                                       Icons.star,
                                       color: Colors.amber,
@@ -636,6 +676,7 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
                                         context,
                                         item.title,
                                         item.icon,
+                                        route: item.route,
                                       ),
                                     )
                                     .toList(),
@@ -656,28 +697,84 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
 
             // Main modules
             SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
               sliver: SliverGrid(
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                  childAspectRatio: 0.92,
+                  crossAxisCount: 4,
+                  crossAxisSpacing: 6,
+                  mainAxisSpacing: 6,
+                  childAspectRatio: 0.90,
                 ),
                 delegate: SliverChildListDelegate(
-                  moduleCards.map((moduleCard) {
-                    // Pass submenus to all module cards
-                    return _buildModuleCard(
-                      context,
-                      moduleCard.title,
-                      moduleCard.subtitle,
-                      moduleCard.icon,
-                      submenus: moduleCard.submenus,
-                      onTap: moduleCard.title == AppLocalization.of(context).translate('dashboard.stok')
-                          ? () => _openModule(context, AppLocalization.of(context).translate('dashboard.stok'))
-                          : null,
+                  () {
+                    final favorilerTitle = AppLocalization.of(context)
+                        .translate('dashboard.favoriler');
+                    final duyurularTitle = AppLocalization.of(context)
+                        .translate('dashboard.duyurular');
+                    final cards = List<ModuleCardData>.from(moduleCards);
+                    final hasFavoriler = cards.any(
+                      (c) => _isFavoritesModuleTitle(c.title, favorilerTitle),
                     );
-                  }).toList(),
+                    if (!hasFavoriler) {
+                      cards.insert(
+                        0,
+                        ModuleCardData(
+                          title: 'Favoriler',
+                          subtitle: '',
+                          icon: Icons.star,
+                        ),
+                      );
+                    }
+                    return cards.map((moduleCard) {
+                      final isFavoriler = _isFavoritesModuleTitle(
+                        moduleCard.title,
+                        favorilerTitle,
+                      );
+                      final isDuyurular =
+                          moduleCard.title == duyurularTitle ||
+                              moduleCard.title == 'Duyurular';
+                      final isDoviz = moduleCard.title == 'Döviz';
+                      final isSirketler = moduleCard.title == 'Şirketler';
+                      return _buildModuleCard(
+                        context,
+                        moduleCard.title,
+                        moduleCard.subtitle,
+                        moduleCard.icon,
+                        menuId: moduleCard.id,
+                        isFavorite: moduleCard.isFavorite,
+                        showFavoriteHeart: !isFavoriler,
+                        // Duyurular: alt menü değil dens satır adedi (MBT badge).
+                        badgeCount: isDuyurular
+                            ? AnnouncementsScreen.densCount
+                            : null,
+                        submenus:
+                            isDuyurular ||
+                                    isFavoriler ||
+                                    isDoviz ||
+                                    isSirketler
+                                ? const []
+                                : moduleCard.submenus,
+                        onTap: isFavoriler
+                            ? () => _showFavoritesSheet(context)
+                            : isDuyurular
+                                ? () => Navigator.pushNamed(
+                                      context,
+                                      AnnouncementsScreen.routeName,
+                                    )
+                                : isDoviz
+                                    ? () => Navigator.pushNamed(
+                                          context,
+                                          CurrencyRatesScreen.routeName,
+                                        )
+                                    : isSirketler
+                                        ? () => Navigator.pushNamed(
+                                              context,
+                                              CompanyListScreen.routeName,
+                                            )
+                                        : null,
+                      );
+                    }).toList();
+                  }(),
                 ),
               ),
             ),
@@ -854,6 +951,7 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
                                         context,
                                         item.title,
                                         item.icon,
+                                        route: item.route,
                                       ),
                                     )
                                     .toList(),
@@ -904,7 +1002,7 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
                                 final subMenus = subSnapshot.data ?? [];
                                 return _buildSubMenus(
                                   context,
-                                  subMenus.map((e) => e.title).toList(),
+                                  subMenus,
                                   colorScheme,
                                   isDarkMode,
                                 );
@@ -950,8 +1048,8 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
         final isFav = snapshot.data ?? false;
         return IconButton(
           icon: Icon(
-            isFav ? Icons.star : Icons.star_border,
-            color: isFav ? Colors.amber : Colors.grey,
+            isFav ? Icons.favorite : Icons.favorite_border,
+            color: isFav ? _kFavoriteHeartColor : Colors.grey,
             size: 20,
           ),
           onPressed: () => _toggleFavoriteMenuItem(title, icon, !isFav),
@@ -1159,7 +1257,7 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
 
   Widget _buildSubMenus(
     BuildContext context,
-    List<String> subMenus,
+    List<SubMenuItemData> subMenus,
     ColorScheme colorScheme,
     bool isDarkMode,
   ) {
@@ -1175,7 +1273,8 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
         ),
       ),
       child: Column(
-        children: subMenus.map((subMenu) {
+        children: subMenus.map((subItem) {
+          final subMenu = subItem.title;
           final submenuIcon = _getIconForSubmenu(subMenu);
           final baseColor = ColorUtils.getColorForIcon(submenuIcon);
 
@@ -1205,7 +1304,11 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
             child: Material(
               color: Colors.transparent,
               child: InkWell(
-                onTap: () => _openModule(context, subMenu),
+                onTap: () => _openModule(
+                  context,
+                  subMenu,
+                  route: subItem.route,
+                ),
                 borderRadius: BorderRadius.circular(10),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -1230,15 +1333,19 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
                           ),
                         ),
                       ),
-                      // Sık kullanılan yıldız simgesi
+                      // Favori kalp simgesi
                       FutureBuilder<bool>(
                         future: _isSubmenuItemFavorite(subMenu),
                         builder: (context, snapshot) {
                           final isFavorite = snapshot.data ?? false;
                           return IconButton(
                             icon: Icon(
-                              isFavorite ? Icons.star : Icons.star_border,
-                              color: isFavorite ? Colors.amber : Colors.grey,
+                              isFavorite
+                                  ? Icons.favorite
+                                  : Icons.favorite_border,
+                              color: isFavorite
+                                  ? _kFavoriteHeartColor
+                                  : Colors.grey,
                               size: 18,
                             ),
                             onPressed: () => _toggleFavoriteSubmenuItem(
@@ -1333,7 +1440,15 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
   // Submenu çevirisi için anahtar adı oluşturan yardımcı fonksiyon
   String _getTranslationKeyForSubmenu(String submenu) {
     // Türkçe submenu adını çeviri anahtarına dönüştür
+    // Büyük İ/Ş/Ğ/Ü/Ö/Ç dahil — toLowerCase locale farklarında key kaçmasın
     String key = submenu
+        .replaceAll('İ', 'i')
+        .replaceAll('I', 'i')
+        .replaceAll('Ş', 's')
+        .replaceAll('Ğ', 'g')
+        .replaceAll('Ü', 'u')
+        .replaceAll('Ö', 'o')
+        .replaceAll('Ç', 'c')
         .toLowerCase()
         .replaceAll('ı', 'i')
         .replaceAll('ğ', 'g')
@@ -1341,6 +1456,7 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
         .replaceAll('ş', 's')
         .replaceAll('ö', 'o')
         .replaceAll('ç', 'c')
+        .replaceAll(RegExp(r'[\u0307]'), '') // combining dot (İ→i̇)
         .replaceAll(' ', '_')
         .replaceAll('/', '_');
 
@@ -1376,6 +1492,9 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
         return Icons.account_balance;
       case 'Tahsilatlar':
       case 'Ödemeler':
+      case 'Nakit/KK Ödeme':
+      case 'Nakit Ödeme':
+      case 'Kredi Kartı ile Ödeme':
         return Icons.payments;
 
       // Additional icons for mobile that weren't in desktop version
@@ -1413,6 +1532,7 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
       case 'Ödeme Fişleri':
         return Icons.upload;
       case 'Virman Fişleri':
+      case 'Virman Fişi':
         return Icons.swap_vert;
       case 'Banka Hesap Tanımları':
       case 'Banka İşlemleri':
@@ -1431,13 +1551,15 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
       case 'Müşteri Senetleri':
         return Icons.description;
       case 'Satınalma Faturaları':
-        return Icons.receipt_long;
+      case 'Satın Alma':
+        return Icons.shopping_basket;
       case 'İskonto Tanımları':
       case 'Kampanya Tanımları':
         return Icons.discount;
 
       // e-Dönüşüm related icons
       case 'e-Fatura':
+      case 'e-Fatura Durum':
       case 'e-Arşiv Fatura':
         return Icons.receipt;
       case 'e-İrsaliye':
@@ -1506,6 +1628,8 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
         return Icons.business;
       case 'Güncelleme':
         return Icons.sync;
+      case 'Duyurular':
+        return Icons.campaign;
       case 'Diğer':
         return Icons.more_horiz;
 
@@ -1514,8 +1638,111 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
     }
   }
 
+  /// {@template _buildFinanceContent}
+  /// Finans 7 tip sheet sonrası: virman / ödeme / tahsilat (cari-önce).
+  /// {@endtemplate}
+  Widget _buildFinanceContent(FinanceMovementType type) {
+    if (type == FinanceMovementType.virman) {
+      return const VirmanScreen();
+    }
+    final activeVisit = ref.read(visitProvider).activeVisit;
+    final visitCustomerId = activeVisit?.customerId;
+    final hasCustomer =
+        CollectionNotifier.isValidCustomerId(visitCustomerId);
+
+    if (hasCustomer) {
+      switch (type) {
+        case FinanceMovementType.creditCardCollection:
+          return CreditCardCollectionScreen(customerId: visitCustomerId);
+        case FinanceMovementType.noteCollection:
+          return PromissoryNoteScreen(customerId: visitCustomerId);
+        case FinanceMovementType.cashOut:
+        case FinanceMovementType.creditCardOut:
+          return PaymentEntryScreen(
+            customerId: visitCustomerId!,
+            initialPaymentType: type.apiCode,
+          );
+        case FinanceMovementType.cashCollection:
+        case FinanceMovementType.checkCollection:
+          return CollectionEntryScreen(
+            customerId: visitCustomerId!,
+            initialPaymentType: type.apiCode,
+          );
+        case FinanceMovementType.virman:
+          return const VirmanScreen();
+      }
+    }
+
+    final purpose = switch (type.kind) {
+      FinanceMovementKind.payment => CollectionSelectionPurpose.payment,
+      FinanceMovementKind.collection =>
+        type == FinanceMovementType.creditCardCollection
+            ? CollectionSelectionPurpose.creditCard
+            : type == FinanceMovementType.noteCollection
+                ? CollectionSelectionPurpose.promissory
+                : CollectionSelectionPurpose.collection,
+      FinanceMovementKind.virman => CollectionSelectionPurpose.collection,
+    };
+
+    return CollectionCustomerSelectionScreen(
+      purpose: purpose,
+      initialPaymentType: type.apiCode,
+    );
+  }
+
+  /// {@template _buildOrderContent}
+  /// Sipariş Satış/Alış: aktif ziyaret carisi veya cari seçim ekranı.
+  /// Alışta ziyaret müşterisi kullanılmaz — tedarikçi seçimi zorunlu.
+  /// {@endtemplate}
+  Widget _buildOrderContent(OrderType type) {
+    if (type == OrderType.purchase) {
+      return const OrderCustomerSelectionScreen(
+        orderType: OrderType.purchase,
+      );
+    }
+    final activeVisit = ref.read(visitProvider).activeVisit;
+    final visitCustomerId = activeVisit?.customerId;
+    if (OrderNotifier.isValidCustomerId(visitCustomerId)) {
+      return OrderEntryScreen(
+        customerId: visitCustomerId!,
+        orderType: type,
+      );
+    }
+    return OrderCustomerSelectionScreen(orderType: type);
+  }
+
   // Helper method to open module based on title - synchronized with side_menu.dart
-  void _openModule(BuildContext context, String moduleName) {
+  Future<void> _openModule(
+    BuildContext context,
+    String moduleName, {
+    String? route,
+  }) async {
+    // Seed route varsa named navigation tercih et (title-switch fallback).
+    final seedRoute = (route ?? '').trim();
+
+    // MBT: mesai başlamadan sipariş/fatura/irsaliye/tahsilat engeli.
+    if (DaySalesGate.requiresOpenDay(
+      moduleName: moduleName,
+      route: seedRoute,
+    )) {
+      final dayOpen = await const DayStatusStore().isDayOpen();
+      if (!dayOpen) {
+        if (!context.mounted) return;
+        _blockSalesUntilDayOpen(context);
+        return;
+      }
+    }
+
+    if (seedRoute.isNotEmpty) {
+      final visitCustomerId = ref.read(visitProvider).activeVisit?.customerId;
+      final args = AppRoutes.argumentsForSeedRoute(
+        seedRoute,
+        visitCustomerId: visitCustomerId,
+      );
+      Navigator.pushNamed(context, seedRoute, arguments: args);
+      return;
+    }
+
     Widget content;
 
     // Handle based on main categories and their submenus - same as side_menu.dart
@@ -1588,27 +1815,103 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
         break;
       case 'Tahsilat Girişi':
       case 'Yeni Hareket':
-        content = const CollectionEntryScreen(customerId: '');
+        // MBT: tip sheet (7) → cari-önce / virman
+        final picked = await showFinanceTypeSheet(context);
+        if (picked == null || !context.mounted) return;
+        content = _buildFinanceContent(picked);
+        break;
+      case 'Nakit/KK Ödeme':
+      case 'Nakit Ödeme':
+      case 'Kredi Kartı ile Ödeme':
+        final activePayVisit = ref.read(visitProvider).activeVisit;
+        final payCustId = activePayVisit?.customerId;
+        if (CollectionNotifier.isValidCustomerId(payCustId)) {
+          content = PaymentEntryScreen(customerId: payCustId!);
+        } else {
+          content = const CollectionCustomerSelectionScreen(
+            purpose: CollectionSelectionPurpose.payment,
+          );
+        }
+        break;
+      case 'Virman Fişi':
+      case 'Virman Fişleri':
+        content = const VirmanScreen();
+        break;
+      case 'Satış':
+      case 'Sipariş Satış':
+        content = _buildOrderContent(OrderType.sales);
+        break;
+      case 'Alış':
+      case 'Sipariş Alış':
+        content = _buildOrderContent(OrderType.purchase);
         break;
       case 'Sipariş Girişi':
-        content = const OrderEntryScreen(customerId: '');
+        final pickedType = await showOrderTypeSheet(context);
+        if (pickedType == null || !context.mounted) return;
+        content = _buildOrderContent(pickedType);
+        break;
+      case 'Sipariş Onaylama':
+        content = const OrderApprovalScreen();
         break;
       case 'Satış Faturası':
-        content = const InvoiceEntryScreen(customerId: '');
+        // Plasiyer akışı: önce cari seç → sonra fatura (sipariş ile aynı).
+        final activeVisitInv = ref.read(visitProvider).activeVisit;
+        final visitCustInv = activeVisitInv?.customerId;
+        if (InvoiceNotifier.isValidCustomerId(visitCustInv)) {
+          content = InvoiceEntryScreen(customerId: visitCustInv!);
+        } else {
+          content = const InvoiceCustomerSelectionScreen();
+        }
         break;
       case 'Toptan Satış':
-        content = const InvoiceEntryScreen(
-          customerId: '', 
-          title: 'Toptan Satış Faturası', 
-          invoiceType: 'Toptan Satış Faturası (8)',
-        );
+        final activeVisitWs = ref.read(visitProvider).activeVisit;
+        final visitCustWs = activeVisitWs?.customerId;
+        if (InvoiceNotifier.isValidCustomerId(visitCustWs)) {
+          content = InvoiceEntryScreen(
+            customerId: visitCustWs!,
+            title: 'Toptan Satış Faturası',
+            invoiceType: 'Toptan Satış Faturası (8)',
+          );
+        } else {
+          content = const InvoiceCustomerSelectionScreen(
+            title: 'Toptan Satış Faturası',
+            invoiceType: 'Toptan Satış Faturası (8)',
+          );
+        }
         break;
       case 'Toptan Satış İade':
-        content = const InvoiceEntryScreen(
-          customerId: '', 
-          title: 'Toptan Satış İade Faturası', 
-          invoiceType: 'Satış İade Faturası (3)',
-        );
+        final activeVisitRet = ref.read(visitProvider).activeVisit;
+        final visitCustRet = activeVisitRet?.customerId;
+        if (InvoiceNotifier.isValidCustomerId(visitCustRet)) {
+          content = InvoiceEntryScreen(
+            customerId: visitCustRet!,
+            title: 'Toptan Satış İade Faturası',
+            invoiceType: 'Satış İade Faturası (3)',
+          );
+        } else {
+          content = const InvoiceCustomerSelectionScreen(
+            title: 'Toptan Satış İade Faturası',
+            invoiceType: 'Satış İade Faturası (3)',
+          );
+        }
+        break;
+      case 'Satın Alma':
+        // Fatura Satın Alma fallback (seed route yoksa).
+        // İrsaliye Satın Alma seed route ile açılır.
+        final activeVisitPur = ref.read(visitProvider).activeVisit;
+        final visitCustPur = activeVisitPur?.customerId;
+        if (InvoiceNotifier.isValidCustomerId(visitCustPur)) {
+          content = InvoiceEntryScreen(
+            customerId: visitCustPur!,
+            title: 'Satın Alma',
+            invoiceType: 'field_sales.purchase_invoice',
+          );
+        } else {
+          content = const InvoiceCustomerSelectionScreen(
+            title: 'Satın Alma',
+            invoiceType: 'field_sales.purchase_invoice',
+          );
+        }
         break;
       case 'Geçmiş Satışlar':
       case 'Fatura Listesi':
@@ -1624,12 +1927,16 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
       case 'Dönem Karşılaştırma':
         content = const PeriodComparisonReportScreen();
         break;
+      case 'Yönetici Özet':
+        content = const AdminKpiSummaryScreen();
+        break;
       case 'Yönetici Raporları':
         content = const ManagerReportsDashboard();
         break;
       case 'Detay': // Stock detail
         content = const MaterialsScreen();
         break;
+      case 'Döviz Kuru':
       case 'Döviz Kurları':
         content = const CurrencyRatesScreen();
         break;
@@ -1682,6 +1989,10 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
 
       case 'Fiş Ön Değerleri':
         content = const SlipDefaultsScreen();
+        break;
+
+      case 'Duyurular':
+        content = const AnnouncementsScreen();
         break;
 
       case 'Ayarlar':
@@ -1743,6 +2054,61 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
     );
   }
 
+  /// {@template _openOrderFlow}
+  /// Aktif ziyaret carisi varsa [OrderEntryScreen], yoksa cari seçim.
+  /// Alış siparişinde her zaman tedarikçi seçimi açılır.
+  ///
+  /// Parametreler:
+  /// - [orderType]: Satış / Alış
+  ///
+  /// Dönüş değeri:
+  /// - [Widget]: Açılacak sipariş ekranı
+  /// {@endtemplate}
+  Widget _openOrderFlow(OrderType orderType) {
+    if (orderType == OrderType.purchase) {
+      return const OrderCustomerSelectionScreen(
+        orderType: OrderType.purchase,
+      );
+    }
+    final activeVisit = ref.read(visitProvider).activeVisit;
+    final visitCustomerId = activeVisit?.customerId;
+    if (OrderNotifier.isValidCustomerId(visitCustomerId)) {
+      return OrderEntryScreen(
+        customerId: visitCustomerId!,
+        orderType: orderType,
+      );
+    }
+    return OrderCustomerSelectionScreen(orderType: orderType);
+  }
+
+  /// {@template _openOrderWithTypeSheet}
+  /// Legacy «Sipariş Girişi»: tip sheet → cari/entry.
+  ///
+  /// Parametreler:
+  /// - [context]: Navigasyon bağlamı
+  /// {@endtemplate}
+  Future<void> _openOrderWithTypeSheet(BuildContext context) async {
+    final type = await showOrderTypeSheet(context);
+    if (type == null || !context.mounted) return;
+    final content = _openOrderFlow(type);
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => content),
+    );
+  }
+
+  /// Mesai kapalı: SnackBar uyarısı + Güne Başlama ekranına yönlendir.
+  void _blockSalesUntilDayOpen(BuildContext context) {
+    final l10n = AppLocalization.of(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(l10n.translate('field_sales.day_gate_required')),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+    Navigator.pushNamed(context, DayOpenScreen.routeName);
+  }
+
   // Yardımcı metod: Henüz geliştirme aşamasındaki modüller için standart bir Scaffold sağlar
   Widget _buildPlaceholderWrapper(BuildContext context, String moduleName, Widget body) {
     return Scaffold(
@@ -1755,7 +2121,12 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
     );
   }
 
-  Widget _buildFavoriteItem(BuildContext context, String title, IconData icon) {
+  Widget _buildFavoriteItem(
+    BuildContext context,
+    String title,
+    IconData icon, {
+    String route = '',
+  }) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final baseColor = ColorUtils.getColorForIcon(icon);
 
@@ -1796,7 +2167,7 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: () => _openModule(context, title),
+        onTap: () => _openModule(context, title, route: route),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
           child: Column(
@@ -1847,7 +2218,7 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
     BuildContext context,
     String title,
     IconData icon,
-    List<String> submenus,
+    List<ModuleSubmenuItem> submenus,
   ) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final baseColor = ColorUtils.getColorForIcon(icon);
@@ -1862,180 +2233,214 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
           topRight: Radius.circular(20),
         ),
       ),
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.7,
-        decoration: BoxDecoration(
-          color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, sheetSetState) => Container(
+          height: MediaQuery.of(context).size.height * 0.7,
+          decoration: BoxDecoration(
+            color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(20),
+              topRight: Radius.circular(20),
+            ),
           ),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Header with gradient background
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 16,
-              ),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: gradientColors,
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 16,
                 ),
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(20),
-                  topRight: Radius.circular(20),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: ColorUtils.withAlpha(baseColor, 0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: gradientColors,
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Icon(icon, color: Colors.white, size: 28),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Text(
-                      AppLocalization.of(context).translate(title),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    topRight: Radius.circular(20),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: ColorUtils.withAlpha(baseColor, 0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Icon(icon, color: Colors.white, size: 28),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Text(
+                        AppLocalization.of(context).translate(title),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
-                  ),
-                  IconButton(
-                    icon: const Icon(
-                      Icons.close,
-                      color: Colors.white,
-                      size: 24,
+                    IconButton(
+                      icon: const Icon(
+                        Icons.close,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                      onPressed: () => Navigator.pop(sheetContext),
+                      padding: EdgeInsets.zero,
                     ),
-                    onPressed: () => Navigator.pop(context),
-                    padding: EdgeInsets.zero,
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            // Grid of submenu items
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: GridView.builder(
-                  padding: EdgeInsets.zero,
-                  physics: const BouncingScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    childAspectRatio: 0.85,
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 10,
-                  ),
-                  itemCount: submenus.length,
-                  itemBuilder: (context, index) {
-                    final submenuTitle = submenus[index];
-                    final submenuIcon = _getIconForSubmenu(submenuTitle);
-                    return InkWell(
-                      onTap: () {
-                        Navigator.pop(context);
-                        _openModule(context, submenuTitle);
-                      },
-                      borderRadius: BorderRadius.circular(10),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: isDarkMode
-                              ? ColorUtils.withAlpha(baseColor, 0.15)
-                              : Colors.white,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: ColorUtils.withAlpha(
-                              baseColor,
-                              isDarkMode ? 0.3 : 0.5,
-                            ),
-                            width: 1.0,
-                          ),
-                          boxShadow: isDarkMode
-                              ? null
-                              : [
-                                  BoxShadow(
-                                    color: ColorUtils.withAlpha(
-                                      Colors.black,
-                                      0.05,
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: GridView.builder(
+                    padding: EdgeInsets.zero,
+                    physics: const BouncingScrollPhysics(),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 4,
+                      childAspectRatio: 0.90,
+                      crossAxisSpacing: 6,
+                      mainAxisSpacing: 6,
+                    ),
+                    itemCount: submenus.length,
+                    itemBuilder: (context, index) {
+                      final submenuItem = submenus[index];
+                      final submenuTitle = submenuItem.title;
+                      final submenuIcon = _getIconForSubmenu(submenuTitle);
+                      return FutureBuilder<bool>(
+                        future: _isSubmenuItemFavorite(submenuTitle),
+                        builder: (context, favSnap) {
+                          final isFav = favSnap.data ?? false;
+                          return InkWell(
+                            onTap: () {
+                              Navigator.pop(sheetContext);
+                              _openModule(
+                                context,
+                                submenuTitle,
+                                route: submenuItem.route,
+                              );
+                            },
+                            borderRadius: BorderRadius.circular(10),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: isDarkMode
+                                    ? ColorUtils.withAlpha(baseColor, 0.15)
+                                    : Colors.white,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: ColorUtils.withAlpha(
+                                    baseColor,
+                                    isDarkMode ? 0.3 : 0.5,
+                                  ),
+                                  width: 1.0,
+                                ),
+                              ),
+                              child: Stack(
+                                children: [
+                                  Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(6),
+                                        decoration: BoxDecoration(
+                                          color: ColorUtils.withAlpha(
+                                            baseColor,
+                                            0.2,
+                                          ),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Icon(
+                                          submenuIcon,
+                                          color: baseColor,
+                                          size: 18,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 2,
+                                        ),
+                                        child: Builder(
+                                          builder: (context) {
+                                            final translationKey =
+                                                'submodules.' +
+                                                    _getTranslationKeyForSubmenu(
+                                                      submenuTitle,
+                                                    );
+                                            String translatedTitle =
+                                                AppLocalization.of(
+                                              context,
+                                            ).translate(translationKey);
+
+                                            if (translatedTitle ==
+                                                translationKey) {
+                                              translatedTitle = submenuTitle;
+                                            }
+
+                                            return Text(
+                                              translatedTitle,
+                                              textAlign: TextAlign.center,
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w500,
+                                                color: isDarkMode
+                                                    ? Colors.white
+                                                    : Colors.grey[800],
+                                              ),
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  Positioned(
+                                    top: 0,
+                                    right: 0,
+                                    child: GestureDetector(
+                                      behavior: HitTestBehavior.opaque,
+                                      onTap: () async {
+                                        await _toggleFavoriteSubmenuItem(
+                                          submenuTitle,
+                                          submenuIcon,
+                                          !isFav,
+                                        );
+                                        sheetSetState(() {});
+                                        if (mounted) setState(() {});
+                                      },
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(4),
+                                        child: Icon(
+                                          isFav
+                                              ? Icons.favorite
+                                              : Icons.favorite_border,
+                                          size: 14,
+                                          color: isFav
+                                              ? _kFavoriteHeartColor
+                                              : Colors.grey,
+                                        ),
+                                      ),
                                     ),
-                                    blurRadius: 4,
-                                    spreadRadius: 0,
-                                    offset: const Offset(0, 1),
                                   ),
                                 ],
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: ColorUtils.withAlpha(
-                                  baseColor,
-                                  0.2,
-                                ),
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                submenuIcon,
-                                color: baseColor,
-                                size: 24,
                               ),
                             ),
-                            const SizedBox(height: 6),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 4,
-                              ),
-                              child: Builder(
-                                builder: (context) {
-                                  final translationKey = 'submodules.' +
-                                      _getTranslationKeyForSubmenu(
-                                        submenuTitle,
-                                      );
-                                  String translatedTitle = AppLocalization.of(
-                                    context,
-                                  ).translate(translationKey);
-
-                                  if (translatedTitle == translationKey) {
-                                    translatedTitle = submenuTitle;
-                                  }
-
-                                  return Text(
-                                    translatedTitle,
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w500,
-                                      color: isDarkMode
-                                          ? Colors.white
-                                          : Colors.grey[800],
-                                    ),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  );
-                                },
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
+                          );
+                        },
+                      );
+                    },
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -2047,12 +2452,20 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
     String subtitle,
     IconData icon, {
     VoidCallback? onTap,
-    List<String>? submenus,
+    List<ModuleSubmenuItem>? submenus,
+    int menuId = 0,
+    bool isFavorite = false,
+    bool showFavoriteHeart = true,
+    /// Opsiyonel sayaç (ör. Duyurular dens adedi). Verilirse alt menü
+    /// uzunluğu yerine bu değer badge'de gösterilir.
+    int? badgeCount,
   }) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final colorScheme = Theme.of(context).colorScheme;
     final baseColor = ColorUtils.getColorForIcon(icon);
     final hasSubmenus = submenus != null && submenus.isNotEmpty;
+    final int? displayBadge =
+        badgeCount ?? (hasSubmenus ? submenus!.length : null);
 
     // Use dashboard namespace for titles
     String dashboardKey = 'dashboard.' + _getTranslationKeyForSubmenu(title);
@@ -2074,13 +2487,15 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
               _showModuleSubmenuDialog(context, title, icon, submenus);
             }
           },
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(10),
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
           color: isDarkMode ? colorScheme.surface : Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: _getShadow(isDarkMode),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade200,
+          ),
         ),
         child: Stack(
           alignment: Alignment.center,
@@ -2090,31 +2505,33 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
               children: [
                 Center(
                   child: Container(
-                    padding: const EdgeInsets.all(12),
+                    width: 38,
+                    height: 38,
+                    alignment: Alignment.center,
                     decoration: BoxDecoration(
                       color: ColorUtils.withAlpha(baseColor, 0.2),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Icon(icon, color: baseColor, size: 28),
+                    child: Icon(icon, color: baseColor, size: 20),
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 4),
                 Text(
                   translatedTitle,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 11,
                     fontWeight: FontWeight.bold,
                     color: isDarkMode ? Colors.white : Colors.black87,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 1),
                 Text(
                   translatedSubtitle,
                   style: TextStyle(
-                    fontSize: 10,
+                    fontSize: 8,
                     color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
                   ),
                   maxLines: 1,
@@ -2123,22 +2540,46 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
                 ),
               ],
             ),
-            if (hasSubmenus)
+            if (displayBadge != null && displayBadge > 0)
               Positioned(
                 top: 0,
-                right: 0,
+                left: 0,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                   decoration: BoxDecoration(
                     color: ColorUtils.withAlpha(baseColor, 0.2),
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    '${submenus.length}',
+                    '$displayBadge',
                     style: TextStyle(
                       color: baseColor,
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            if (showFavoriteHeart)
+              Positioned(
+                top: 0,
+                right: 0,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => _toggleFavoriteByMenuId(
+                    menuId: menuId,
+                    title: title,
+                    icon: icon,
+                    shouldAdd: !isFavorite,
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(2),
+                    child: Icon(
+                      isFavorite ? Icons.favorite : Icons.favorite_border,
+                      size: 14,
+                      color: isFavorite
+                          ? _kFavoriteHeartColor
+                          : (isDarkMode ? Colors.grey[400] : Colors.grey[500]),
                     ),
                   ),
                 ),
@@ -2364,6 +2805,302 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
           ),
         ],
       ),
+    );
+  }
+
+  /// Favoriler kartı mı? (kalp yok; sheet açar)
+  bool _isFavoritesModuleTitle(String title, [String? localizedFavoriler]) {
+    final t = title.trim().toLowerCase();
+    if (t == 'favoriler' || t == 'favorites') return true;
+    if (localizedFavoriler != null &&
+        title.trim() == localizedFavoriler.trim()) {
+      return true;
+    }
+    return false;
+  }
+
+  /// Menu id ile favori ekle/çıkar (kart köşesi kalp)
+  Future<void> _toggleFavoriteByMenuId({
+    required int menuId,
+    required String title,
+    required IconData icon,
+    required bool shouldAdd,
+  }) async {
+    try {
+      var id = menuId;
+      if (id <= 0) {
+        final db = await DatabaseService.getInstance();
+        final items = await db.getMenuItemByTitle(title);
+        if (items.isEmpty) return;
+        id = items.first['id'] as int;
+      }
+      await MenuService.toggleFavoriteMenuItem(id, shouldAdd);
+      if (!mounted) return;
+      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            shouldAdd
+                ? AppLocalization.of(context).translate(
+                    'mobile_dashboard.favorites_added',
+                    args: {'title': title},
+                  )
+                : AppLocalization.of(context).translate(
+                    'mobile_dashboard.favorites_removed',
+                    args: {'title': title},
+                  ),
+          ),
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Theme.of(context).colorScheme.primary,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${AppLocalization.of(context).translate('common.error')}: $e',
+          ),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  /// MBT: yalnızca favori modülleri gösteren dens bottom sheet
+  void _showFavoritesSheet(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final colorScheme = Theme.of(context).colorScheme;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (sheetContext, sheetSetState) {
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.55,
+              decoration: BoxDecoration(
+                color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  topRight: Radius.circular(16),
+                ),
+              ),
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.star,
+                          color: Colors.amber,
+                          size: 22,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            AppLocalization.of(context)
+                                .translate('mobile_dashboard.favorites'),
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: isDarkMode ? Colors.white : Colors.black87,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: AppLocalization.of(context)
+                              .translate('mobile_dashboard.favorites'),
+                          icon: Icon(
+                            Icons.open_in_new,
+                            size: 18,
+                            color: colorScheme.primary,
+                          ),
+                          onPressed: () {
+                            Navigator.pop(sheetContext);
+                            Navigator.pushNamed(
+                              context,
+                              FavoritesScreen.routeName,
+                            );
+                          },
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon: const Icon(Icons.close, size: 20),
+                          onPressed: () => Navigator.pop(sheetContext),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  Expanded(
+                    child: FutureBuilder<List<FavoriteItemData>>(
+                      future: MenuService.getMobileFavoriteItems(),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
+                        }
+                        final items = snapshot.data ?? <FavoriteItemData>[];
+                        if (items.isEmpty) {
+                          return Center(
+                            child: Text(
+                              AppLocalization.of(context).translate(
+                                'mobile_dashboard.no_favorites',
+                              ),
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: isDarkMode
+                                    ? Colors.grey[400]
+                                    : Colors.grey[600],
+                              ),
+                            ),
+                          );
+                        }
+                        return GridView.builder(
+                          padding: const EdgeInsets.all(10),
+                          physics: const BouncingScrollPhysics(),
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 4,
+                            childAspectRatio: 0.90,
+                            crossAxisSpacing: 6,
+                            mainAxisSpacing: 6,
+                          ),
+                          itemCount: items.length,
+                          itemBuilder: (context, index) {
+                            final item = items[index];
+                            final baseColor =
+                                ColorUtils.getColorForIcon(item.icon);
+                            String dashKey = 'dashboard.' +
+                                _getTranslationKeyForSubmenu(item.title);
+                            String label = AppLocalization.of(context)
+                                .translate(dashKey);
+                            if (label == dashKey) {
+                              final subKey = 'submodules.' +
+                                  _getTranslationKeyForSubmenu(item.title);
+                              label = AppLocalization.of(context)
+                                  .translate(subKey);
+                              if (label == subKey) label = item.title;
+                            }
+                            return InkWell(
+                              onTap: () async {
+                                Navigator.pop(sheetContext);
+                                var route = item.route;
+                                if (route.trim().isEmpty) {
+                                  try {
+                                    final subs =
+                                        await MenuService.getSubMenuItems(
+                                      item.title,
+                                    );
+                                    if (subs.isNotEmpty) {
+                                      route = subs.first.route;
+                                    }
+                                  } catch (_) {}
+                                }
+                                if (!mounted) return;
+                                _openModule(
+                                  context,
+                                  item.title,
+                                  route: route,
+                                );
+                              },
+                              borderRadius: BorderRadius.circular(10),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: isDarkMode
+                                      ? ColorUtils.withAlpha(baseColor, 0.15)
+                                      : Colors.white,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: ColorUtils.withAlpha(
+                                      baseColor,
+                                      isDarkMode ? 0.3 : 0.5,
+                                    ),
+                                  ),
+                                ),
+                                child: Stack(
+                                  children: [
+                                    Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          item.icon,
+                                          color: baseColor,
+                                          size: 22,
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 2,
+                                          ),
+                                          child: Text(
+                                            label,
+                                            textAlign: TextAlign.center,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w500,
+                                              color: isDarkMode
+                                                  ? Colors.white
+                                                  : Colors.grey[800],
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    Positioned(
+                                      top: 0,
+                                      right: 0,
+                                      child: GestureDetector(
+                                        behavior: HitTestBehavior.opaque,
+                                        onTap: () async {
+                                          await _toggleFavoriteByMenuId(
+                                            menuId: 0,
+                                            title: item.title,
+                                            icon: item.icon,
+                                            shouldAdd: false,
+                                          );
+                                          sheetSetState(() {});
+                                        },
+                                        child: const Padding(
+                                          padding: EdgeInsets.all(4),
+                                          child: Icon(
+                                            Icons.favorite,
+                                            size: 14,
+                                            color: _kFavoriteHeartColor,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 

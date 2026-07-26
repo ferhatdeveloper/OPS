@@ -188,6 +188,8 @@ class MenuService {
         return Icons.swap_horiz;
       case 'warehouse':
         return Icons.warehouse;
+      case 'home_work':
+        return Icons.home_work;
       case 'checklist':
         return Icons.checklist;
       case 'qr_code':
@@ -323,6 +325,14 @@ class MenuService {
         return Icons.sync;
       case 'more_horiz':
         return Icons.more_horiz;
+      case 'campaign':
+        return Icons.campaign;
+      case 'payments':
+        return Icons.payments;
+      case 'add_card':
+        return Icons.add_card;
+      case 'sync_disabled':
+        return Icons.sync_disabled;
       default:
         return Icons.circle;
     }
@@ -555,6 +565,23 @@ class MenuService {
     return MenuConstants.moduleCards;
   }
 
+  /// SQLite alt menü satırlarını [ModuleSubmenuItem] listesine çevirir.
+  ///
+  /// Home grid sheet route taşıması için; title-only kaybı önler.
+  static List<ModuleSubmenuItem> mapModuleSubmenuItems(
+    List<Map<String, dynamic>> submenuData,
+  ) {
+    return submenuData
+        .map(
+          (sub) => ModuleSubmenuItem(
+            title: sub['title'] as String? ?? '',
+            route: (sub['route'] as String?) ?? '',
+          ),
+        )
+        .where((item) => item.title.isNotEmpty)
+        .toList();
+  }
+
   // Veritabanından tüm modül kartlarını al
   static Future<List<ModuleCardData>> getMobileModuleCards({
     String? languageCode,
@@ -580,21 +607,24 @@ class MenuService {
         final title = menu['title'] as String;
         final iconName = menu['icon'] as String? ?? 'circle';
         final description = menu['description'] as String? ?? '';
+        final isFavorite =
+            menu['is_favorite'] != null && menu['is_favorite'] == 1;
 
-        // Bu menüye ait alt menüleri al
+        // Bu menüye ait alt menüleri al (title + seed route)
         final submenuData = await _databaseService!.getSubmenusByParentId(
           menuId,
           languageCode: languageCode,
         );
-        final submenus =
-            submenuData.map((sub) => sub['title'] as String).toList();
+        final submenus = mapModuleSubmenuItems(submenuData);
 
         result.add(
           ModuleCardData(
+            id: menuId,
             title: title,
             subtitle: description,
             icon: getIconFromString(iconName),
             submenus: submenus,
+            isFavorite: isFavorite,
           ),
         );
       }
@@ -627,9 +657,14 @@ class MenuService {
       for (final item in favoriteItems) {
         final title = item['title'] as String;
         final iconName = item['icon'] as String? ?? 'circle';
+        final route = (item['route'] as String?) ?? '';
 
         result.add(
-          FavoriteItemData(title: title, icon: getIconFromString(iconName)),
+          FavoriteItemData(
+            title: title,
+            icon: getIconFromString(iconName),
+            route: route,
+          ),
         );
       }
 
@@ -653,16 +688,23 @@ class MenuService {
         context,
       ).translate(card.subtitle);
 
-      // Translate submenus
+      // Translate submenu titles; keep seed routes
       final translatedSubmenus = card.submenus
-          .map((submenu) => AppLocalization.of(context).translate(submenu))
+          .map(
+            (submenu) => ModuleSubmenuItem(
+              title: AppLocalization.of(context).translate(submenu.title),
+              route: submenu.route,
+            ),
+          )
           .toList();
 
       return ModuleCardData(
+        id: card.id,
         title: translatedTitle,
         subtitle: translatedSubtitle,
         icon: card.icon,
         submenus: translatedSubmenus,
+        isFavorite: card.isFavorite,
       );
     }).toList();
   }

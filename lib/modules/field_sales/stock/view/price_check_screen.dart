@@ -106,10 +106,8 @@ class _PriceCheckScreenState extends State<PriceCheckScreen> {
             child: Container(
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 4)),
-                ],
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.grey.shade200),
               ),
               child: TextField(
                 controller: _searchController,
@@ -130,7 +128,10 @@ class _PriceCheckScreenState extends State<PriceCheckScreen> {
                           onPressed: _scanBarcode,
                         ),
                   border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
                 ),
                 onChanged: _filterProducts,
               ),
@@ -162,12 +163,13 @@ class _PriceCheckScreenState extends State<PriceCheckScreen> {
                 : _filteredProducts.isEmpty
                     ? _buildEmptyState()
                     : GridView.builder(
-                        padding: const EdgeInsets.all(16),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        padding: const EdgeInsets.all(12),
+                        gridDelegate: const
+                            SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 2,
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
-                          childAspectRatio: 0.78,
+                          crossAxisSpacing: 10,
+                          mainAxisSpacing: 10,
+                          childAspectRatio: 0.92,
                         ),
                         itemCount: _filteredProducts.length,
                         itemBuilder: (context, index) {
@@ -181,17 +183,11 @@ class _PriceCheckScreenState extends State<PriceCheckScreen> {
                           return Container(
                             decoration: BoxDecoration(
                               color: Colors.white,
-                              borderRadius: BorderRadius.circular(16),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.06),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.grey.shade200),
                             ),
                             child: Padding(
-                              padding: const EdgeInsets.all(14),
+                              padding: const EdgeInsets.all(12),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -201,7 +197,7 @@ class _PriceCheckScreenState extends State<PriceCheckScreen> {
                                     height: 44,
                                     decoration: BoxDecoration(
                                       color: const Color(0xFFE8F4FB),
-                                      borderRadius: BorderRadius.circular(12),
+                                      borderRadius: BorderRadius.circular(8),
                                     ),
                                     child: const Icon(
                                       Icons.inventory_2_outlined,

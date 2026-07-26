@@ -3,11 +3,14 @@ import 'package:uuid/uuid.dart';
 import '../model/invoice_model.dart';
 import '../../campaigns/engine/campaign_engine.dart';
 import '../../campaigns/model/campaign_model.dart' as cm;
+import '../../../../core/services/logo_payload_mapper.dart';
 import '../../../../service/database_service.dart';
 import '../../../../service/notification_service.dart';
 import '../../../../service/job_queue_service.dart';
 import '../../../../service/gamification_service.dart';
+import '../../customers/viewmodel/customer_extract_store.dart';
 import '../../vehicles/viewmodel/vehicle_provider.dart';
+import '../model/invoice_persist.dart';
 
 class InvoiceState {
   final InvoiceModel? draftInvoice;
@@ -61,17 +64,85 @@ class InvoiceNotifier extends StateNotifier<InvoiceState> {
   final Ref ref;
   InvoiceNotifier(this.ref) : super(InvoiceState());
 
+  /// {@template isValidCustomerId}
+  /// Cari kart kimliğinin fatura için geçerli olup olmadığını kontrol eder.
+  ///
+  /// Parametreler:
+  /// - [customerId]: Kontrol edilecek cari kimliği
+  ///
+  /// Dönüş değeri:
+  /// - [bool]: Boş/whitespace değilse true
+  /// {@endtemplate}
+  static bool isValidCustomerId(String? customerId) {
+    return customerId != null && customerId.trim().isNotEmpty;
+  }
+
+  /// {@template resolveQueueType}
+  /// Yerel fatura tipi → Logo / job queue `type` anahtarı.
+  ///
+  /// Parametreler:
+  /// - [invoiceType]: Menü veya dropdown tipi (l10n key veya TR literal)
+  ///
+  /// Dönüş değeri:
+  /// - [String]: `wholesale` | `return` | `purchase` | `retail`
+  /// {@endtemplate}
+  static String resolveQueueType(String? invoiceType) =>
+      LogoPayloadMapper.resolveInvoiceQueueType(invoiceType);
+
+  /// {@template resolveLogoType}
+  /// Yerel / kuyruk tipi → Logo numeric TYPE (8 toptan, 3 iade, 1 alış).
+  ///
+  /// Van/retail için `null` (TYPE 8'e flatten yok).
+  /// {@endtemplate}
+  static int? resolveLogoType(String? invoiceType) =>
+      LogoPayloadMapper.resolveInvoiceLogoType(invoiceType);
+
+  /// {@template isStockInbound}
+  /// Alış / iade fişlerinde stok giriş (artış) yönü.
+  /// {@endtemplate}
+  static bool isStockInbound(String? invoiceType) {
+    final q = resolveQueueType(invoiceType);
+    return q == LogoPayloadMapper.invoiceQueuePurchase ||
+        q == LogoPayloadMapper.invoiceQueueReturn;
+  }
+
+  /// SQLite satırı — [InvoicePersist.buildInvoiceSqliteRow] delegasyonu.
+  static Map<String, dynamic> buildInvoiceSqliteRow(
+    InvoiceModel invoice, {
+    required String nowIso,
+  }) =>
+      InvoicePersist.buildInvoiceSqliteRow(invoice, nowIso: nowIso);
+
+  /// Kuyruk payload — [InvoicePersist.buildInvoiceQueuePayload] delegasyonu.
+  static Map<String, dynamic> buildInvoiceQueuePayload({
+    required InvoiceModel invoice,
+    required String customerCode,
+    required List<Map<String, dynamic>> lines,
+  }) =>
+      InvoicePersist.buildInvoiceQueuePayload(
+        invoice: invoice,
+        customerCode: customerCode,
+        lines: lines,
+      );
+
   void startNewInvoice(String customerId, {String invoiceType = 'field_sales.van_sales'}) {
     state = InvoiceState(
       draftInvoice: InvoiceModel(
         id: const Uuid().v4(),
-        customerId: customerId,
+        customerId: customerId.trim(),
         invoiceDate: DateTime.now(),
         totalAmount: 0.0,
         invoiceType: invoiceType,
         isEInvoice: true,
       ),
     );
+  }
+
+  /// {@template discardDraft}
+  /// Kaydedilmemiş fatura taslağını siler (MBT Sil aksiyonu).
+  /// {@endtemplate}
+  void discardDraft() {
+    state = InvoiceState();
   }
 
   void updateInvoiceSettings({String? type, bool? isEInvoice}) {
@@ -199,8 +270,16 @@ class InvoiceNotifier extends StateNotifier<InvoiceState> {
   }
 
   Future<bool> saveInvoice(String? notes) async {
+    final customerId = state.draftInvoice?.customerId;
+    if (!isValidCustomerId(customerId)) {
+      state = state.copyWith(
+        error: 'field_sales.invoice_save_requires_customer',
+      );
+      return false;
+    }
+
     if (state.items.isEmpty) {
-      state = state.copyWith(error: 'Fatura için en az bir ürün eklemelisiniz.');
+      state = state.copyWith(error: 'field_sales.invoice_min_products');
       return false;
     }
 
@@ -209,73 +288,120 @@ class InvoiceNotifier extends StateNotifier<InvoiceState> {
       final db = await DatabaseService.getInstance();
       final sqliteDb = await db.getDatabase();
 
-      final invoice = InvoiceModel(
-        id: state.draftInvoice!.id,
-        customerId: state.draftInvoice!.customerId,
-        invoiceDate: DateTime.now(),
-        totalAmount: state.grandTotal,
-        status: 'Completed',
-        notes: notes,
-        invoiceType: state.draftInvoice!.invoiceType,
-        isEInvoice: state.draftInvoice!.isEInvoice,
-        isSynced: 0,
+      final draft = InvoicePersist.prepareForPersist(
+        InvoiceModel(
+          id: state.draftInvoice!.id,
+          customerId: state.draftInvoice!.customerId,
+          invoiceDate: DateTime.now(),
+          totalAmount: state.grandTotal,
+          status: 'Completed',
+          notes: notes,
+          invoiceType: state.draftInvoice!.invoiceType,
+          isEInvoice: state.draftInvoice!.isEInvoice,
+          ettn: state.draftInvoice!.ettn,
+          gibStatus: state.draftInvoice!.gibStatus,
+          isSynced: 0,
+        ),
       );
 
       final now = DateTime.now().toIso8601String();
-      final invoiceMap = invoice.toMap();
-      invoiceMap['approval_status'] = 1; // Approved (ready for sync)
-      invoiceMap['created_at'] = now;
-      invoiceMap['updated_at'] = now;
 
-      final vehicleState = ref.read(vehicleProvider);
-      final selectedVehicleId = vehicleState.selectedVehicle?.id;
-
-      await sqliteDb.transaction((txn) async {
-        await txn.insert('invoices', invoiceMap);
-        
-        for (var item in state.items) {
-          final itemMap = item.toMap();
-          itemMap['updated_at'] = now;
-          await txn.insert('invoice_items', itemMap);
-
-          // Deduct from vehicle stock if a vehicle is selected
-          if (selectedVehicleId != null) {
-            final existingStock = await txn.query('vehicle_stocks', 
-              where: 'vehicle_id = ? AND product_id = ?',
-              whereArgs: [selectedVehicleId, item.productId]);
-            
-            if (existingStock.isNotEmpty) {
-              final currentQty = (existingStock.first['quantity'] as num).toDouble();
-              await txn.update('vehicle_stocks', 
-                {'quantity': currentQty - item.quantity},
-                where: 'vehicle_id = ? AND product_id = ?',
-                whereArgs: [selectedVehicleId, item.productId]);
-            }
-          }
-        }
-      });
-
-      state = state.copyWith(isLoading: false, draftInvoice: null, items: []);
-
-      // Logo REST kuyruğu — satırlı payload hazırla
-      String customerCode = invoice.customerId;
+      // Cari kod dens + kuyruk için (transaction öncesi)
+      String customerCode = draft.customerId;
+      String? customerName;
       final cust = await sqliteDb.query(
         'customers',
         where: 'id = ?',
-        whereArgs: [invoice.customerId],
+        whereArgs: [draft.customerId],
         limit: 1,
       );
       if (cust.isNotEmpty) {
         customerCode =
             (cust.first['code'] ?? cust.first['tax_no'] ?? cust.first['id'])
                 .toString();
+        customerName = cust.first['name']?.toString();
       }
+
+      // SQLite: yerel invoice_type + ettn/gib_status korunur
+      final invoiceMap =
+          InvoicePersist.buildInvoiceSqliteRow(draft, nowIso: now);
+      final densRecord = InvoicePersist.buildEinvoiceStatusRecord(
+        draft,
+        nowIso: now,
+        customerCode: customerCode,
+        customerName: customerName,
+      );
+
+      final vehicleState = ref.read(vehicleProvider);
+      final selectedVehicleId = vehicleState.selectedVehicle?.id;
+
+      await sqliteDb.transaction((txn) async {
+        await txn.insert('invoices', invoiceMap);
+        if (densRecord != null) {
+          await txn.insert('einvoice_status', densRecord.toMap());
+        }
+
+        for (var item in state.items) {
+          final itemMap = item.toMap();
+          itemMap['updated_at'] = now;
+          await txn.insert('invoice_items', itemMap);
+
+          // Araç stok: satış çıkış; alış/iade giriş
+          if (selectedVehicleId != null) {
+            final inbound = isStockInbound(draft.invoiceType);
+            final existingStock = await txn.query(
+              'vehicle_stocks',
+              where: 'vehicle_id = ? AND product_id = ?',
+              whereArgs: [selectedVehicleId, item.productId],
+            );
+
+            if (existingStock.isNotEmpty) {
+              final currentQty =
+                  (existingStock.first['quantity'] as num).toDouble();
+              final nextQty = inbound
+                  ? currentQty + item.quantity
+                  : currentQty - item.quantity;
+              await txn.update(
+                'vehicle_stocks',
+                {'quantity': nextQty},
+                where: 'vehicle_id = ? AND product_id = ?',
+                whereArgs: [selectedVehicleId, item.productId],
+              );
+            } else if (inbound) {
+              await txn.insert('vehicle_stocks', {
+                'vehicle_id': selectedVehicleId,
+                'product_id': item.productId,
+                'quantity': item.quantity,
+                'created_at': now,
+                'updated_at': now,
+              });
+            }
+          }
+        }
+
+        // Cari ekstre: satış borç / iade-alış alacak
+        await const CustomerExtractStore().insert(
+          CustomerExtractStore.movementFromInvoice(
+            invoiceId: draft.id,
+            customerId: draft.customerId,
+            invoiceDate: draft.invoiceDate,
+            totalAmount: draft.totalAmount,
+            invoiceType: draft.invoiceType,
+            notes: notes,
+          ),
+          executor: txn,
+        );
+      });
+
+      state = state.copyWith(isLoading: false, draftInvoice: null, items: []);
+
+      // Logo REST kuyruğu — satırlı payload hazırla
       final lines = <Map<String, dynamic>>[];
       // items already cleared from state — rebuild from DB
       final itemRows = await sqliteDb.query(
         'invoice_items',
         where: 'invoice_id = ?',
-        whereArgs: [invoice.id],
+        whereArgs: [draft.id],
       );
       for (final row in itemRows) {
         String productCode = row['product_id']?.toString() ?? '';
@@ -293,19 +419,20 @@ class InvoiceNotifier extends StateNotifier<InvoiceState> {
           'product_code': productCode,
           'quantity': row['quantity'],
           'price': row['price'],
+          if (row['vat_amount'] != null) 'vat_amount': row['vat_amount'],
         });
       }
 
+      // Kuyruk: type=purchase + TRCODE=1; yerel invoice_type korunur
+      final queuePayload = InvoicePersist.buildInvoiceQueuePayload(
+        invoice: draft,
+        customerCode: customerCode,
+        lines: lines,
+      );
       await JobQueueService().enqueue(
         entityType: 'invoice',
-        entityId: invoice.id,
-        payload: {
-          ...invoice.toMap(),
-          'customer_code': customerCode,
-          'arp_code': customerCode,
-          'type': 'wholesale',
-          'lines': lines,
-        },
+        entityId: draft.id,
+        payload: queuePayload,
         priority: 2,
       );
 
@@ -315,14 +442,14 @@ class InvoiceNotifier extends StateNotifier<InvoiceState> {
       await GamificationService().addPoints(
         userId,
         GamificationService.pointsPerInvoice, 
-        'Yeni Fatura Kesildi: ${invoice.id}'
+        'Yeni Fatura Kesildi: ${draft.id}'
       );
 
       // Notify
       await NotificationService().showNotification(
         id: 200,
         title: 'Fatura Kesildi',
-        body: 'Toplam ${invoice.totalAmount.toStringAsFixed(2)}  tutarındaki fatura başarıyla kaydedildi.',
+        body: 'Toplam ${draft.totalAmount.toStringAsFixed(2)}  tutarındaki fatura başarıyla kaydedildi.',
       );
 
       return true;

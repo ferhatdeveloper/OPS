@@ -2,10 +2,13 @@
 // Açıklama: Uygulama ayarları ekranı
 // Oluşturulma Tarihi: 2024-03-21
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2024-03-21
+// Son Güncelleme: 2026-07-26
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import '../../core/localization/app_localization.dart';
 import '../../service/database_service.dart';
+import '../../service/menu_service.dart';
 import '../../service/theme_service.dart';
 import '../../service/language_service.dart';
 import 'sync_log_screen.dart';
@@ -204,12 +207,108 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   const SizedBox(height: 24),
                   _buildDatabaseSecuritySection(),
                   const SizedBox(height: 24),
+                  _buildDeveloperSection(),
+                  const SizedBox(height: 24),
                   _buildThemeSection(),
                   const SizedBox(height: 24),
                   _buildLanguageSection(),
                 ],
               ),
             ),
+    );
+  }
+
+  /// FieldSales menü seed yenileme (eski DB’de yeni menü/route görünmezse).
+  Future<void> _reseedFieldSalesMenus() async {
+    final l10n = AppLocalization.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.translate('settings.dev_reseed_confirm_title')),
+        content: Text(l10n.translate('settings.dev_reseed_confirm_desc')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.translate('common.cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l10n.translate('common.confirm')),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isLoading = true);
+    try {
+      await _databaseService.reseedFieldSalesMenus();
+      await MenuService.reloadAll();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.translate('settings.dev_reseed_success')),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${l10n.translate('common.error')}: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Widget _buildDeveloperSection() {
+    final l10n = AppLocalization.of(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.developer_mode, color: Colors.orange),
+                const SizedBox(width: 8),
+                Text(
+                  l10n.translate('settings.dev_section'),
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              l10n.translate('settings.dev_reseed_hint'),
+              style: const TextStyle(fontSize: 12),
+            ),
+            const SizedBox(height: 12),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.refresh),
+              title: Text(l10n.translate('settings.dev_reseed_menus')),
+              subtitle: Text(l10n.translate('settings.dev_reseed_menus_sub')),
+              onTap: _isLoading ? null : _reseedFieldSalesMenus,
+            ),
+            if (kDebugMode)
+              Text(
+                l10n.translate('settings.dev_reseed_debug_note'),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Theme.of(context).colorScheme.outline,
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 

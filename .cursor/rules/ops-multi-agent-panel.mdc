@@ -1,0 +1,35 @@
+---
+description: OPS/saha satış anlamlı işlerinde zorunlu 6 rollerli çoklu ajan paneli
+alwaysApply: true
+---
+
+# OPS Çoklu Ajan Paneli
+
+OPS / saha satış **anlamlı işlerinde** zorunlu panel (bu 6 rol olmadan iş tamamlanmaz):
+
+1. **Merkez ajan** — koordinasyon, dosya çakışması, canvas/todo, öncelik sırası
+2. **Saha satış uzmanı** — plasiyer akışı, MBT parity, ziyaret/sipariş/fatura/rota
+3. **Dil çevirmeni** — `assets/translations/tr.json` + tüm diller; key yapısı eksiksiz; hardcoded UI metin yasak
+4. **Tester** — unit/widget; l10n parse; regresyon
+5. **Yazılım ve mobil uzmanı** — Flutter/Riverpod/SQLite/Android–iOS; mevcut mimariyi koru
+6. **UI uzmanı** — **UI’ya mümkün olduğunca dokunma**; görsel dil korunur; yalnızca dil bağlama / erişilebilirlik / kırık layout fix
+
+## Kaynak ve öncelik
+
+- MBT şeması: `docs/plans/2026-07-25-mbt-app-structure-schema.md` + ilgili canvas
+- Önce **içerik / dil / akış**; görsel redesign yasak (UI uzmanı onaylamadan)
+- Mevcut `multi-agent-sfa-workflow` ile uyumlu (Test + Muhasebe + Saha); bu panel OPS uygulama işleri için **ek** zorunluluk
+
+## Çıktı formatı (her ajan)
+
+- Durum: hazır / yarım / eksik
+- Risk (kısa)
+- 3–5 somut TODO
+- İlgili dosya yolları
+
+## Örnek
+
+```text
+❌ BAD: Dashboard’u yeniden tasarlamak; hardcoded "Sipariş Ver"
+✅ GOOD: Mevcut widget’ta `.tr()` key bağlamak; key’i tüm dillere eklemek
+```

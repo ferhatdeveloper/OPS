@@ -1,5 +1,4 @@
 import '../../../../service/database_service.dart';
-import '../model/price_list_model.dart';
 
 class PriceEngine {
   static Future<double> getPrice({

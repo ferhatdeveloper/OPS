@@ -21,20 +21,8 @@ import 'core/services/logo_api_service.dart';
 import 'core/providers/loading_provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'core/init/navigation/routes.dart';
-import 'view/settings/sync_log_screen.dart';
 import 'core/database/migrations/SqlQuerys.dart';
 import 'core/services/postgre_service.dart';
-import 'modules/field_sales/vehicles/view/vehicle_loading_screen.dart';
-import 'modules/field_sales/vehicles/view/vehicle_stock_screen.dart';
-import 'modules/field_sales/vehicles/view/vehicle_eod_screen.dart';
-import 'modules/field_sales/maps/view/map_screen.dart';
-import 'modules/field_sales/collections/view/collection_entry_screen.dart';
-import 'modules/field_sales/invoices/view/invoice_entry_screen.dart';
-import 'modules/field_sales/invoices/view/invoice_list_screen.dart';
-import 'modules/field_sales/orders/view/order_entry_screen.dart';
-import 'modules/field_sales/reports/view/dashboard_screen.dart';
-import 'modules/field_sales/routes/view/route_plan_screen.dart';
-import 'modules/field_sales/customers/view/customer_list_screen.dart';
 import 'service/location_service.dart';
 
 // EXFIN Splash Renkleri
@@ -508,59 +496,8 @@ class MyApp extends ConsumerWidget {
         );
       },
 
-      // Rota tanımlamaları
-      routes: {
-        '/login': (context) => const LoginScreen(),
-        AppRoutes.systemLogs: (context) => const SyncLogScreen(),
-      },
-      onGenerateRoute: (settings) {
-        if (settings.name == '/field-sales/collections') {
-          final customerId = settings.arguments as String?;
-          if (customerId != null) {
-            return MaterialPageRoute(builder: (context) => CollectionEntryScreen(customerId: customerId));
-          }
-        }
-        if (settings.name == '/field-sales/orders') {
-          final customerId = settings.arguments as String?;
-          if (customerId != null) {
-            return MaterialPageRoute(builder: (context) => OrderEntryScreen(customerId: customerId));
-          }
-        }
-        if (settings.name == '/field-sales/invoices') {
-          final customerId = settings.arguments as String?;
-          if (customerId != null) {
-            return MaterialPageRoute(builder: (context) => InvoiceListScreen(customerId: customerId));
-          }
-        }
-        if (settings.name == '/field-sales/invoices/new') {
-          final customerId = settings.arguments as String?;
-          if (customerId != null) {
-            return MaterialPageRoute(builder: (context) => InvoiceEntryScreen(customerId: customerId));
-          }
-        }
-        if (settings.name == '/field-sales/vehicle-loading') {
-          return MaterialPageRoute(builder: (context) => const VehicleLoadingScreen());
-        }
-        if (settings.name == '/field-sales/vehicle-stock') {
-          return MaterialPageRoute(builder: (context) => const VehicleStockSummaryScreen());
-        }
-        if (settings.name == '/field-sales/vehicle-eod') {
-          return MaterialPageRoute(builder: (context) => const EndOfDayScreen());
-        }
-        if (settings.name == '/field-sales/map') {
-          return MaterialPageRoute(builder: (context) => const MapScreen());
-        }
-        if (settings.name == '/field-sales/dashboard') {
-          return MaterialPageRoute(builder: (context) => const DashboardScreen());
-        }
-        if (settings.name == '/field-sales/routes/plan') {
-          return MaterialPageRoute(builder: (context) => const RoutePlanScreen());
-        }
-        if (settings.name == '/field-sales/customers') {
-          return MaterialPageRoute(builder: (context) => const CustomerListScreen());
-        }
-        return null;
-      },
+      // Tek rota kaynağı: AppRoutes.generateRoute (menü seed path'leri ile hizalı)
+      onGenerateRoute: AppRoutes.generateRoute,
 
       // Başlangıç ekranı
       home: const LoginScreen(),
