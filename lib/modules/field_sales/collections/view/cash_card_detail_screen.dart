@@ -5,6 +5,7 @@
 // Son Güncelleme: 2026-07-27
 
 import 'package:flutter/material.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/localization/app_localization.dart';
 import '../../shared/view/field_sales_dens_app_bar.dart';
@@ -121,7 +122,7 @@ class _CashCardDetailScreenState extends State<CashCardDetailScreen> {
     final filtered = _filtered;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: FieldSalesDensAppBar(
         title: l10n.translate('field_sales.stubs.cash_card_detail'),
         backgroundColor: primary,
@@ -155,7 +156,7 @@ class _CashCardDetailScreenState extends State<CashCardDetailScreen> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: FieldSalesDensTheme.surface(context),
               ),
               child: DropdownButtonHideUnderline(
                 child: DropdownButton<String>(
@@ -200,7 +201,7 @@ class _CashCardDetailScreenState extends State<CashCardDetailScreen> {
                 isDense: true,
                 hintText: l10n.translate('common.search'),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: FieldSalesDensTheme.surface(context),
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 10,
                   vertical: 8,

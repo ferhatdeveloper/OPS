@@ -336,7 +336,7 @@ class _MbtSalesPurchaseQueueBodyState extends State<MbtSalesPurchaseQueueBody> {
               hintText: l10n.translate('common.search'),
               hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 13),
               filled: true,
-              fillColor: Colors.white,
+              fillColor: FieldSalesDensTheme.surface(context),
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 10,
                 vertical: 8,
@@ -372,7 +372,7 @@ class _MbtSalesPurchaseQueueBodyState extends State<MbtSalesPurchaseQueueBody> {
                   itemBuilder: (context, index) {
                     final row = filtered[index];
                     return Material(
-                      color: Colors.white,
+                      color: FieldSalesDensTheme.surface(context),
                       borderRadius: BorderRadius.circular(8),
                       child: InkWell(
                         onTap: widget.onRowTap == null
@@ -486,7 +486,7 @@ class _DateCell extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: FieldSalesDensTheme.surface(context),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: Colors.grey.shade300),
         ),

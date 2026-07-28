@@ -7,6 +7,7 @@
 import 'package:flutter/material.dart';
 import '../../core/services/supabase_service.dart';
 import 'package:intl/intl.dart';
+import '../field_sales/shared/view/field_sales_dens_theme.dart';
 
 /// {@template CompanyManagement}
 /// Firma yönetimi ekranı: firmaları listeleme, ekleme, silme ve güncelleme
@@ -184,6 +185,7 @@ class _CompanyManagementState extends State<CompanyManagement> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: AppBar(title: const Text('Firma Yönetimi')),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())

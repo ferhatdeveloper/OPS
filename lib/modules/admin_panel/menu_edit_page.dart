@@ -6,6 +6,7 @@
 
 import 'package:flutter/material.dart';
 import '../../core/services/supabase_service.dart';
+import '../field_sales/shared/view/field_sales_dens_theme.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
@@ -313,9 +314,9 @@ class _MenuEditPageState extends State<MenuEditPage> {
           constraints: const BoxConstraints(maxWidth: 440, minWidth: 360),
           child: Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: FieldSalesDensTheme.surface(context),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey[200]!),
+              border: Border.all(color: FieldSalesDensTheme.border(context)),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
             child: Form(

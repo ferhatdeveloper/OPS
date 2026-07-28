@@ -6,6 +6,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/localization/app_localization.dart';
 import '../../../../service/database_service.dart';
@@ -136,7 +137,7 @@ class _WeeklyRoutePlanScreenState extends State<WeeklyRoutePlanScreen>
     final picked = await showModalBottomSheet<WeeklyRouteSalesperson>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: FieldSalesDensTheme.surface(context),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(10)),
       ),
@@ -161,7 +162,7 @@ class _WeeklyRoutePlanScreenState extends State<WeeklyRoutePlanScreen>
     final picked = await showModalBottomSheet<WeeklyRouteCustomerPick>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: FieldSalesDensTheme.surface(context),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(10)),
       ),
@@ -278,7 +279,7 @@ class _WeeklyRoutePlanScreenState extends State<WeeklyRoutePlanScreen>
         : _salesperson!.label;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: FieldSalesDensAppBar(
         title: l10n.translate('field_sales.stubs.weekly_route_plan'),
         backgroundColor: appBarBlue,
@@ -467,7 +468,7 @@ class _StopTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: FieldSalesDensTheme.surface(context),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.grey.shade200),
       ),
@@ -478,7 +479,7 @@ class _StopTile extends StatelessWidget {
             height: 28,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: const Color(0xFFF8F9FD),
+              color: FieldSalesDensTheme.bodyBackground(context),
               shape: BoxShape.circle,
               border: Border.all(color: Colors.grey.shade300),
             ),
@@ -679,7 +680,7 @@ class _StaffRow extends StatelessWidget {
         decoration: BoxDecoration(
           color: selected
               ? const Color(0xFFE8F1FB)
-              : const Color(0xFFF8F9FD),
+              : FieldSalesDensTheme.bodyBackground(context),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: selected
@@ -838,7 +839,7 @@ class _CustomerPickerSheetState extends State<_CustomerPickerSheet> {
                                   vertical: 8,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFF8F9FD),
+                                  color: FieldSalesDensTheme.bodyBackground(context),
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
                                     color: Colors.grey.shade200,

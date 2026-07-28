@@ -5,11 +5,11 @@
 // Son Güncelleme: 2026-07-28
 
 import 'package:flutter/material.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/localization/app_localization.dart';
 import '../../../../core/tenant/postgrest_master_sync.dart';
 import '../../../../core/tenant/postgrest_table_names.dart';
-import '../../../../service/database_service.dart';
 import '../../../../service/postgres_service.dart';
 import '../../stock/model/active_warehouse_session.dart';
 import '../../stock/model/warehouse_list_row.dart';
@@ -638,7 +638,7 @@ class _CompanyListScreenState extends State<CompanyListScreen>
         title == 'field_sales.stubs.company_list' ? titleFallback : title;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: FieldSalesDensAppBar(
         title: appTitle,
         backgroundColor: FieldSalesDensAppBar.primaryColor,
@@ -712,7 +712,7 @@ class _CompanyListScreenState extends State<CompanyListScreen>
                         fontSize: 14,
                       ),
                       filled: true,
-                      fillColor: Colors.white,
+                      fillColor: FieldSalesDensTheme.surface(context),
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 12,
                         vertical: 10,
@@ -917,7 +917,7 @@ class _FirmDensTile extends StatelessWidget {
     final firmaNo = l10n.translate('field_sales.firma_no_label');
 
     return Material(
-      color: Colors.white,
+      color: FieldSalesDensTheme.surface(context),
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: onTap,
@@ -981,7 +981,7 @@ class _PeriodDensTile extends StatelessWidget {
     final bitis = l10n.translate('field_sales.bitis_label');
 
     return Material(
-      color: Colors.white,
+      color: FieldSalesDensTheme.surface(context),
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: onTap,
@@ -1040,7 +1040,7 @@ class _WarehouseDensTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
+      color: FieldSalesDensTheme.surface(context),
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: onTap,

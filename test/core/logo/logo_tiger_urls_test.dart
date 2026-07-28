@@ -32,8 +32,71 @@ void main() {
       );
     });
 
+    test('port yoksa varsayılan 32001', () {
+      expect(
+        LogoTigerUrls.normalizeBaseUrl('212.237.124.147'),
+        'http://212.237.124.147:32001/api/v1',
+      );
+    });
+
+    test('düz IP:port yeterli', () {
+      expect(
+        LogoTigerUrls.normalizeBaseUrl('212.237.124.147:32001'),
+        'http://212.237.124.147:32001/api/v1',
+      );
+    });
+
+    test('query ve help path kırpılır', () {
+      expect(
+        LogoTigerUrls.normalizeBaseUrl(
+          'http://host:32001/api/v1/services/help?expandLevel=full&api_key=x',
+        ),
+        'http://host:32001/api/v1',
+      );
+    });
+
     test('boş → boş', () {
       expect(LogoTigerUrls.normalizeBaseUrl('  '), '');
+    });
+  });
+
+  group('LogoTigerUrls host/port', () {
+    test('composeBaseUrl host + varsayılan port', () {
+      expect(
+        LogoTigerUrls.composeBaseUrl('212.237.124.147'),
+        'http://212.237.124.147:32001/api/v1',
+      );
+    });
+
+    test('composeBaseUrl özel port', () {
+      expect(
+        LogoTigerUrls.composeBaseUrl('10.0.0.1', port: 8080),
+        'http://10.0.0.1:8080/api/v1',
+      );
+    });
+
+    test('splitHostPort', () {
+      final s = LogoTigerUrls.splitHostPort('http://h:32001/api/v1');
+      expect(s.host, 'h');
+      expect(s.port, 32001);
+    });
+
+    test('parseUserInput düz adres + help linkinden api_key', () {
+      final p = LogoTigerUrls.parseUserInput(
+        '212.237.124.147:32001/api/v1/services/help'
+        '?expandLevel=full&api_key=logotigerrestservice',
+      );
+      expect(p.baseUrl, 'http://212.237.124.147:32001/api/v1');
+      expect(p.apiKey, 'logotigerrestservice');
+      expect(p.host, '212.237.124.147');
+      expect(p.port, 32001);
+    });
+
+    test('displayPlain şemasız host:port', () {
+      expect(
+        LogoTigerUrls.displayPlain('http://host:32001/api/v1'),
+        'host:32001',
+      );
     });
   });
 

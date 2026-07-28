@@ -10,6 +10,7 @@ import '../../../../core/localization/app_localization.dart';
 import '../model/cash_card_master.dart';
 import '../view/cash_card_list_screen.dart';
 import '../viewmodel/collection_provider.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 /// {@template virman_screen}
 /// Kasa/banka arası virman fişi — dens flat minimal form.
@@ -120,10 +121,10 @@ class _VirmanScreenState extends ConsumerState<VirmanScreen> {
     final saving = ref.watch(collectionProvider).isLoading;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: AppBar(
         flexibleSpace: Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -220,7 +221,7 @@ class _VirmanScreenState extends ConsumerState<VirmanScreen> {
                     maxLines: 2,
                     decoration: InputDecoration(
                       filled: true,
-                      fillColor: const Color(0xFFF8F9FD),
+                      fillColor: FieldSalesDensTheme.surface(context),
                       isDense: true,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
@@ -285,7 +286,7 @@ class _VirmanScreenState extends ConsumerState<VirmanScreen> {
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: FieldSalesDensTheme.surface(context),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.grey.shade200),
       ),
@@ -356,7 +357,7 @@ class _VirmanScreenState extends ConsumerState<VirmanScreen> {
           color: Colors.grey.shade600,
         ),
         filled: true,
-        fillColor: const Color(0xFFF8F9FD),
+        fillColor: FieldSalesDensTheme.surface(context),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(color: Colors.grey.shade200),

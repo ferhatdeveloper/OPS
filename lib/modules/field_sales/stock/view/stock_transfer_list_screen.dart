@@ -5,6 +5,7 @@
 // Son Güncelleme: 2026-07-28
 
 import 'package:flutter/material.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/localization/app_localization.dart';
 import '../../shared/view/field_sales_dens_app_bar.dart';
@@ -191,10 +192,9 @@ class _StockTransferListScreenState extends State<StockTransferListScreen> {
     final titleKey = widget.mode == StockTransferListMode.transferred
         ? 'field_sales.stubs.stock_transferred'
         : 'field_sales.stubs.stock_untransferred';
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF121212) : const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: FieldSalesDensAppBar(
         title: l10n.translate(titleKey),
         actions: [
@@ -285,9 +285,7 @@ class _StockTransferListScreenState extends State<StockTransferListScreen> {
                               vertical: 8,
                             ),
                             decoration: BoxDecoration(
-                              color: isDark
-                                  ? const Color(0xFF1F1B24)
-                                  : Colors.white,
+                              color: FieldSalesDensTheme.surface(context),
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(
                                 color: FieldSalesDensAppBar.primaryColor

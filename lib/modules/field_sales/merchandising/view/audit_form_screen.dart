@@ -7,6 +7,7 @@ import '../model/audit_model.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../../../service/database_service.dart';
 import '../../../../service/ai_analytics_service.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 class AuditFormScreen extends ConsumerStatefulWidget {
   final String formId;
@@ -40,7 +41,7 @@ class _AuditFormScreenState extends ConsumerState<AuditFormScreen> {
 
     if (form.id.isEmpty) {
       return Scaffold(
-        backgroundColor: const Color(0xFFF8F9FD),
+        backgroundColor: FieldSalesDensTheme.bodyBackground(context),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -55,10 +56,10 @@ class _AuditFormScreenState extends ConsumerState<AuditFormScreen> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: AppBar(
         flexibleSpace: Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: Color(0xFF1A1A1A), // Sleek dark header
           ),
         ),
@@ -148,7 +149,7 @@ class _AuditFormScreenState extends ConsumerState<AuditFormScreen> {
         margin: const EdgeInsets.only(bottom: 16),
         height: 120,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: FieldSalesDensTheme.surface(context),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
@@ -167,7 +168,7 @@ class _AuditFormScreenState extends ConsumerState<AuditFormScreen> {
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: FieldSalesDensTheme.surface(context),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFE0E0E0), width: 1),
       ),
@@ -213,7 +214,7 @@ class _AuditFormScreenState extends ConsumerState<AuditFormScreen> {
                 height: 160,
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8F9FD),
+                  color: FieldSalesDensTheme.bodyBackground(context),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
                     color: verification != null 
@@ -327,7 +328,7 @@ class _AuditFormScreenState extends ConsumerState<AuditFormScreen> {
       hintText: hint,
       hintStyle: TextStyle(color: Colors.grey.shade400),
       filled: true,
-      fillColor: const Color(0xFFF8F9FD),
+      fillColor: FieldSalesDensTheme.surface(context),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
       enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
       focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF00A8E8))),

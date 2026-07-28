@@ -5,6 +5,7 @@
 // Son Güncelleme: 2026-07-28
 
 import 'package:flutter/material.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/localization/app_localization.dart';
 import '../../currency/engine/collection_currency_exchange.dart';
@@ -98,13 +99,13 @@ class CollectionCashMbtFields extends StatelessWidget {
   /// {@template collection_cash_mbt_fields_decoration}
   /// Dense flat InputDecoration (voucher_defaults stil token'ları).
   /// {@endtemplate}
-  InputDecoration _decoration(String label) {
+  InputDecoration _decoration(BuildContext context, String label) {
     return InputDecoration(
       isDense: true,
       labelText: label,
       labelStyle: const TextStyle(fontSize: 13),
       filled: true,
-      fillColor: Colors.white,
+      fillColor: FieldSalesDensTheme.surface(context),
       contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
@@ -121,6 +122,7 @@ class CollectionCashMbtFields extends StatelessWidget {
   /// Tek satır dens TextField.
   /// {@endtemplate}
   Widget _textField({
+    required BuildContext context,
     required TextEditingController controller,
     required String label,
     TextInputType keyboardType = TextInputType.text,
@@ -135,7 +137,7 @@ class CollectionCashMbtFields extends StatelessWidget {
       textCapitalization: textCapitalization,
       keyboardType: keyboardType,
       textInputAction: textInputAction,
-      decoration: _decoration(label),
+      decoration: _decoration(context, label),
     );
   }
 
@@ -205,7 +207,7 @@ class CollectionCashMbtFields extends StatelessWidget {
           value: effectiveSelected.isEmpty ? null : effectiveSelected,
           isDense: true,
           style: const TextStyle(fontSize: 13, color: Color(0xFF2C3E50)),
-          decoration: _decoration(
+          decoration: _decoration(context, 
             l10n.translate('field_sales.collection_transaction_currency'),
           ),
           items: codes
@@ -230,6 +232,7 @@ class CollectionCashMbtFields extends StatelessWidget {
         if (_isForeign && rateController != null) ...[
           const SizedBox(height: 8),
           _textField(
+            context: context,
             controller: rateController!,
             label: l10n.translate('field_sales.collection_exchange_rate'),
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -251,6 +254,7 @@ class CollectionCashMbtFields extends StatelessWidget {
         ],
         const SizedBox(height: 8),
         _textField(
+          context: context,
           controller: documentNoController,
           label: l10n.translate('field_sales.collection_document_no'),
         ),
@@ -261,6 +265,7 @@ class CollectionCashMbtFields extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         _textField(
+          context: context,
           controller: descriptionController,
           label: l10n.translate('field_sales.fis_description'),
           textCapitalization: TextCapitalization.sentences,
@@ -270,6 +275,7 @@ class CollectionCashMbtFields extends StatelessWidget {
         if (showAmountField) ...[
           const SizedBox(height: 8),
           _textField(
+            context: context,
             controller: amountController,
             label: l10n.translate('field_sales.collection_cash_amount'),
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -278,11 +284,13 @@ class CollectionCashMbtFields extends StatelessWidget {
         ],
         const SizedBox(height: 8),
         _textField(
+          context: context,
           controller: salespersonController,
           label: l10n.translate('field_sales.collection_salesperson'),
         ),
         const SizedBox(height: 8),
         _textField(
+          context: context,
           controller: specialCodeController,
           label: l10n.translate('field_sales.fis_special_code_1'),
           textInputAction: TextInputAction.done,

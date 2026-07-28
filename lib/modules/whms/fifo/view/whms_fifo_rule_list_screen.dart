@@ -5,6 +5,9 @@
 // Son Güncelleme: 2026-07-28
 
 import 'package:flutter/material.dart';
+
+import '../../../field_sales/shared/view/field_sales_dens_theme.dart';
+
 import 'package:flutter/services.dart';
 
 import '../../../../core/localization/app_localization.dart';
@@ -324,11 +327,9 @@ class _WhmsFifoRuleListScreenState extends State<WhmsFifoRuleListScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalization.of(context);
     const Color primary = FieldSalesDensAppBar.primaryColor;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor:
-          isDark ? const Color(0xFF121212) : const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: FieldSalesDensAppBar(
         title: l10n.translate('whms.fifo.title'),
         backgroundColor: primary,
@@ -364,7 +365,7 @@ class _WhmsFifoRuleListScreenState extends State<WhmsFifoRuleListScreen> {
                   fontSize: 13,
                 ),
                 filled: true,
-                fillColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                fillColor: FieldSalesDensTheme.surface(context),
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 10,
                   vertical: 8,
@@ -396,9 +397,7 @@ class _WhmsFifoRuleListScreenState extends State<WhmsFifoRuleListScreen> {
                           l10n.translate('whms.fifo.empty'),
                           style: TextStyle(
                             fontSize: 13,
-                            color: isDark
-                                ? Colors.white54
-                                : Colors.black54,
+                            color: FieldSalesDensTheme.muted(context),
                           ),
                         ),
                       )
@@ -411,7 +410,6 @@ class _WhmsFifoRuleListScreenState extends State<WhmsFifoRuleListScreen> {
                           final row = _filtered[index];
                           return _FifoRuleRow(
                             rule: row,
-                            isDark: isDark,
                             l10n: l10n,
                             onEdit: () => _showEditor(existing: row),
                             onDelete: () => _confirmDelete(row),
@@ -428,14 +426,12 @@ class _WhmsFifoRuleListScreenState extends State<WhmsFifoRuleListScreen> {
 /// Dens FIFO kural satırı.
 class _FifoRuleRow extends StatelessWidget {
   final WhmsFifoRule rule;
-  final bool isDark;
   final AppLocalization l10n;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   const _FifoRuleRow({
     required this.rule,
-    required this.isDark,
     required this.l10n,
     required this.onEdit,
     required this.onDelete,
@@ -447,7 +443,7 @@ class _FifoRuleRow extends StatelessWidget {
         ? l10n.translate('whms.fifo.filter_fefo_on')
         : l10n.translate('whms.fifo.filter_fefo_off');
     return Material(
-      color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+      color: FieldSalesDensTheme.surface(context),
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
         borderRadius: BorderRadius.circular(8),
@@ -466,7 +462,7 @@ class _FifoRuleRow extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: isDark ? Colors.white : Colors.black87,
+                        color: FieldSalesDensTheme.title(context),
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -480,7 +476,7 @@ class _FifoRuleRow extends StatelessWidget {
                       ].join('  ·  '),
                       style: TextStyle(
                         fontSize: 11,
-                        color: isDark ? Colors.white54 : Colors.black54,
+                        color: FieldSalesDensTheme.muted(context),
                       ),
                     ),
                   ],
@@ -489,7 +485,7 @@ class _FifoRuleRow extends StatelessWidget {
               Icon(
                 Icons.chevron_right,
                 size: 18,
-                color: isDark ? Colors.white54 : Colors.black45,
+                color: FieldSalesDensTheme.muted(context),
               ),
             ],
           ),

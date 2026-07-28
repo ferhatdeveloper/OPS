@@ -5,6 +5,7 @@
 // Son Güncelleme: 2026-07-28
 
 import 'package:flutter/material.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/auth/app_user_role.dart';
 import '../../../../core/auth/role_home_menu_filter.dart';
@@ -135,7 +136,7 @@ class _RoleHubTile extends StatelessWidget {
     const primary = FieldSalesDensAppBar.primaryColor;
 
     return Material(
-      color: isDark ? const Color(0xFF1F1B24) : Colors.white,
+      color: FieldSalesDensTheme.surface(context),
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
         onTap: onTap,

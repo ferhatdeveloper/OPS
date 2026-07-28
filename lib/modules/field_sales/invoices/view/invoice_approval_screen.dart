@@ -6,6 +6,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/localization/app_localization.dart';
 import '../../../../core/services/logo_payload_mapper.dart';
@@ -148,7 +149,7 @@ class _InvoiceApprovalScreenState extends State<InvoiceApprovalScreen>
       labelText: label,
       labelStyle: const TextStyle(fontSize: 13),
       filled: true,
-      fillColor: Colors.white,
+      fillColor: FieldSalesDensTheme.surface(context),
       contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
@@ -218,10 +219,10 @@ class _InvoiceApprovalScreenState extends State<InvoiceApprovalScreen>
     final dateFmt = DateFormat('dd.MM.yyyy');
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: AppBar(
         flexibleSpace: Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -264,7 +265,7 @@ class _InvoiceApprovalScreenState extends State<InvoiceApprovalScreen>
         children: [
           Container(
             width: double.infinity,
-            color: Colors.white,
+            color: FieldSalesDensTheme.surface(context),
             padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -387,7 +388,7 @@ class _InvoiceApprovalScreenState extends State<InvoiceApprovalScreen>
                           return Container(
                             padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: FieldSalesDensTheme.surface(context),
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(color: Colors.grey.shade200),
                             ),

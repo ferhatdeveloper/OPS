@@ -5,6 +5,7 @@
 // Son Güncelleme: 2026-07-27
 
 import 'package:flutter/material.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/localization/app_localization.dart';
 import '../../shared/view/field_sales_dens_app_bar.dart';
@@ -241,7 +242,7 @@ class _BankCardListScreenState extends State<BankCardListScreen> {
     const Color primary = FieldSalesDensAppBar.primaryColor;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: FieldSalesDensAppBar(
         title: l10n.translate('field_sales.stubs.bank_card_list'),
         backgroundColor: primary,
@@ -271,7 +272,7 @@ class _BankCardListScreenState extends State<BankCardListScreen> {
                   fontSize: 13,
                 ),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: FieldSalesDensTheme.surface(context),
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 10,
                   vertical: 8,
@@ -350,7 +351,7 @@ class _BankCardDensTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: FieldSalesDensTheme.surface(context),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.grey.shade300),
       ),

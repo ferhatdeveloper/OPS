@@ -6,6 +6,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/localization/app_localization.dart';
 import '../../shared/view/field_sales_dens_app_bar.dart';
@@ -288,7 +289,7 @@ class _ReportResultPivotPaneState extends State<ReportResultPivotPane> {
                     height: 30,
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: FieldSalesDensTheme.surface(context),
                       borderRadius: BorderRadius.circular(6),
                       border: Border.all(
                         color: FieldSalesDensAppBar.primaryColor,

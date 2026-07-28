@@ -5,6 +5,9 @@
 // Son Güncelleme: 2026-07-28
 
 import 'package:flutter/material.dart';
+
+import '../../../field_sales/shared/view/field_sales_dens_theme.dart';
+
 import 'package:flutter/services.dart';
 
 import '../../../../core/localization/app_localization.dart';
@@ -355,11 +358,9 @@ class _WhmsLocationListScreenState extends State<WhmsLocationListScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalization.of(context);
     const Color primary = FieldSalesDensAppBar.primaryColor;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor:
-          isDark ? const Color(0xFF121212) : const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: FieldSalesDensAppBar(
         title: l10n.translate('whms.locations.title'),
         backgroundColor: primary,
@@ -395,7 +396,7 @@ class _WhmsLocationListScreenState extends State<WhmsLocationListScreen> {
                   fontSize: 13,
                 ),
                 filled: true,
-                fillColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                fillColor: FieldSalesDensTheme.surface(context),
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 10,
                   vertical: 8,
@@ -427,9 +428,7 @@ class _WhmsLocationListScreenState extends State<WhmsLocationListScreen> {
                           l10n.translate('whms.locations.empty'),
                           style: TextStyle(
                             fontSize: 13,
-                            color: isDark
-                                ? Colors.white54
-                                : Colors.black54,
+                            color: FieldSalesDensTheme.muted(context),
                           ),
                         ),
                       )
@@ -442,7 +441,6 @@ class _WhmsLocationListScreenState extends State<WhmsLocationListScreen> {
                           final row = _filtered[index];
                           return _LocationRow(
                             location: row,
-                            isDark: isDark,
                             onEdit: () => _showEditor(existing: row),
                             onDelete: () => _confirmDelete(row),
                           );
@@ -458,13 +456,11 @@ class _WhmsLocationListScreenState extends State<WhmsLocationListScreen> {
 /// Dens lokasyon satırı.
 class _LocationRow extends StatelessWidget {
   final WhmsLocation location;
-  final bool isDark;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   const _LocationRow({
     required this.location,
-    required this.isDark,
     required this.onEdit,
     required this.onDelete,
   });
@@ -472,7 +468,7 @@ class _LocationRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+      color: FieldSalesDensTheme.surface(context),
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
         borderRadius: BorderRadius.circular(8),
@@ -491,7 +487,7 @@ class _LocationRow extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: isDark ? Colors.white : Colors.black87,
+                        color: FieldSalesDensTheme.title(context),
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -505,7 +501,7 @@ class _LocationRow extends StatelessWidget {
                       ].join('  ·  '),
                       style: TextStyle(
                         fontSize: 11,
-                        color: isDark ? Colors.white54 : Colors.black54,
+                        color: FieldSalesDensTheme.muted(context),
                       ),
                     ),
                   ],
@@ -514,7 +510,7 @@ class _LocationRow extends StatelessWidget {
               Icon(
                 Icons.chevron_right,
                 size: 18,
-                color: isDark ? Colors.white54 : Colors.black45,
+                color: FieldSalesDensTheme.muted(context),
               ),
             ],
           ),

@@ -11,6 +11,7 @@ import 'menu_permission_screen.dart';
 import 'permission_groups_screen.dart';
 import 'package:uuid/uuid.dart';
 import '../../service/auth_service.dart';
+import '../field_sales/shared/view/field_sales_dens_theme.dart';
 
 /// {@template UserAuthorization}
 /// Kullanıcıları firma bazında yetkilendirme ekranı: kullanıcı ekle, firma seç, rol ata, listele, sil
@@ -132,6 +133,7 @@ class _UserAuthorizationState extends State<UserAuthorization> {
   Widget build(BuildContext context) {
     final l10n = AppLocalization.of(context);
     return Scaffold(
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),

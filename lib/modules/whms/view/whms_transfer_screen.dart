@@ -6,6 +6,8 @@
 
 import 'package:flutter/material.dart';
 
+import '../../field_sales/shared/view/field_sales_dens_theme.dart';
+
 import '../../../core/localization/app_localization.dart';
 import '../../field_sales/shared/view/field_sales_dens_app_bar.dart';
 import '../contract/whms_route_map.dart';
@@ -124,11 +126,9 @@ class _WhmsTransferScreenState extends State<WhmsTransferScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalization.of(context);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor:
-          isDark ? const Color(0xFF121212) : const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: FieldSalesDensAppBar(
         title: l10n.translate('field_sales.menu.sub_whms_transfer'),
         showCalculatorHome: false,
@@ -175,7 +175,7 @@ class _WhmsTransferScreenState extends State<WhmsTransferScreen> {
                           l10n.translate('whms.transfer.empty'),
                           style: TextStyle(
                             fontSize: 13,
-                            color: isDark ? Colors.white70 : Colors.black54,
+                            color: FieldSalesDensTheme.muted(context),
                           ),
                         ),
                       )

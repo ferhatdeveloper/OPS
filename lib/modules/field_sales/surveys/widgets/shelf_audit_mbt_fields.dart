@@ -6,6 +6,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/localization/app_localization.dart';
 
@@ -76,13 +77,13 @@ class ShelfAuditMbtFields extends StatelessWidget {
   /// {@template shelf_audit_mbt_fields_decoration}
   /// Dense flat InputDecoration (day_status / voucher token'ları).
   /// {@endtemplate}
-  InputDecoration _decoration(String label) {
+  InputDecoration _decoration(BuildContext context, String label) {
     return InputDecoration(
       isDense: true,
       labelText: label,
       labelStyle: const TextStyle(fontSize: 13),
       filled: true,
-      fillColor: Colors.white,
+      fillColor: FieldSalesDensTheme.surface(context),
       contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
@@ -109,7 +110,7 @@ class ShelfAuditMbtFields extends StatelessWidget {
           textCapitalization: TextCapitalization.characters,
           keyboardType: TextInputType.text,
           textInputAction: TextInputAction.next,
-          decoration: _decoration(
+          decoration: _decoration(context, 
             l10n.translate('field_sales.shelf_audit.customer_code'),
           ),
         ),
@@ -121,7 +122,7 @@ class ShelfAuditMbtFields extends StatelessWidget {
           textCapitalization: TextCapitalization.words,
           keyboardType: TextInputType.text,
           textInputAction: TextInputAction.next,
-          decoration: _decoration(
+          decoration: _decoration(context, 
             l10n.translate('field_sales.shelf_audit.customer_name'),
           ),
         ),
@@ -133,7 +134,7 @@ class ShelfAuditMbtFields extends StatelessWidget {
           textCapitalization: TextCapitalization.sentences,
           keyboardType: TextInputType.text,
           textInputAction: TextInputAction.next,
-          decoration: _decoration(
+          decoration: _decoration(context, 
             l10n.translate('field_sales.shelf_audit.category'),
           ),
           validator: (val) {
@@ -153,7 +154,7 @@ class ShelfAuditMbtFields extends StatelessWidget {
           textCapitalization: TextCapitalization.words,
           keyboardType: TextInputType.text,
           textInputAction: TextInputAction.next,
-          decoration: _decoration(
+          decoration: _decoration(context, 
             l10n.translate('field_sales.shelf_audit.brand'),
           ),
           validator: (val) {
@@ -173,7 +174,7 @@ class ShelfAuditMbtFields extends StatelessWidget {
           keyboardType: TextInputType.number,
           textInputAction: TextInputAction.next,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          decoration: _decoration(
+          decoration: _decoration(context, 
             l10n.translate('field_sales.shelf_audit.facings'),
           ),
         ),
@@ -186,7 +187,7 @@ class ShelfAuditMbtFields extends StatelessWidget {
             decimal: true,
           ),
           textInputAction: TextInputAction.next,
-          decoration: _decoration(
+          decoration: _decoration(context, 
             l10n.translate('field_sales.shelf_audit.shelf_share'),
           ),
         ),
@@ -209,7 +210,7 @@ class ShelfAuditMbtFields extends StatelessWidget {
           keyboardType: TextInputType.multiline,
           textInputAction: TextInputAction.newline,
           maxLines: 2,
-          decoration: _decoration(
+          decoration: _decoration(context, 
             l10n.translate('field_sales.shelf_audit.notes'),
           ),
         ),

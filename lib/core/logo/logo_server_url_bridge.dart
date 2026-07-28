@@ -38,7 +38,7 @@ class LogoServerUrlBridge {
     final tiger = tigerOverride ?? await LogoTigerSettingsStore().loadRaw();
     if (tiger.baseUrl.trim().isNotEmpty) {
       return LogoResolvedEndpoint(
-        baseUrl: tiger.baseUrl.trim(),
+        baseUrl: LogoTigerUrls.normalizeBaseUrl(tiger.baseUrl),
         apiKey: tiger.apiKey,
         source: LogoUrlSource.tigerStore,
       );
@@ -47,7 +47,7 @@ class LogoServerUrlBridge {
     final rest = await LogoRestSettingsService().getSettings();
     if (_usableLogoUrl(rest.baseUrl)) {
       return LogoResolvedEndpoint(
-        baseUrl: rest.baseUrl.trim(),
+        baseUrl: LogoTigerUrls.normalizeBaseUrl(rest.baseUrl),
         apiKey: rest.apiKey ?? '',
         source: LogoUrlSource.logoRestSettings,
       );
@@ -58,9 +58,17 @@ class LogoServerUrlBridge {
       final cfg = await db.getApiConfig();
       final raw = (cfg['base_url'] as String? ?? '').trim();
       final useHttps = cfg['use_https'] == 1;
-      final base = _normalizeApiConfigUrl(raw, useHttps: useHttps);
-      final key = (cfg['api_key'] as String?)?.trim() ?? '';
-      if (_usableLogoUrl(base)) {
+      final parsed = LogoTigerUrls.parseUserInput(raw);
+      var base = parsed.baseUrl;
+      if (base.isEmpty) {
+        base = LogoTigerUrls.normalizeBaseUrl(
+          _normalizeApiConfigUrl(raw, useHttps: useHttps),
+        );
+      }
+      final key = (cfg['api_key'] as String?)?.trim().isNotEmpty == true
+          ? (cfg['api_key'] as String).trim()
+          : parsed.apiKey;
+      if (_usableLogoUrl(base) || _looksLikeLogoHost(base)) {
         return LogoResolvedEndpoint(
           baseUrl: base,
           apiKey: key,
@@ -101,36 +109,41 @@ class LogoServerUrlBridge {
     String? apiKey,
     bool useHttps = true,
   }) async {
-    final normalized = _normalizeApiConfigUrl(baseUrl, useHttps: useHttps);
-    if (!_usableLogoUrl(normalized) && !_looksLikeLogoHost(normalized)) {
-      return;
+    final parsed = LogoTigerUrls.parseUserInput(baseUrl);
+    var normalized = parsed.baseUrl;
+    if (normalized.isEmpty) {
+      normalized = _normalizeApiConfigUrl(baseUrl, useHttps: useHttps);
+      normalized = LogoTigerUrls.normalizeBaseUrl(normalized);
     }
+    if (!_usableLogoUrl(normalized) && !_looksLikeLogoHost(normalized)) {
+      // Düz IP:port / host yine de Logo’ya yaz (kullanıcı sunucuya Logo adresi girer)
+      if (normalized.isEmpty) return;
+    }
+
+    final effectiveKey = (apiKey != null && apiKey.trim().isNotEmpty)
+        ? apiKey.trim()
+        : parsed.apiKey;
 
     final restSvc = LogoRestSettingsService();
     final current = await restSvc.getSettings();
     await restSvc.saveSettings(
       current.copyWith(
         baseUrl: normalized,
-        apiKey: (apiKey != null && apiKey.trim().isNotEmpty)
-            ? apiKey.trim()
-            : current.apiKey,
+        apiKey: effectiveKey.isNotEmpty ? effectiveKey : current.apiKey,
       ),
     );
 
     final store = LogoTigerSettingsStore();
     final tiger = await store.loadRaw();
-    // Sunucu linki her zaman Tiger base’e yazılır (çekim kaynağı)
     await store.save(
       tiger.copyWith(
         baseUrl: normalized,
-        apiKey: (apiKey != null && apiKey.trim().isNotEmpty)
-            ? apiKey.trim()
-            : tiger.apiKey,
+        apiKey: effectiveKey.isNotEmpty ? effectiveKey : tiger.apiKey,
       ),
     );
-    // Tiger’ı otomatik açma — kullanıcı toggle’ı kullanır; URL hazır olsun
     debugPrint(
-      'LogoServerUrlBridge: sunucu URL → Tiger/LogoREST ($normalized)',
+      'LogoServerUrlBridge: sunucu URL → Tiger/LogoREST '
+      '(${LogoTigerUrls.displayPlain(normalized)})',
     );
   }
 
@@ -139,14 +152,20 @@ class LogoServerUrlBridge {
     required String baseUrl,
     String? apiKey,
   }) async {
-    final normalized = LogoTigerUrls.normalizeBaseUrl(baseUrl);
+    final parsed = LogoTigerUrls.parseUserInput(baseUrl);
+    final normalized = parsed.baseUrl.isNotEmpty
+        ? parsed.baseUrl
+        : LogoTigerUrls.normalizeBaseUrl(baseUrl);
     if (normalized.isEmpty) return;
+    final key = (apiKey != null && apiKey.trim().isNotEmpty)
+        ? apiKey.trim()
+        : parsed.apiKey;
     try {
       final db = await DatabaseService.getInstance();
-      final host = LogoTigerUrls.hostPortOnly(normalized);
+      final plain = LogoTigerUrls.displayPlain(normalized);
       await db.updateApiConfig(
-        baseUrl: host.replaceFirst(RegExp(r'^https?://'), ''),
-        apiKey: apiKey,
+        baseUrl: plain,
+        apiKey: key.isNotEmpty ? key : apiKey,
         useHttps: normalized.startsWith('https'),
       );
     } catch (e) {

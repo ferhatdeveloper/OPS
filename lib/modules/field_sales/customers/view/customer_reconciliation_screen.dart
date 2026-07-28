@@ -6,6 +6,7 @@
 
 import 'dart:io';
 import 'dart:typed_data';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -214,7 +215,7 @@ class _CustomerReconciliationScreenState
         l10n.translate('field_sales.stubs.customer_reconciliation');
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: FieldSalesDensAppBar(
         title: title,
         backgroundColor: FieldSalesDensAppBar.primaryColor,
@@ -382,7 +383,7 @@ class _SummaryTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 4),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: FieldSalesDensTheme.surface(context),
         borderRadius: BorderRadius.circular(6),
         border: Border.all(color: Colors.grey.shade200),
       ),

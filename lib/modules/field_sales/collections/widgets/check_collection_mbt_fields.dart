@@ -5,6 +5,7 @@
 // Son Güncelleme: 2026-07-26
 
 import 'package:flutter/material.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/localization/app_localization.dart';
 
@@ -76,13 +77,13 @@ class CheckCollectionMbtFields extends StatelessWidget {
   /// {@template check_collection_mbt_fields_decoration}
   /// Dense flat InputDecoration (MBT dens stil token'ları).
   /// {@endtemplate}
-  InputDecoration _decoration(String label) {
+  InputDecoration _decoration(BuildContext context, String label) {
     return InputDecoration(
       isDense: true,
       labelText: label,
       labelStyle: const TextStyle(fontSize: 13),
       filled: true,
-      fillColor: Colors.white,
+      fillColor: FieldSalesDensTheme.surface(context),
       contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
@@ -108,7 +109,7 @@ class CheckCollectionMbtFields extends StatelessWidget {
           textCapitalization: TextCapitalization.characters,
           keyboardType: TextInputType.text,
           textInputAction: TextInputAction.next,
-          decoration: _decoration(
+          decoration: _decoration(context, 
             l10n.translate('field_sales.check_document_no'),
           ),
         ),
@@ -116,7 +117,7 @@ class CheckCollectionMbtFields extends StatelessWidget {
         InkWell(
           onTap: onDueDateTap,
           child: InputDecorator(
-            decoration: _decoration(
+            decoration: _decoration(context, 
               l10n.translate('field_sales.check_due_date'),
             ),
             child: Text(
@@ -142,7 +143,7 @@ class CheckCollectionMbtFields extends StatelessWidget {
           style: const TextStyle(fontSize: 13),
           keyboardType: TextInputType.text,
           textInputAction: TextInputAction.next,
-          decoration: _decoration(
+          decoration: _decoration(context, 
             l10n.translate('field_sales.check_endorsement'),
           ),
         ),
@@ -152,7 +153,7 @@ class CheckCollectionMbtFields extends StatelessWidget {
           style: const TextStyle(fontSize: 13),
           keyboardType: TextInputType.text,
           textInputAction: TextInputAction.next,
-          decoration: _decoration(
+          decoration: _decoration(context, 
             l10n.translate('field_sales.check_original_debtor'),
           ),
         ),
@@ -162,7 +163,7 @@ class CheckCollectionMbtFields extends StatelessWidget {
           style: const TextStyle(fontSize: 13),
           keyboardType: TextInputType.text,
           textInputAction: TextInputAction.next,
-          decoration: _decoration(
+          decoration: _decoration(context, 
             l10n.translate('field_sales.bank_name'),
           ),
         ),
@@ -172,7 +173,7 @@ class CheckCollectionMbtFields extends StatelessWidget {
           style: const TextStyle(fontSize: 13),
           keyboardType: TextInputType.text,
           textInputAction: TextInputAction.next,
-          decoration: _decoration(
+          decoration: _decoration(context, 
             l10n.translate('field_sales.branch_name'),
           ),
         ),
@@ -182,7 +183,7 @@ class CheckCollectionMbtFields extends StatelessWidget {
           style: const TextStyle(fontSize: 13),
           keyboardType: TextInputType.text,
           textInputAction: TextInputAction.next,
-          decoration: _decoration(
+          decoration: _decoration(context, 
             l10n.translate('field_sales.check_workplace'),
           ),
         ),
@@ -192,7 +193,7 @@ class CheckCollectionMbtFields extends StatelessWidget {
           style: const TextStyle(fontSize: 13),
           keyboardType: TextInputType.text,
           textInputAction: TextInputAction.next,
-          decoration: _decoration(
+          decoration: _decoration(context, 
             l10n.translate('field_sales.check_number'),
           ),
         ),
@@ -202,7 +203,7 @@ class CheckCollectionMbtFields extends StatelessWidget {
           style: const TextStyle(fontSize: 13),
           keyboardType: TextInputType.text,
           textInputAction: TextInputAction.done,
-          decoration: _decoration(
+          decoration: _decoration(context, 
             l10n.translate('field_sales.check_account_no'),
           ),
         ),

@@ -5,6 +5,7 @@
 // Son Güncelleme: 2026-07-26
 
 import 'package:flutter/material.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/localization/app_localization.dart';
 
@@ -75,14 +76,14 @@ class CompetitorSurveyMbtFields extends StatelessWidget {
   /// {@template competitor_survey_mbt_fields_decoration}
   /// Dense flat InputDecoration (day_status / voucher token'ları).
   /// {@endtemplate}
-  InputDecoration _decoration(String label, {String? suffix}) {
+  InputDecoration _decoration(BuildContext context, String label, {String? suffix}) {
     return InputDecoration(
       isDense: true,
       labelText: label,
       labelStyle: const TextStyle(fontSize: 13),
       suffixText: suffix,
       filled: true,
-      fillColor: Colors.white,
+      fillColor: FieldSalesDensTheme.surface(context),
       contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
@@ -109,7 +110,7 @@ class CompetitorSurveyMbtFields extends StatelessWidget {
           textCapitalization: TextCapitalization.characters,
           keyboardType: TextInputType.text,
           textInputAction: TextInputAction.next,
-          decoration: _decoration(
+          decoration: _decoration(context, 
             l10n.translate('field_sales.competitor_survey.customer_code'),
           ),
         ),
@@ -121,7 +122,7 @@ class CompetitorSurveyMbtFields extends StatelessWidget {
           textCapitalization: TextCapitalization.words,
           keyboardType: TextInputType.text,
           textInputAction: TextInputAction.next,
-          decoration: _decoration(
+          decoration: _decoration(context, 
             l10n.translate('field_sales.competitor_survey.brand'),
           ),
           validator: (val) {
@@ -141,7 +142,7 @@ class CompetitorSurveyMbtFields extends StatelessWidget {
           textCapitalization: TextCapitalization.sentences,
           keyboardType: TextInputType.text,
           textInputAction: TextInputAction.next,
-          decoration: _decoration(
+          decoration: _decoration(context, 
             l10n.translate('field_sales.competitor_survey.product'),
           ),
           validator: (val) {
@@ -162,7 +163,7 @@ class CompetitorSurveyMbtFields extends StatelessWidget {
             decimal: true,
           ),
           textInputAction: TextInputAction.next,
-          decoration: _decoration(
+          decoration: _decoration(context, 
             l10n.translate('field_sales.competitor_survey.price'),
             suffix: '₺',
           ),
@@ -196,7 +197,7 @@ class CompetitorSurveyMbtFields extends StatelessWidget {
           keyboardType: TextInputType.multiline,
           textInputAction: TextInputAction.newline,
           maxLines: 2,
-          decoration: _decoration(
+          decoration: _decoration(context, 
             l10n.translate('field_sales.competitor_survey.notes'),
           ),
         ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../viewmodel/target_provider.dart';
 import '../../../../core/localization/app_localization.dart';
+import 'package:exfin_ops/modules/field_sales/shared/view/field_sales_dens_theme.dart';
 
 class TargetRankingScreen extends ConsumerWidget {
   const TargetRankingScreen({Key? key}) : super(key: key);
@@ -19,7 +20,7 @@ class TargetRankingScreen extends ConsumerWidget {
     });
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: AppBar(
         title: Text(AppLocalization.of(context).translate('target.target_ranking'), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
         backgroundColor: const Color(0xFF375A7F),

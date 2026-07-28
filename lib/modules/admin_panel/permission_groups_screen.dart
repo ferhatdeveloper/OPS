@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/localization/app_localization.dart';
 import '../field_sales/shared/view/field_sales_dens_app_bar.dart';
+import '../field_sales/shared/view/field_sales_dens_theme.dart';
 import 'permission_group_edit_screen.dart';
 import 'viewmodel/permission_group_store.dart';
 
@@ -207,6 +208,7 @@ class _PermissionGroupsScreenState extends State<PermissionGroupsScreen> {
       return Material(child: body);
     }
     return Scaffold(
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: FieldSalesDensAppBar(
         title: l10n.translate('permission_groups.title'),
         showCalculatorHome: false,

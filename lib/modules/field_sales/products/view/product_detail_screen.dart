@@ -7,6 +7,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:uuid/uuid.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/localization/app_localization.dart';
 import '../../ai_social/view/social_media_image_screen.dart';
@@ -275,7 +276,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         : l10n.translate('field_sales.product_new_title');
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: FieldSalesDensAppBar(
         title: title,
         useGradient: true,

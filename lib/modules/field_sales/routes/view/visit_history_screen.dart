@@ -6,6 +6,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/localization/app_localization.dart';
 import '../../../../service/database_service.dart';
@@ -225,7 +226,7 @@ class _VisitHistoryScreenState extends State<VisitHistoryScreen> {
     final visible = _visible;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: FieldSalesDensAppBar(
         title: l10n.translate('field_sales.stubs.visit_history'),
         bottom: FieldSalesDensFilterBar(
@@ -328,7 +329,7 @@ class _VisitHistoryScreenState extends State<VisitHistoryScreen> {
                           );
 
                           return Material(
-                            color: Colors.white,
+                            color: FieldSalesDensTheme.surface(context),
                             borderRadius: BorderRadius.circular(8),
                             child: InkWell(
                               borderRadius: BorderRadius.circular(8),
@@ -429,7 +430,7 @@ class _DateCell extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: FieldSalesDensTheme.surface(context),
           borderRadius: BorderRadius.circular(6),
           border: Border.all(color: primary.withOpacity(0.35)),
         ),

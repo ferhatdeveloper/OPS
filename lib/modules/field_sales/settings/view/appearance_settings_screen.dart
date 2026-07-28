@@ -6,6 +6,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/localization/app_localization.dart';
 import '../../../../service/language_service.dart';
@@ -196,7 +197,7 @@ class _AppearanceSettingsScreenState
     final valueLabel = _draftFontSize.toStringAsFixed(2).replaceAll('.', ',');
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: FieldSalesDensAppBar(
         title: l10n.translate('settings.appearance'),
         useGradient: true,

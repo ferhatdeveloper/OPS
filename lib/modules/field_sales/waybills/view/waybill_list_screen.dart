@@ -6,6 +6,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/localization/app_localization.dart';
 import '../../../../service/database_service.dart';
@@ -161,10 +162,10 @@ class _WaybillListScreenState extends State<WaybillListScreen> {
     final title = l10n.translate('field_sales.stubs.waybill_list');
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: AppBar(
         flexibleSpace: Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -210,7 +211,7 @@ class _WaybillListScreenState extends State<WaybillListScreen> {
                     return Container(
                       margin: const EdgeInsets.only(bottom: 6),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: FieldSalesDensTheme.surface(context),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(color: Colors.grey.shade200),
                       ),
@@ -224,7 +225,7 @@ class _WaybillListScreenState extends State<WaybillListScreen> {
                         leading: Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF8F9FD),
+                            color: FieldSalesDensTheme.bodyBackground(context),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: const Icon(

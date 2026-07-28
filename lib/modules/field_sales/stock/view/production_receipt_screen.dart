@@ -6,6 +6,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/localization/app_localization.dart';
 import '../../../../service/job_queue_service.dart';
@@ -174,10 +175,10 @@ class _ProductionReceiptScreenState extends State<ProductionReceiptScreen> {
     _seedLocation(l10n);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: AppBar(
         flexibleSpace: Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,

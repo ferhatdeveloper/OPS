@@ -5,6 +5,7 @@
 // Son Güncelleme: 2026-07-26
 
 import 'package:flutter/material.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/localization/app_localization.dart';
 
@@ -33,7 +34,7 @@ class SendInfoScreen extends StatelessWidget {
     final title = l10n.translate('submodules.bilgi_gonderme');
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: AppBar(
         title: Text(
           title,

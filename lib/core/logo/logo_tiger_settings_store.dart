@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../auth/remember_me_crypto.dart';
 import 'logo_server_url_bridge.dart';
 import 'logo_tiger_config.dart';
+import 'logo_tiger_urls.dart';
 
 /// {@template logo_tiger_settings_store}
 /// Tiger REST bağlantı ayarları. Secret alanlar [RememberMeCrypto] ile
@@ -110,8 +111,12 @@ class LogoTigerSettingsStore {
   /// {@endtemplate}
   Future<void> save(LogoTigerConfig config) async {
     final prefs = await _prefs();
-    await prefs.setString(keyBaseUrl, config.baseUrl.trim());
-    await prefs.setString(keyApiKey, _enc(config.apiKey));
+    final parsed = LogoTigerUrls.parseUserInput(config.baseUrl);
+    final key = config.apiKey.trim().isNotEmpty
+        ? config.apiKey.trim()
+        : parsed.apiKey;
+    await prefs.setString(keyBaseUrl, parsed.baseUrl);
+    await prefs.setString(keyApiKey, _enc(key));
     await prefs.setString(keyUsername, config.username.trim());
     await prefs.setString(keyPassword, _enc(config.password));
     await prefs.setString(keyClientId, _enc(config.clientId.trim()));

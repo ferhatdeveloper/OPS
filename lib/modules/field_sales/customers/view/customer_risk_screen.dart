@@ -6,6 +6,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/localization/app_localization.dart';
 import '../widgets/customer_risk_mbt_fields.dart';
@@ -151,7 +152,7 @@ class _CustomerRiskScreenState extends State<CustomerRiskScreen> {
     );
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: AppBar(
         title: Text(
           title,

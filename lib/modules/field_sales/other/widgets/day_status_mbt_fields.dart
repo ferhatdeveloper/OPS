@@ -6,6 +6,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/localization/app_localization.dart';
 import '../model/day_status_record.dart';
@@ -69,13 +70,13 @@ class DayStatusMbtFields extends StatelessWidget {
   /// {@template day_status_mbt_fields_decoration}
   /// Dense flat InputDecoration (voucher_defaults stil token'ları).
   /// {@endtemplate}
-  InputDecoration _decoration(String label) {
+  InputDecoration _decoration(BuildContext context, String label) {
     return InputDecoration(
       isDense: true,
       labelText: label,
       labelStyle: const TextStyle(fontSize: 13),
       filled: true,
-      fillColor: Colors.white,
+      fillColor: FieldSalesDensTheme.surface(context),
       contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
@@ -102,7 +103,7 @@ class DayStatusMbtFields extends StatelessWidget {
           textCapitalization: TextCapitalization.characters,
           keyboardType: TextInputType.text,
           textInputAction: TextInputAction.next,
-          decoration: _decoration(
+          decoration: _decoration(context, 
             l10n.translate('field_sales.day_plate_label'),
           ),
           validator: (val) {
@@ -121,7 +122,7 @@ class DayStatusMbtFields extends StatelessWidget {
             keyboardType: TextInputType.number,
             textInputAction: TextInputAction.next,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            decoration: _decoration(
+            decoration: _decoration(context, 
               l10n.translate('field_sales.day_start_km_label'),
             ),
             validator: (val) {
@@ -144,7 +145,7 @@ class DayStatusMbtFields extends StatelessWidget {
             keyboardType: TextInputType.number,
             textInputAction: TextInputAction.done,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            decoration: _decoration(
+            decoration: _decoration(context, 
               l10n.translate('field_sales.day_end_km_label'),
             ),
             validator: (val) {

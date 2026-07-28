@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../viewmodel/vehicle_provider.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 class EndOfDayScreen extends ConsumerStatefulWidget {
   const EndOfDayScreen({super.key});
@@ -84,7 +85,7 @@ class _EndOfDayScreenState extends ConsumerState<EndOfDayScreen> {
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: FieldSalesDensTheme.surface(context),
             shape: BoxShape.circle,
             boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20)],
           ),

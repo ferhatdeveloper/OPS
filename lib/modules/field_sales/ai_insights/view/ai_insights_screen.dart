@@ -394,7 +394,7 @@ class _AiInsightsScreenState extends State<AiInsightsScreen> {
       margin: const EdgeInsets.fromLTRB(10, 6, 10, 0),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: FieldSalesDensTheme.surface(context),
         border: Border.all(color: primary.withValues(alpha: 0.4)),
         borderRadius: BorderRadius.circular(4),
       ),

@@ -7,6 +7,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/localization/app_localization.dart';
 import 'waybill_customer_selection_screen.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 /// {@template waybill_retail_entry_screen}
 /// Perakende irsaliye girişi için stub ekran.
@@ -74,7 +75,7 @@ class _WaybillRetailEntryScreenState extends State<WaybillRetailEntryScreen> {
     final title = l10n.translate('field_sales.stubs.waybill_retail_entry');
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: AppBar(
         title: Text(
           title,

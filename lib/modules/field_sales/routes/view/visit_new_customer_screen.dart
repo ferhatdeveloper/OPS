@@ -6,6 +6,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/localization/app_localization.dart';
 import '../../customers/model/customer_model.dart';
@@ -115,7 +116,7 @@ class _VisitNewCustomerScreenState
   Widget build(BuildContext context) {
     final l10n = AppLocalization.of(context);
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: FieldSalesDensAppBar(
         title: l10n.translate('field_sales.stubs.visit_new_customer'),
         useGradient: true,

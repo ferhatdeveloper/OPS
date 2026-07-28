@@ -20,6 +20,7 @@ import '../widgets/customer_visit_weekdays_tab.dart';
 import 'customer_extract_screen.dart';
 import 'customer_form_screen.dart';
 import 'customer_reconciliation_screen.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 /// {@template customer_detail_hub_action}
 /// MBT cari detay hub kısayolu: named route + l10n + ikon.
@@ -347,8 +348,8 @@ class _CustomerDetailScreenState
             Expanded(
               child: Container(
                 margin: const EdgeInsets.symmetric(horizontal: 12.0),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
+                decoration: BoxDecoration(
+                  color: FieldSalesDensTheme.surface(context),
                   borderRadius: BorderRadius.only(
                     topLeft: Radius.circular(10),
                     topRight: Radius.circular(10),
@@ -715,7 +716,7 @@ class _CustomerDetailScreenState
     const Color primaryBlue = Color(0xFF2691E5);
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: FieldSalesDensTheme.surface(context),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.grey.shade200),
       ),
@@ -724,7 +725,7 @@ class _CustomerDetailScreenState
         children: [
           Container(
             padding: const EdgeInsets.symmetric(vertical: 6),
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               color: primaryBlue,
               borderRadius: BorderRadius.vertical(top: Radius.circular(7)),
             ),

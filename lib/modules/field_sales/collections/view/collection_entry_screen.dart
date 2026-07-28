@@ -19,6 +19,7 @@ import '../widgets/cash_card_code_field.dart';
 import '../widgets/check_collection_mbt_fields.dart';
 import '../widgets/collection_cash_mbt_fields.dart';
 import 'collection_customer_selection_screen.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 /// {@template collection_entry_screen}
 /// Tahsilat girişi ekranı.
@@ -347,7 +348,7 @@ class _CollectionEntryScreenState extends ConsumerState<CollectionEntryScreen> {
     final state = ref.watch(collectionProvider);
     final l10n = AppLocalization.of(context);
     if (_missingCustomer) {
-      return const Scaffold(
+      return Scaffold(
         body: Center(child: CircularProgressIndicator()),
       );
     }
@@ -356,10 +357,10 @@ class _CollectionEntryScreenState extends ConsumerState<CollectionEntryScreen> {
       hasUnsaved: _hasUnsavedDraft,
       onDiscard: _discardCollectionDraft,
       child: Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: AppBar(
         flexibleSpace: Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -443,7 +444,7 @@ class _CollectionEntryScreenState extends ConsumerState<CollectionEntryScreen> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: FieldSalesDensTheme.surface(context),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.grey.shade200),
       ),
@@ -469,7 +470,7 @@ class _CollectionEntryScreenState extends ConsumerState<CollectionEntryScreen> {
     return Container(
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: FieldSalesDensTheme.surface(context),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.grey.shade200),
       ),
@@ -512,7 +513,7 @@ class _CollectionEntryScreenState extends ConsumerState<CollectionEntryScreen> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: FieldSalesDensTheme.surface(context),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.grey.shade200),
       ),
@@ -620,7 +621,7 @@ class _CollectionEntryScreenState extends ConsumerState<CollectionEntryScreen> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: FieldSalesDensTheme.surface(context),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.grey.shade200),
       ),
@@ -641,7 +642,7 @@ class _CollectionEntryScreenState extends ConsumerState<CollectionEntryScreen> {
             maxLines: 3,
             decoration: InputDecoration(
               filled: true,
-              fillColor: const Color(0xFFF8F9FD),
+              fillColor: FieldSalesDensTheme.surface(context),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
                 borderSide: BorderSide(color: Colors.grey.shade200),
@@ -667,7 +668,7 @@ class _CollectionEntryScreenState extends ConsumerState<CollectionEntryScreen> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: FieldSalesDensTheme.surface(context),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.grey.shade200),
       ),
@@ -694,7 +695,7 @@ class _CollectionEntryScreenState extends ConsumerState<CollectionEntryScreen> {
             label: l10n.translate('field_sales.cc_pos_code'),
             prefixIcon: Icons.point_of_sale,
             prefixIconColor: const Color(0xFF375A7F),
-            fillColor: const Color(0xFFF8F9FD),
+            fillColor: FieldSalesDensTheme.surface(context),
             labelAsHint: true,
           ),
         ],
@@ -706,7 +707,7 @@ class _CollectionEntryScreenState extends ConsumerState<CollectionEntryScreen> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: FieldSalesDensTheme.surface(context),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.grey.shade200),
       ),
@@ -746,7 +747,7 @@ class _CollectionEntryScreenState extends ConsumerState<CollectionEntryScreen> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: FieldSalesDensTheme.surface(context),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.grey.shade200),
       ),
@@ -795,7 +796,7 @@ class _CollectionEntryScreenState extends ConsumerState<CollectionEntryScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         decoration: BoxDecoration(
-          color: const Color(0xFFF8F9FD),
+          color: FieldSalesDensTheme.bodyBackground(context),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: Colors.grey.shade200),
         ),
@@ -839,7 +840,7 @@ class _CollectionEntryScreenState extends ConsumerState<CollectionEntryScreen> {
         prefixIcon: Icon(icon, size: 18, color: const Color(0xFF375A7F)),
         hintText: hint,
         filled: true,
-        fillColor: const Color(0xFFF8F9FD),
+        fillColor: FieldSalesDensTheme.surface(context),
         isDense: true,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),

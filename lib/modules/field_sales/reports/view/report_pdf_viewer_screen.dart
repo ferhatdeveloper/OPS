@@ -5,6 +5,7 @@
 // Son Güncelleme: 2026-07-27
 
 import 'dart:typed_data';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import 'package:flutter/material.dart';
 import 'package:printing/printing.dart';
@@ -70,7 +71,7 @@ class ReportPdfViewerScreen extends StatelessWidget {
         : title;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: FieldSalesDensAppBar(
         title: resolvedTitle,
         backgroundColor: FieldSalesDensAppBar.primaryColor,

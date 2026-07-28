@@ -5,6 +5,7 @@
 // Son Güncelleme: 2026-07-26
 
 import 'package:flutter/material.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/localization/app_localization.dart';
 import '../model/competitor_survey_record.dart';
@@ -143,7 +144,7 @@ class _CompetitorSurveyScreenState extends State<CompetitorSurveyScreen> {
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: FieldSalesDensTheme.surface(context),
         border: Border(top: BorderSide(color: Colors.grey.shade200)),
       ),
       child: SafeArea(
@@ -198,10 +199,10 @@ class _CompetitorSurveyScreenState extends State<CompetitorSurveyScreen> {
     final title = l10n.translate('field_sales.stubs.competitor_survey');
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: AppBar(
         flexibleSpace: Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,

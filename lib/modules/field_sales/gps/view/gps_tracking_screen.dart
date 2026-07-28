@@ -5,6 +5,7 @@
 // Son Güncelleme: 2026-07-28
 
 import 'dart:async';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -240,7 +241,7 @@ class _GpsTrackingScreenState extends State<GpsTrackingScreen> {
     const primary = FieldSalesDensAppBar.primaryColor;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: FieldSalesDensAppBar(
         title: title,
         bottom: FieldSalesDensFilterBar(
@@ -418,7 +419,7 @@ class _GpsTrackingScreenState extends State<GpsTrackingScreen> {
                 vertical: 8,
               ),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: FieldSalesDensTheme.surface(context),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
                   color: selected

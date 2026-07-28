@@ -5,6 +5,7 @@
 // Son Güncelleme: 2026-07-27
 
 import 'package:flutter/material.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/localization/app_localization.dart';
 import '../../shared/view/field_sales_dens_app_bar.dart';
@@ -231,7 +232,7 @@ class _PromissoryNoteListScreenState extends State<PromissoryNoteListScreen>
     final countText = '${filtered.length}';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: FieldSalesDensAppBar(
         title: l10n.translate('field_sales.stubs.promissory_list'),
         backgroundColor: appBarBlue,
@@ -290,7 +291,7 @@ class _PromissoryNoteListScreenState extends State<PromissoryNoteListScreen>
                   minHeight: 32,
                 ),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: FieldSalesDensTheme.surface(context),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                   borderSide: BorderSide(color: Colors.grey.shade300),
@@ -394,7 +395,7 @@ class _PromissoryNoteListScreenState extends State<PromissoryNoteListScreen>
           child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: FieldSalesDensTheme.surface(context),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(color: Colors.grey.shade200),
           ),

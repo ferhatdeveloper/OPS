@@ -11,6 +11,7 @@ import '../../core/localization/app_localization.dart';
 import '../../core/services/supabase_service.dart';
 import '../../service/database_service.dart';
 import '../field_sales/shared/view/field_sales_dens_app_bar.dart';
+import '../field_sales/shared/view/field_sales_dens_theme.dart';
 import 'viewmodel/permission_group_store.dart';
 
 /// {@template permission_group_edit_screen}
@@ -293,6 +294,7 @@ class _PermissionGroupEditScreenState extends State<PermissionGroupEditScreen>
         l10n.translate('permission_groups.edit_title');
 
     return Scaffold(
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: FieldSalesDensAppBar(
         title: title,
         showCalculatorHome: false,

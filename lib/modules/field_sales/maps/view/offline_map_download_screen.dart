@@ -5,6 +5,7 @@
 // Son Güncelleme: 2026-07-27
 
 import 'package:flutter/material.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/localization/app_localization.dart';
 import '../../shared/view/field_sales_dens_app_bar.dart';
@@ -129,7 +130,7 @@ class _OfflineMapDownloadScreenState extends State<OfflineMapDownloadScreen> {
     const Color primary = FieldSalesDensAppBar.primaryColor;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: FieldSalesDensAppBar(
         title: l10n.translate('field_sales.stubs.offline_map_download'),
         backgroundColor: primary,
@@ -202,7 +203,7 @@ class _OfflineMapDownloadScreenState extends State<OfflineMapDownloadScreen> {
                           vertical: 8,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: FieldSalesDensTheme.surface(context),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(color: Colors.grey.shade300),
                         ),

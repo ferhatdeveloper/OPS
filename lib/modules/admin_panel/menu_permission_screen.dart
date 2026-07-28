@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 // TODO: Projenizde SupabaseService importunu aşağıya göre ayarlayın
 import '../../core/services/supabase_service.dart';
+import '../field_sales/shared/view/field_sales_dens_theme.dart';
 
 class MenuNode {
   final int id;
@@ -206,6 +207,7 @@ class _MenuPermissionScreenState extends State<MenuPermissionScreen> {
           ),
         Expanded(
           child: Scaffold(
+            backgroundColor: FieldSalesDensTheme.bodyBackground(context),
             appBar: widget.onBack == null
                 ? AppBar(title: const Text('Menü Yetkileri'))
                 : null,

@@ -7,6 +7,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/sync/sync_manager.dart';
+import '../field_sales/shared/view/field_sales_dens_theme.dart';
 
 /// {@template SyncOperations}
 /// Senkronizasyon işlemleri ekranı: Supabase ile local db arasında veri senkronizasyonunu başlat, durumu göster, logları listele
@@ -63,6 +64,7 @@ class _SyncOperationsState extends ConsumerState<SyncOperations> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: AppBar(title: const Text('Senkronizasyon İşlemleri')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),

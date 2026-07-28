@@ -6,6 +6,7 @@
 
 import 'dart:async';
 import 'dart:convert';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -325,7 +326,7 @@ class _VehicleCameraMonitorScreenState
         l10n.translate('field_sales.vehicle_camera_monitor');
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: FieldSalesDensAppBar(
         title: title,
         actions: [

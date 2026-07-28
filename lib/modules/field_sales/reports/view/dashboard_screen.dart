@@ -7,6 +7,7 @@ import '../../../../service/notification_service.dart';
 import '../../invoices/view/invoice_entry_screen.dart';
 import '../../other/view/stock_ops_screen.dart';
 import 'performance_dashboard_screen.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({Key? key}) : super(key: key);
 
@@ -53,10 +54,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final reportState = ref.watch(dailySalesReportProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: AppBar(
         flexibleSpace: Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -151,7 +152,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: FieldSalesDensTheme.surface(context),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))],
       ),
@@ -179,7 +180,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       height: 200,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: FieldSalesDensTheme.surface(context),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))],
       ),
@@ -214,7 +215,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: FieldSalesDensTheme.surface(context),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))],
       ),
@@ -305,14 +306,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     if (data.vehicleStocks.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+        decoration: BoxDecoration(color: FieldSalesDensTheme.surface(context), borderRadius: BorderRadius.circular(20)),
         child: const Center(child: Text('Araçta stok bulunamadı.')),
       );
     }
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: FieldSalesDensTheme.surface(context),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))],
       ),
@@ -327,7 +328,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           return ListTile(
             leading: Container(
               padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(color: const Color(0xFFF8F9FD), borderRadius: BorderRadius.circular(8)),
+              decoration: BoxDecoration(color: FieldSalesDensTheme.bodyBackground(context), borderRadius: BorderRadius.circular(8)),
               child: const Icon(Icons.inventory_2, color: Color(0xFF375A7F), size: 20),
             ),
             title: Text(item['product_name'] ?? item['product_id'], style: const TextStyle(fontWeight: FontWeight.w500)),

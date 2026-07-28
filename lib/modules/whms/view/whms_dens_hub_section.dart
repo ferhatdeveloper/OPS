@@ -6,6 +6,8 @@
 
 import 'package:flutter/material.dart';
 
+import '../../field_sales/shared/view/field_sales_dens_theme.dart';
+
 import '../../../core/localization/app_localization.dart';
 
 /// {@template whms_dens_hub_item}
@@ -58,7 +60,6 @@ class WhmsDensHubSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalization.of(context);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -70,7 +71,7 @@ class WhmsDensHubSection extends StatelessWidget {
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: isDark ? Colors.white70 : Colors.black54,
+              color: FieldSalesDensTheme.muted(context),
             ),
           ),
         ),
@@ -78,7 +79,7 @@ class WhmsDensHubSection extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(bottom: 4),
             child: Material(
-              color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+              color: FieldSalesDensTheme.surface(context),
               borderRadius: BorderRadius.circular(8),
               child: InkWell(
                 borderRadius: BorderRadius.circular(8),
@@ -96,14 +97,14 @@ class WhmsDensHubSection extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w400,
-                            color: isDark ? Colors.white : Colors.black87,
+                            color: FieldSalesDensTheme.title(context),
                           ),
                         ),
                       ),
                       Icon(
                         Icons.chevron_right,
                         size: 18,
-                        color: isDark ? Colors.white54 : Colors.black45,
+                        color: FieldSalesDensTheme.muted(context),
                       ),
                     ],
                   ),

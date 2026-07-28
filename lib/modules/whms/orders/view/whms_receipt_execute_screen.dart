@@ -413,7 +413,6 @@ class _ReceiptLineCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalization.of(context);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final code = (line.productCode ?? '').trim();
     final name = (line.productName ?? '').trim();
     final unit = (line.unitName ?? '').trim();
@@ -424,10 +423,10 @@ class _ReceiptLineCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        color: FieldSalesDensTheme.surface(context),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: isDark ? Colors.white24 : Colors.grey.shade300,
+          color: FieldSalesDensTheme.border(context),
         ),
       ),
       child: Column(

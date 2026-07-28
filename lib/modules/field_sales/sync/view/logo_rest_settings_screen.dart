@@ -35,6 +35,9 @@ class _LogoRestSettingsScreenState extends State<LogoRestSettingsScreen> {
   final _companyIdCtrl = TextEditingController();
   final _periodIdCtrl = TextEditingController();
   final _tigerBaseCtrl = TextEditingController();
+  final _tigerPortCtrl = TextEditingController(
+    text: '${LogoTigerUrls.defaultPort}',
+  );
   final _tigerApiKeyCtrl = TextEditingController();
   final _tigerClientIdCtrl = TextEditingController();
   final _tigerClientSecretCtrl = TextEditingController();
@@ -75,6 +78,7 @@ class _LogoRestSettingsScreenState extends State<LogoRestSettingsScreen> {
     _companyIdCtrl.dispose();
     _periodIdCtrl.dispose();
     _tigerBaseCtrl.dispose();
+    _tigerPortCtrl.dispose();
     _tigerApiKeyCtrl.dispose();
     _tigerClientIdCtrl.dispose();
     _tigerClientSecretCtrl.dispose();
@@ -101,9 +105,11 @@ class _LogoRestSettingsScreenState extends State<LogoRestSettingsScreen> {
 
       _tigerEnabled = await _tigerStore.isEnabled();
       final t = await _tigerStore.load();
-      _tigerBaseCtrl.text = t.baseUrl.isNotEmpty
-          ? LogoTigerUrls.hostPortOnly(t.baseUrl)
-          : LogoTigerSettingsStore.devExampleHostPort;
+      final split = t.baseUrl.isNotEmpty
+          ? LogoTigerUrls.splitHostPort(t.baseUrl)
+          : (host: '', port: LogoTigerUrls.defaultPort);
+      _tigerBaseCtrl.text = split.host;
+      _tigerPortCtrl.text = '${split.port}';
       _tigerApiKeyCtrl.text = t.apiKey;
       _tigerClientIdCtrl.text = t.clientId;
       _tigerClientSecretCtrl.text = t.clientSecret;
@@ -138,9 +144,35 @@ class _LogoRestSettingsScreenState extends State<LogoRestSettingsScreen> {
       );
       await _api.applySettings(settings);
 
+      final port = int.tryParse(_tigerPortCtrl.text.trim()) ??
+          LogoTigerUrls.defaultPort;
+      // Host alanına host:port yapıştırılırsa port alanını güncelle
+      final pasted = LogoTigerUrls.parseUserInput(
+        _tigerBaseCtrl.text,
+        portHint: port,
+      );
+      if (pasted.host.isNotEmpty &&
+          _tigerBaseCtrl.text.contains(':') &&
+          pasted.port != port) {
+        _tigerPortCtrl.text = '${pasted.port}';
+      }
+      final hostOnly = pasted.host.isNotEmpty
+          ? pasted.host
+          : _tigerBaseCtrl.text.trim();
+      final effectivePort = int.tryParse(_tigerPortCtrl.text.trim()) ??
+          LogoTigerUrls.defaultPort;
+      final composed = LogoTigerUrls.composeBaseUrl(
+        hostOnly,
+        port: effectivePort,
+      );
+      var tigerKey = _tigerApiKeyCtrl.text.trim();
+      if (tigerKey.isEmpty && pasted.apiKey.isNotEmpty) {
+        tigerKey = pasted.apiKey;
+        _tigerApiKeyCtrl.text = tigerKey;
+      }
       final tiger = LogoTigerConfig(
-        baseUrl: _tigerBaseCtrl.text.trim(),
-        apiKey: _tigerApiKeyCtrl.text.trim(),
+        baseUrl: composed,
+        apiKey: tigerKey,
         clientId: _tigerClientIdCtrl.text.trim(),
         clientSecret: _tigerClientSecretCtrl.text,
         username: _tigerUserCtrl.text.trim(),
@@ -150,7 +182,10 @@ class _LogoRestSettingsScreenState extends State<LogoRestSettingsScreen> {
       );
       await _tigerStore.save(tiger);
       await _tigerStore.setEnabled(_tigerEnabled);
-      _tigerClient.applyConfig(tiger);
+      _tigerClient.applyConfig(await _tigerStore.loadRaw());
+      final savedSplit = LogoTigerUrls.splitHostPort(tiger.baseUrl);
+      _tigerBaseCtrl.text = savedSplit.host;
+      _tigerPortCtrl.text = '${savedSplit.port}';
 
       // Sunucu ayarları ile tek URL kaynağı
       final logoUrl = tiger.baseUrl.trim().isNotEmpty
@@ -366,21 +401,59 @@ class _LogoRestSettingsScreenState extends State<LogoRestSettingsScreen> {
                     isDark: isDark,
                     title: l10n.translate('field_sales.logo_tiger_section'),
                     children: [
-                      TextFormField(
-                        controller: _tigerBaseCtrl,
-                        style: const TextStyle(fontSize: 13),
-                        decoration: InputDecoration(
-                          isDense: true,
-                          labelText: l10n.translate(
-                            'field_sales.logo_tiger_base_url',
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            flex: 3,
+                            child: TextFormField(
+                              controller: _tigerBaseCtrl,
+                              style: const TextStyle(fontSize: 13),
+                              keyboardType: TextInputType.url,
+                              textInputAction: TextInputAction.next,
+                              decoration: InputDecoration(
+                                isDense: true,
+                                labelText: l10n.translate(
+                                  'field_sales.logo_tiger_base_url',
+                                ),
+                                hintText: l10n.translate(
+                                  'field_sales.logo_tiger_base_url_hint',
+                                ),
+                                helperText: l10n.translate(
+                                  'field_sales.logo_tiger_base_url_helper',
+                                ),
+                                helperMaxLines: 2,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 8,
+                                ),
+                                border: const OutlineInputBorder(),
+                              ),
+                            ),
                           ),
-                          hintText: LogoTigerSettingsStore.devExampleHostPort,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 8,
+                          const SizedBox(width: 8),
+                          Expanded(
+                            flex: 1,
+                            child: TextFormField(
+                              controller: _tigerPortCtrl,
+                              style: const TextStyle(fontSize: 13),
+                              keyboardType: TextInputType.number,
+                              textInputAction: TextInputAction.next,
+                              decoration: InputDecoration(
+                                isDense: true,
+                                labelText: l10n.translate(
+                                  'field_sales.logo_tiger_port',
+                                ),
+                                hintText: '${LogoTigerUrls.defaultPort}',
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 8,
+                                ),
+                                border: const OutlineInputBorder(),
+                              ),
+                            ),
                           ),
-                          border: const OutlineInputBorder(),
-                        ),
+                        ],
                       ),
                       const SizedBox(height: 8),
                       TextFormField(

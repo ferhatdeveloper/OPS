@@ -5,6 +5,7 @@
 // Son Güncelleme: 2026-07-26
 
 import 'package:flutter/material.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/localization/app_localization.dart';
 
@@ -65,13 +66,13 @@ class CustomerRiskMbtFields extends StatelessWidget {
   /// {@template customer_risk_mbt_fields_decoration}
   /// Dense flat InputDecoration (voucher_defaults / day_status token’ları).
   /// {@endtemplate}
-  InputDecoration _decoration(String label) {
+  InputDecoration _decoration(BuildContext context, String label) {
     return InputDecoration(
       isDense: true,
       labelText: label,
       labelStyle: const TextStyle(fontSize: 13),
       filled: true,
-      fillColor: Colors.white,
+      fillColor: FieldSalesDensTheme.surface(context),
       contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
@@ -92,6 +93,7 @@ class CustomerRiskMbtFields extends StatelessWidget {
   /// Tek satır dens TextFormField.
   /// {@endtemplate}
   Widget _textField({
+    required BuildContext context,
     required TextEditingController controller,
     required String label,
     TextInputType keyboardType = TextInputType.text,
@@ -105,7 +107,7 @@ class CustomerRiskMbtFields extends StatelessWidget {
       textCapitalization: TextCapitalization.none,
       keyboardType: keyboardType,
       textInputAction: textInputAction,
-      decoration: _decoration(label),
+      decoration: _decoration(context, label),
     );
   }
 
@@ -117,34 +119,40 @@ class CustomerRiskMbtFields extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _textField(
+          context: context,
           controller: codeController,
           label: l10n.translate('field_sales.risk_code_label'),
         ),
         const SizedBox(height: 8),
         _textField(
+          context: context,
           controller: nameController,
           label: l10n.translate('field_sales.risk_name_label'),
         ),
         const SizedBox(height: 8),
         _textField(
+          context: context,
           controller: riskLimitController,
           label: l10n.translate('field_sales.risk_limit_label'),
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
         ),
         const SizedBox(height: 8),
         _textField(
+          context: context,
           controller: balanceController,
           label: l10n.translate('field_sales.balance'),
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
         ),
         const SizedBox(height: 8),
         _textField(
+          context: context,
           controller: availableController,
           label: l10n.translate('field_sales.risk_available_label'),
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
         ),
         const SizedBox(height: 8),
         _textField(
+          context: context,
           controller: agingController,
           label: l10n.translate('field_sales.risk_aging_label'),
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -152,7 +160,7 @@ class CustomerRiskMbtFields extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         InputDecorator(
-          decoration: _decoration(
+          decoration: _decoration(context, 
             l10n.translate('field_sales.risk_status_label'),
           ),
           child: Text(

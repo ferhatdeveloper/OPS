@@ -5,6 +5,7 @@
 // Son Güncelleme: 2026-07-28
 
 import 'package:flutter/material.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/localization/app_localization.dart';
 import '../model/report_layout.dart';
@@ -46,7 +47,7 @@ class ReportResultListPane extends StatelessWidget {
     return Column(
       children: [
         Container(
-          color: Colors.white,
+          color: FieldSalesDensTheme.surface(context),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           child: Row(
             children: [
@@ -80,7 +81,7 @@ class ReportResultListPane extends StatelessWidget {
                   vertical: 8,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: FieldSalesDensTheme.surface(context),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: Colors.grey.shade300),
                 ),

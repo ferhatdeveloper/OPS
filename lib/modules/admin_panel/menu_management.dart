@@ -7,6 +7,7 @@
 import 'package:flutter/material.dart';
 import '../../core/services/supabase_service.dart';
 import '../../core/constants/mdi_icon_map.dart';
+import '../field_sales/shared/view/field_sales_dens_theme.dart';
 
 /// {@template MenuManagement}
 /// Menü yönetimi ekranı: menüleri listeleme, ekleme, silme ve drag-drop ile sıralama
@@ -125,6 +126,7 @@ class _MenuManagementState extends State<MenuManagement> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: AppBar(title: const Text('Menü Yönetimi')),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -318,7 +320,7 @@ class _MenuManagementState extends State<MenuManagement> {
                         bottom: 0,
                         width: 420,
                         child: Material(
-                          color: Colors.white,
+                          color: FieldSalesDensTheme.surface(context),
                           elevation: 8,
                           borderRadius: const BorderRadius.only(
                             topLeft: Radius.circular(16),
@@ -437,7 +439,7 @@ class _MenuEditPanelState extends State<MenuEditPanel> {
             gridIcons = [...popularIcons, ...otherIcons];
           }
           return Dialog(
-            backgroundColor: Colors.white,
+            backgroundColor: FieldSalesDensTheme.surface(context),
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             child: Container(

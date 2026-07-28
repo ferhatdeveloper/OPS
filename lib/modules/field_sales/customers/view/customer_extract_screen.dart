@@ -7,6 +7,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/localization/app_localization.dart';
 import '../model/customer_extract_movement.dart';
@@ -200,10 +201,10 @@ class _CustomerExtractScreenState
     final cariHint = widget.customerId?.trim();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: AppBar(
         flexibleSpace: Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -338,7 +339,7 @@ class _CustomerExtractScreenState
                   fontSize: 14,
                 ),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: FieldSalesDensTheme.surface(context),
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 10,
                   vertical: 10,
@@ -360,7 +361,7 @@ class _CustomerExtractScreenState
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: FieldSalesDensTheme.surface(context),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: Colors.grey.shade200),
               ),
@@ -458,7 +459,7 @@ class _CustomerExtractScreenState
                                 vertical: 8,
                               ),
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: FieldSalesDensTheme.surface(context),
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(
                                   color: Colors.grey.shade200,
@@ -659,7 +660,7 @@ class _DateCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
+      color: FieldSalesDensTheme.surface(context),
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
         onTap: onTap,

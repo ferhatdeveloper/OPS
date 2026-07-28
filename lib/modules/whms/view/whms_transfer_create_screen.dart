@@ -5,6 +5,9 @@
 // Son Güncelleme: 2026-07-28
 
 import 'package:flutter/material.dart';
+
+import '../../field_sales/shared/view/field_sales_dens_theme.dart';
+
 import 'package:flutter/services.dart';
 import 'package:uuid/uuid.dart';
 
@@ -262,11 +265,9 @@ class _WhmsTransferCreateScreenState extends State<WhmsTransferCreateScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalization.of(context);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor:
-          isDark ? const Color(0xFF121212) : const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: FieldSalesDensAppBar(
         title: l10n.translate('whms.transfer.create'),
         showCalculatorHome: false,
@@ -387,7 +388,7 @@ class _WhmsTransferCreateScreenState extends State<WhmsTransferCreateScreen> {
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 13,
-                        color: isDark ? Colors.white70 : Colors.black54,
+                        color: FieldSalesDensTheme.muted(context),
                       ),
                     ),
                   )
@@ -403,13 +404,9 @@ class _WhmsTransferCreateScreenState extends State<WhmsTransferCreateScreen> {
                           vertical: 8,
                         ),
                         decoration: BoxDecoration(
-                          color: isDark
-                              ? const Color(0xFF1E1E1E)
-                              : Colors.white,
+                          color: FieldSalesDensTheme.surface(context),
                           border: Border.all(
-                            color: isDark
-                                ? Colors.white24
-                                : const Color(0xFFE0E0E0),
+                            color: FieldSalesDensTheme.border(context),
                           ),
                         ),
                         child: Column(
@@ -450,9 +447,7 @@ class _WhmsTransferCreateScreenState extends State<WhmsTransferCreateScreen> {
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: isDark
-                                      ? Colors.white70
-                                      : Colors.black54,
+                                  color: FieldSalesDensTheme.muted(context),
                                 ),
                               ),
                             const SizedBox(height: 6),

@@ -13,6 +13,7 @@ import '../../shared/view/field_sales_dens_app_bar.dart';
 import '../viewmodel/visit_open_redirect.dart';
 import '../viewmodel/visit_provider.dart';
 import 'visit_form_screen.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 /// {@template visit_existing_customer_screen}
 /// MBT “Mevcut Cari Hesap”: cari kart seç → gerçek check-in → ziyaret formu.
@@ -140,7 +141,7 @@ class _VisitExistingCustomerScreenState
     final selected = _selectedCustomer;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: FieldSalesDensAppBar(
         title: l10n.translate('field_sales.stubs.visit_existing_customer'),
         useGradient: true,
@@ -215,7 +216,7 @@ class _VisitExistingCustomerScreenState
                     )
                   : null,
               filled: true,
-              fillColor: Colors.white,
+              fillColor: FieldSalesDensTheme.surface(context),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
                 borderSide: BorderSide(color: Colors.grey.shade200),
@@ -250,7 +251,7 @@ class _VisitExistingCustomerScreenState
                       itemBuilder: (context, index) {
                         final customer = state.customers[index];
                         return Material(
-                          color: Colors.white,
+                          color: FieldSalesDensTheme.surface(context),
                           elevation: 0,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
@@ -330,7 +331,7 @@ class _VisitExistingCustomerScreenState
           ),
           const SizedBox(height: 4),
           Material(
-            color: Colors.white,
+            color: FieldSalesDensTheme.surface(context),
             elevation: 0,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),

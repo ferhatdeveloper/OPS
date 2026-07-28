@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../viewmodel/kpi_provider.dart';
 import '../../../../service/ai_analytics_service.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 class PerformanceDashboardScreen extends ConsumerWidget {
   const PerformanceDashboardScreen({Key? key}) : super(key: key);
@@ -12,7 +13,7 @@ class PerformanceDashboardScreen extends ConsumerWidget {
     final aiService = AIAnalyticsService();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: AppBar(
         title: const Text('Performans Analitiği', style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: const Color(0xFF375A7F),
@@ -28,13 +29,13 @@ class PerformanceDashboardScreen extends ConsumerWidget {
                 _buildAISummaryStream(aiService),
                 const SizedBox(height: 20),
                 if (state.kpi != null) ...[
-                  _buildKPIGrid(state.kpi!),
+                  _buildKPIGrid(context, state.kpi!),
                   const SizedBox(height: 24),
-                  _buildAchievementCard('Satış Hedefi', state.kpi!.salesAchievement, '${state.kpi!.currentSales.toInt()} / ${state.kpi!.salesTarget.toInt()} ₺', Colors.blue),
+                  _buildAchievementCard(context, 'Satış Hedefi', state.kpi!.salesAchievement, '${state.kpi!.currentSales.toInt()} / ${state.kpi!.salesTarget.toInt()} ₺', Colors.blue),
                   const SizedBox(height: 16),
-                  _buildAchievementCard('Ziyaret Başarısı', state.kpi!.visitSuccessRate, '${state.kpi!.completedVisits} / ${state.kpi!.plannedVisits}', Colors.orange),
+                  _buildAchievementCard(context, 'Ziyaret Başarısı', state.kpi!.visitSuccessRate, '${state.kpi!.completedVisits} / ${state.kpi!.plannedVisits}', Colors.orange),
                   const SizedBox(height: 24),
-                  _buildSalesHeatmap(),
+                  _buildSalesHeatmap(context),
                 ],
               ],
             ),
@@ -75,7 +76,7 @@ class PerformanceDashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildKPIGrid(dynamic kpi) {
+  Widget _buildKPIGrid(BuildContext context, dynamic kpi) {
     return GridView.count(
       crossAxisCount: 2,
       shrinkWrap: true,
@@ -84,16 +85,16 @@ class PerformanceDashboardScreen extends ConsumerWidget {
       mainAxisSpacing: 16,
       childAspectRatio: 1.5,
       children: [
-        _buildKPICard('Toplam Sipariş', '${kpi.totalOrders}', Icons.shopping_bag, Colors.indigo),
-        _buildKPICard('Ort. Sipariş', '${kpi.averageOrderValue.toInt()} ₺', Icons.analytics, Colors.teal),
+        _buildKPICard(context, 'Toplam Sipariş', '${kpi.totalOrders}', Icons.shopping_bag, Colors.indigo),
+        _buildKPICard(context, 'Ort. Sipariş', '${kpi.averageOrderValue.toInt()} ₺', Icons.analytics, Colors.teal),
       ],
     );
   }
 
-  Widget _buildKPICard(String title, String value, IconData icon, Color color) {
+  Widget _buildKPICard(BuildContext context, String title, String value, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8)]),
+      decoration: BoxDecoration(color: FieldSalesDensTheme.surface(context), borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8)]),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -106,10 +107,10 @@ class PerformanceDashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildAchievementCard(String title, double percentage, String detail, Color color) {
+  Widget _buildAchievementCard(BuildContext context, String title, double percentage, String detail, Color color) {
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8)]),
+      decoration: BoxDecoration(color: FieldSalesDensTheme.surface(context), borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8)]),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -129,10 +130,10 @@ class PerformanceDashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSalesHeatmap() {
+  Widget _buildSalesHeatmap(context) {
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8)]),
+      decoration: BoxDecoration(color: FieldSalesDensTheme.surface(context), borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8)]),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

@@ -513,7 +513,7 @@ class _SupplierPurchaseRequestFormScreenState
                       decoration: BoxDecoration(
                         border: Border.all(color: primary),
                         borderRadius: BorderRadius.circular(4),
-                        color: Colors.white,
+                        color: FieldSalesDensTheme.surface(context),
                       ),
                       child: Text(
                         '${code.isEmpty ? s['product_id'] : code}'

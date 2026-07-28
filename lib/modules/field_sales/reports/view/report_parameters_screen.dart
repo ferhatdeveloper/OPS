@@ -6,6 +6,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/localization/app_localization.dart';
 import '../../../../service/database_service.dart';
@@ -438,7 +439,7 @@ class _ReportParametersScreenState extends State<ReportParametersScreen> {
     final df = DateFormat('dd-MM-yyyy');
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: FieldSalesDensAppBar(
         title: l10n.translate('field_sales.mbt_reports.parameters_title'),
         backgroundColor: FieldSalesDensAppBar.primaryColor,

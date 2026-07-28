@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../service/database_service.dart';
 import 'package:barcode_scan2/barcode_scan2.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 class PriceCheckScreen extends StatefulWidget {
   const PriceCheckScreen({Key? key}) : super(key: key);
@@ -76,10 +77,10 @@ class _PriceCheckScreenState extends State<PriceCheckScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: AppBar(
         flexibleSpace: Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -105,7 +106,7 @@ class _PriceCheckScreenState extends State<PriceCheckScreen> {
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: FieldSalesDensTheme.surface(context),
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: Colors.grey.shade200),
               ),
@@ -182,7 +183,7 @@ class _PriceCheckScreenState extends State<PriceCheckScreen> {
 
                           return Container(
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: FieldSalesDensTheme.surface(context),
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(color: Colors.grey.shade200),
                             ),

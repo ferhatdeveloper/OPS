@@ -12,6 +12,7 @@ import '../../../core/localization/app_localization.dart';
 import '../../field_sales/products/view/product_detail_screen.dart';
 import '../model/material_model.dart';
 import '../viewmodel/material_provider.dart';
+import 'package:exfin_ops/modules/field_sales/shared/view/field_sales_dens_theme.dart';
 
 /// {@template materials_screen}
 /// Malzeme / ürün dens listesi — arama, kompakt kart, uzun basma işlemleri.
@@ -282,7 +283,7 @@ class _MaterialsScreenState extends ConsumerState<MaterialsScreen> {
     final l10n = AppLocalization.of(context);
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
       ),

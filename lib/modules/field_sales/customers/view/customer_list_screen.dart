@@ -14,6 +14,7 @@ import '../viewmodel/customer_provider.dart';
 import '../model/customer_model.dart';
 import 'customer_detail_screen.dart';
 import 'customer_form_screen.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 /// {@template customer_list_screen}
 /// Cari master listesi. Tab 0 = tüm günler; 1–7 = Pzt–Paz rota planı.
@@ -151,8 +152,8 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen>
             const SizedBox(height: 16),
             Expanded(
               child: Container(
-                decoration: const BoxDecoration(
-                  color: Colors.white,
+                decoration: BoxDecoration(
+                  color: FieldSalesDensTheme.surface(context),
                   borderRadius: BorderRadius.only(
                     topLeft: Radius.circular(30),
                     topRight: Radius.circular(30),
@@ -198,7 +199,7 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen>
                       child: Container(
                         height: 44,
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: FieldSalesDensTheme.surface(context),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(color: Colors.grey.shade200),
                         ),

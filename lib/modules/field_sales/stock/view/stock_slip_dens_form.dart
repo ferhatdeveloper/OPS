@@ -6,6 +6,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/localization/app_localization.dart';
 
@@ -170,13 +171,13 @@ class StockSlipDensForm extends StatelessWidget {
   bool get _useLocationTriplet =>
       !_useSourceTarget && onLocationChanged != null;
 
-  InputDecoration _denseDecoration(String? label) {
+  InputDecoration _denseDecoration(BuildContext context, String? label) {
     return InputDecoration(
       isDense: true,
       labelText: label,
       labelStyle: const TextStyle(fontSize: 13),
       filled: true,
-      fillColor: Colors.white,
+      fillColor: FieldSalesDensTheme.surface(context),
       contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
@@ -207,6 +208,7 @@ class StockSlipDensForm extends StatelessWidget {
   }
 
   Widget _locationDropdowns({
+    required BuildContext context,
     required AppLocalization l10n,
     required StockSlipLocation value,
     required ValueChanged<StockSlipLocation> onChanged,
@@ -232,7 +234,7 @@ class StockSlipDensForm extends StatelessWidget {
         DropdownButtonFormField<String>(
           value: value.workplace ?? wp.first,
           isDense: true,
-          decoration: _denseDecoration(
+          decoration: _denseDecoration(context, 
             l10n.translate('field_sales.stock_slip.workplace'),
           ),
           items: wp
@@ -249,7 +251,7 @@ class StockSlipDensForm extends StatelessWidget {
         DropdownButtonFormField<String>(
           value: value.factory ?? fac.first,
           isDense: true,
-          decoration: _denseDecoration(
+          decoration: _denseDecoration(context, 
             l10n.translate('field_sales.stock_slip.factory'),
           ),
           items: fac
@@ -266,7 +268,7 @@ class StockSlipDensForm extends StatelessWidget {
         DropdownButtonFormField<String>(
           value: value.warehouse ?? wh.first,
           isDense: true,
-          decoration: _denseDecoration(
+          decoration: _denseDecoration(context, 
             l10n.translate('field_sales.stock_slip.ambar'),
           ),
           items: wh
@@ -295,7 +297,7 @@ class StockSlipDensForm extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: FieldSalesDensTheme.surface(context),
             border: Border(
               bottom: BorderSide(color: Colors.grey.shade200),
             ),
@@ -307,6 +309,7 @@ class StockSlipDensForm extends StatelessWidget {
                   l10n.translate('field_sales.stock_slip.source'),
                 ),
                 _locationDropdowns(
+                  context: context,
                   l10n: l10n,
                   value: sourceLocation ?? const StockSlipLocation(),
                   onChanged: onSourceLocationChanged!,
@@ -316,12 +319,14 @@ class StockSlipDensForm extends StatelessWidget {
                   l10n.translate('field_sales.stock_slip.target'),
                 ),
                 _locationDropdowns(
+                  context: context,
                   l10n: l10n,
                   value: targetLocation ?? const StockSlipLocation(),
                   onChanged: onTargetLocationChanged!,
                 ),
               ] else if (_useLocationTriplet) ...[
                 _locationDropdowns(
+                  context: context,
                   l10n: l10n,
                   value: location ?? const StockSlipLocation(),
                   onChanged: onLocationChanged!,
@@ -330,7 +335,7 @@ class StockSlipDensForm extends StatelessWidget {
                 DropdownButtonFormField<String>(
                   value: warehouse,
                   isDense: true,
-                  decoration: _denseDecoration(
+                  decoration: _denseDecoration(context, 
                     l10n.translate('field_sales.stock_slip.warehouse'),
                   ),
                   items: warehouses
@@ -348,7 +353,7 @@ class StockSlipDensForm extends StatelessWidget {
                   DropdownButtonFormField<String>(
                     value: secondWarehouse,
                     isDense: true,
-                    decoration: _denseDecoration(
+                    decoration: _denseDecoration(context, 
                       l10n.translate(
                         secondWarehouseLabelKey ??
                             'field_sales.stock_slip.target_warehouse',
@@ -374,7 +379,7 @@ class StockSlipDensForm extends StatelessWidget {
                 onTap: onDateTap,
                 borderRadius: BorderRadius.circular(8),
                 child: InputDecorator(
-                  decoration: _denseDecoration(
+                  decoration: _denseDecoration(context, 
                     l10n.translate('field_sales.stock_slip.date'),
                   ),
                   child: Row(
@@ -446,7 +451,7 @@ class StockSlipDensForm extends StatelessWidget {
                     return Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: FieldSalesDensTheme.surface(context),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(color: Colors.grey.shade200),
                       ),

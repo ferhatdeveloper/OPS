@@ -4,6 +4,7 @@ import 'package:geolocator/geolocator.dart';
 import '../model/customer_model.dart';
 import '../viewmodel/customer_provider.dart';
 import '../../../../core/localization/app_localization.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 class CustomerFormScreen extends ConsumerStatefulWidget {
   final CustomerModel? existingCustomer;
@@ -200,7 +201,7 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
     final isEditing = widget.existingCustomer != null;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: AppBar(
         title: Text(
           isEditing 
@@ -311,7 +312,7 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
           labelStyle: const TextStyle(color: Colors.black54, fontSize: 13),
           prefixIcon: icon != null ? Icon(icon, color: Colors.blueGrey, size: 20) : null,
           filled: true,
-          fillColor: Colors.white,
+          fillColor: FieldSalesDensTheme.surface(context),
           isDense: true,
           contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           border: OutlineInputBorder(
@@ -335,7 +336,7 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: FieldSalesDensTheme.surface(context),
         border: Border(
           top: BorderSide(color: Colors.grey.shade200),
         ),

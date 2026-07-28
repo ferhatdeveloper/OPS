@@ -54,7 +54,6 @@ class WhmsOrderListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalization.of(context);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final dateText = formatOrderDate(order.orderDate);
     final wh = (order.warehouseCode ?? '').trim();
     final subtitle = [
@@ -65,7 +64,7 @@ class WhmsOrderListTile extends StatelessWidget {
     ].join(' · ');
 
     return Material(
-      color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+      color: FieldSalesDensTheme.surface(context),
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
         borderRadius: BorderRadius.circular(8),
@@ -75,7 +74,7 @@ class WhmsOrderListTile extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
-              color: isDark ? Colors.white24 : Colors.grey.shade300,
+              color: FieldSalesDensTheme.border(context),
             ),
           ),
           child: Row(
@@ -127,7 +126,7 @@ class WhmsOrderListTile extends StatelessWidget {
               Icon(
                 Icons.chevron_right,
                 size: 18,
-                color: isDark ? Colors.white54 : Colors.black45,
+                color: FieldSalesDensTheme.muted(context),
               ),
             ],
           ),

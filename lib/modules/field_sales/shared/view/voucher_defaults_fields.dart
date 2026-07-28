@@ -5,6 +5,7 @@
 // Son Güncelleme: 2026-07-26
 
 import 'package:flutter/material.dart';
+import 'field_sales_dens_theme.dart';
 
 import '../../../../core/localization/app_localization.dart';
 import '../viewmodel/voucher_defaults_store.dart';
@@ -103,13 +104,13 @@ class _VoucherDefaultsFieldsState extends State<VoucherDefaultsFields> {
     super.dispose();
   }
 
-  InputDecoration _decoration(String label) {
+  InputDecoration _decoration(BuildContext context, String label) {
     return InputDecoration(
       isDense: true,
       labelText: label,
       labelStyle: const TextStyle(fontSize: 13),
       filled: true,
-      fillColor: Colors.white,
+      fillColor: FieldSalesDensTheme.surface(context),
       contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
@@ -135,7 +136,7 @@ class _VoucherDefaultsFieldsState extends State<VoucherDefaultsFields> {
           textCapitalization: TextCapitalization.sentences,
           keyboardType: TextInputType.text,
           textInputAction: TextInputAction.next,
-          decoration: _decoration(
+          decoration: _decoration(context, 
             l10n.translate('field_sales.fis_description'),
           ),
         ),
@@ -146,7 +147,7 @@ class _VoucherDefaultsFieldsState extends State<VoucherDefaultsFields> {
           textCapitalization: TextCapitalization.characters,
           keyboardType: TextInputType.text,
           textInputAction: TextInputAction.next,
-          decoration: _decoration(
+          decoration: _decoration(context, 
             l10n.translate('field_sales.fis_plate_no'),
           ),
         ),
@@ -157,7 +158,7 @@ class _VoucherDefaultsFieldsState extends State<VoucherDefaultsFields> {
           textCapitalization: TextCapitalization.none,
           keyboardType: TextInputType.text,
           textInputAction: TextInputAction.done,
-          decoration: _decoration(
+          decoration: _decoration(context, 
             l10n.translate('field_sales.fis_special_code_1'),
           ),
         ),

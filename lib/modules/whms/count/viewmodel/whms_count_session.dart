@@ -162,10 +162,18 @@ class WhmsCountSession {
       throw StateError('whms.count.lines_required');
     }
 
+    // Taslak id verilmezse aynı emirdeki mevcut sonucu yeniden kullan
+    // (çift satır / çift variance KPI şişmesini önler).
+    var resolvedId = existingResultId?.trim();
+    if (resolvedId == null || resolvedId.isEmpty) {
+      final prior = await resultStore.findByOrderId(order.id);
+      resolvedId = prior?.id;
+    }
+
     final draft = await resultStore.upsertDraft(
       order: order,
       lines: lines,
-      existingId: existingResultId,
+      existingId: resolvedId,
     );
     await resultStore.setApproval(
       id: draft.id,

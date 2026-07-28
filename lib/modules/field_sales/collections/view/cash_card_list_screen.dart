@@ -5,6 +5,7 @@
 // Son Güncelleme: 2026-07-27
 
 import 'package:flutter/material.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/localization/app_localization.dart';
 import '../../shared/view/field_sales_dens_app_bar.dart';
@@ -194,7 +195,7 @@ class _CashCardListScreenState extends State<CashCardListScreen> {
     const Color primary = Color(0xFF375A7F);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: FieldSalesDensAppBar(
         title: title,
         backgroundColor: primary,
@@ -217,7 +218,7 @@ class _CashCardListScreenState extends State<CashCardListScreen> {
                   fontSize: 13,
                 ),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: FieldSalesDensTheme.surface(context),
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 10,
                   vertical: 8,
@@ -334,7 +335,7 @@ class _CashCardDensTile extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: FieldSalesDensTheme.surface(context),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
               color: selected

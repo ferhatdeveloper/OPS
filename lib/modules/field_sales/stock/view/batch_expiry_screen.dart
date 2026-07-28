@@ -5,6 +5,7 @@
 // Son Güncelleme: 2026-07-26
 
 import 'package:flutter/material.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/localization/app_localization.dart';
 import '../model/batch_expiry_record.dart';
@@ -122,10 +123,10 @@ class _BatchExpiryScreenState extends State<BatchExpiryScreen> {
         : 'field_sales.batch_expiry_not_found';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: AppBar(
         flexibleSpace: Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -162,7 +163,7 @@ class _BatchExpiryScreenState extends State<BatchExpiryScreen> {
                       ),
                       prefixIcon: const Icon(Icons.search),
                       filled: true,
-                      fillColor: Colors.white,
+                      fillColor: FieldSalesDensTheme.surface(context),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide(color: Colors.grey.shade300),
@@ -194,7 +195,7 @@ class _BatchExpiryScreenState extends State<BatchExpiryScreen> {
                           itemBuilder: (context, index) {
                             final row = rows[index];
                             return Material(
-                              color: Colors.white,
+                              color: FieldSalesDensTheme.surface(context),
                               borderRadius: BorderRadius.circular(12),
                               elevation: 0,
                               shadowColor: const Color(0xFF375A7F)

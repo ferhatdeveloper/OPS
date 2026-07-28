@@ -5,6 +5,7 @@
 // Son Güncelleme: 2026-07-27
 
 import 'package:flutter/material.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/localization/app_localization.dart';
 import '../../shared/view/mbt_sales_purchase_queue_body.dart';
@@ -94,7 +95,7 @@ class _EwaybillStatusScreenState extends State<EwaybillStatusScreen> {
     final rows = EwaybillStatusDensTile.toQueueRows(_records, l10n);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: FieldSalesDensAppBar(
         title: title,
       ),

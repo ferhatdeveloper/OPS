@@ -43,38 +43,43 @@ class SettingsService {
 
   /// Validate if a string is a valid URL
   bool _isValidUrl(String url) {
-    // Handle URLs with http/https scheme
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-      url = url.replaceFirst(RegExp(r'^https?://'), '');
-    }
-
-    // Very flexible URL validation that accepts:
-    // - Standard domain names (example.com)
-    // - IP addresses (192.168.1.1)
-    // - Localhost (localhost, 127.0.0.1)
-    // - Custom domains without TLD for local development
-    // - With or without port numbers
-    // - With or without paths
-
-    // First check if it's just an IP address or localhost
-    if (url == 'localhost' || url == '127.0.0.1') {
-      return true;
-    }
-
-    // Check for IP pattern
-    final ipPattern = RegExp(
-      r'^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(:[0-9]{1,5})?(\/.*)?$',
+    // Query / help path toleransı — Logo düz adres veya full help link
+    var cleaned = url.trim();
+    final q = cleaned.indexOf('?');
+    if (q >= 0) cleaned = cleaned.substring(0, q);
+    cleaned = cleaned.replaceFirst(
+      RegExp(r'/services/help.*$', caseSensitive: false),
+      '',
     );
-    if (ipPattern.hasMatch(url)) {
+
+    if (cleaned.startsWith('http://') || cleaned.startsWith('https://')) {
+      cleaned = cleaned.replaceFirst(RegExp(r'^https?://'), '');
+    }
+    if (cleaned.startsWith('//')) {
+      cleaned = cleaned.substring(2);
+    }
+
+    if (cleaned == 'localhost' || cleaned.startsWith('localhost:')) {
+      return true;
+    }
+    if (cleaned == '127.0.0.1' || cleaned.startsWith('127.0.0.1:')) {
       return true;
     }
 
-    // Check for domain pattern (more flexible - allows custom domains)
+    final ipPattern = RegExp(
+      r'^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}'
+      r'([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])'
+      r'(:[0-9]{1,5})?(\/.*)?$',
+    );
+    if (ipPattern.hasMatch(cleaned)) {
+      return true;
+    }
+
     final domainPattern = RegExp(
       r'^[a-zA-Z0-9]+([\-\.]{1}[a-zA-Z0-9]+)*(:[0-9]{1,5})?(\/.*)?$',
     );
 
-    return domainPattern.hasMatch(url);
+    return domainPattern.hasMatch(cleaned);
   }
 
   /// Get API configuration

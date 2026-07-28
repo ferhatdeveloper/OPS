@@ -5,6 +5,7 @@
 // Son Güncelleme: 2026-07-28
 
 import 'package:flutter/material.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/localization/app_localization.dart';
 import '../../shared/view/field_sales_dens_app_bar.dart';
@@ -133,10 +134,9 @@ class _WarehouseStockQueryScreenState extends State<WarehouseStockQueryScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalization.of(context);
     final codes = _store.warehouseCodes();
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF121212) : const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: FieldSalesDensAppBar(
         title: l10n.translate('field_sales.stubs.warehouse_stock_query'),
         bottom: FieldSalesDensFilterBar(
@@ -251,9 +251,7 @@ class _WarehouseStockQueryScreenState extends State<WarehouseStockQueryScreen> {
                               vertical: 8,
                             ),
                             decoration: BoxDecoration(
-                              color: isDark
-                                  ? const Color(0xFF1F1B24)
-                                  : Colors.white,
+                              color: FieldSalesDensTheme.surface(context),
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(
                                 color: FieldSalesDensAppBar.primaryColor

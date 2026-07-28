@@ -8,6 +8,7 @@ import '../../../../core/localization/app_localization.dart';
 import 'visit_form_screen.dart';
 import 'route_map_screen.dart';
 import '../../merchandising/view/competitor_survey_screen.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 class RoutePlanScreen extends ConsumerStatefulWidget {
   const RoutePlanScreen({Key? key}) : super(key: key);
 
@@ -29,10 +30,10 @@ class _RoutePlanScreenState extends ConsumerState<RoutePlanScreen> {
     final l10n = AppLocalization.of(context);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: AppBar(
         flexibleSpace: Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -95,7 +96,7 @@ class _RoutePlanScreenState extends ConsumerState<RoutePlanScreen> {
     return Container(
       margin: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: FieldSalesDensTheme.surface(context),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: Colors.grey.shade200),
       ),
@@ -278,7 +279,7 @@ class _RoutePlanScreenState extends ConsumerState<RoutePlanScreen> {
         return Container(
           margin: const EdgeInsets.only(bottom: 8),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: FieldSalesDensTheme.surface(context),
             borderRadius: BorderRadius.circular(10),
             border: Border.all(color: Colors.grey.shade200),
           ),
@@ -295,7 +296,9 @@ class _RoutePlanScreenState extends ConsumerState<RoutePlanScreen> {
                       width: 40,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: isVisited ? Colors.green.shade50 : const Color(0xFFF8F9FD),
+                        color: isVisited
+                            ? Colors.green.shade50
+                            : FieldSalesDensTheme.bodyBackground(context),
                         shape: BoxShape.circle,
                         border: Border.all(
                           color: isVisited ? Colors.green.shade200 : Colors.grey.shade200,
@@ -408,7 +411,7 @@ class _RoutePlanScreenState extends ConsumerState<RoutePlanScreen> {
           decoration: InputDecoration(
             hintText: l10n.translate('field_sales.visit_notes'),
             filled: true,
-            fillColor: const Color(0xFFF8F9FD),
+            fillColor: FieldSalesDensTheme.surface(context),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
               borderSide: BorderSide.none,

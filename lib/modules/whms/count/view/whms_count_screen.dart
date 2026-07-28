@@ -6,6 +6,8 @@
 
 import 'package:flutter/material.dart';
 
+import '../../../field_sales/shared/view/field_sales_dens_theme.dart';
+
 import '../../../../core/localization/app_localization.dart';
 import '../../../field_sales/shared/view/field_sales_dens_app_bar.dart';
 import '../../../field_sales/stock/model/warehouse_master_seed.dart';
@@ -180,12 +182,10 @@ class _WhmsCountScreenState extends State<WhmsCountScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalization.of(context);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final title = l10n.translate('whms.count.title');
 
     return Scaffold(
-      backgroundColor:
-          isDark ? const Color(0xFF121212) : const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: FieldSalesDensAppBar(
         title: title,
         showCalculatorHome: false,
@@ -236,7 +236,7 @@ class _WhmsCountScreenState extends State<WhmsCountScreen> {
                           style: TextStyle(
                             fontSize: 13,
                             color:
-                                isDark ? Colors.white54 : Colors.black54,
+                                FieldSalesDensTheme.muted(context),
                           ),
                         ),
                       )
@@ -249,7 +249,6 @@ class _WhmsCountScreenState extends State<WhmsCountScreen> {
                           final order = _filtered[index];
                           return _CountOrderRow(
                             order: order,
-                            isDark: isDark,
                             statusLabel:
                                 l10n.translate('whms.count.status'),
                             onOpen: () => _openExecute(order),
@@ -266,14 +265,12 @@ class _WhmsCountScreenState extends State<WhmsCountScreen> {
 
 class _CountOrderRow extends StatelessWidget {
   final WhmsCountOrder order;
-  final bool isDark;
   final String statusLabel;
   final VoidCallback? onOpen;
   final VoidCallback? onDelete;
 
   const _CountOrderRow({
     required this.order,
-    required this.isDark,
     required this.statusLabel,
     this.onOpen,
     this.onDelete,
@@ -288,7 +285,7 @@ class _CountOrderRow extends StatelessWidget {
     final date = order.orderDate.toIso8601String().split('T').first;
 
     return Material(
-      color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+      color: FieldSalesDensTheme.surface(context),
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
         onTap: onOpen,
@@ -306,7 +303,7 @@ class _CountOrderRow extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: isDark ? Colors.white : Colors.black87,
+                        color: FieldSalesDensTheme.title(context),
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -315,7 +312,7 @@ class _CountOrderRow extends StatelessWidget {
                       ' · ONAY=${order.approval.name}',
                       style: TextStyle(
                         fontSize: 11,
-                        color: isDark ? Colors.white54 : Colors.black54,
+                        color: FieldSalesDensTheme.muted(context),
                       ),
                     ),
                   ],
@@ -324,7 +321,7 @@ class _CountOrderRow extends StatelessWidget {
               Icon(
                 Icons.chevron_right,
                 size: 18,
-                color: isDark ? Colors.white54 : Colors.black45,
+                color: FieldSalesDensTheme.muted(context),
               ),
               if (onDelete != null)
                 FieldSalesDensAppBar.densIconButton(

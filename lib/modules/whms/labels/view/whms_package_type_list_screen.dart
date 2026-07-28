@@ -6,6 +6,8 @@
 
 import 'package:flutter/material.dart';
 
+import '../../../field_sales/shared/view/field_sales_dens_theme.dart';
+
 import '../../../../core/localization/app_localization.dart';
 import '../../../field_sales/shared/view/field_sales_dens_app_bar.dart';
 import '../../contract/whms_route_map.dart';
@@ -216,11 +218,9 @@ class _WhmsPackageTypeListScreenState extends State<WhmsPackageTypeListScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalization.of(context);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor:
-          isDark ? const Color(0xFF121212) : const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: FieldSalesDensAppBar(
         title: l10n.translate('whms.packages.title'),
         showCalculatorHome: false,
@@ -267,7 +267,7 @@ class _WhmsPackageTypeListScreenState extends State<WhmsPackageTypeListScreen> {
                           l10n.translate('whms.packages.empty'),
                           style: TextStyle(
                             fontSize: 13,
-                            color: isDark ? Colors.white70 : Colors.black54,
+                            color: FieldSalesDensTheme.muted(context),
                           ),
                         ),
                       )
@@ -278,9 +278,7 @@ class _WhmsPackageTypeListScreenState extends State<WhmsPackageTypeListScreen> {
                         itemBuilder: (context, i) {
                           final r = _filtered[i];
                           return Material(
-                            color: isDark
-                                ? const Color(0xFF1E1E1E)
-                                : Colors.white,
+                            color: FieldSalesDensTheme.surface(context),
                             borderRadius: BorderRadius.circular(8),
                             child: InkWell(
                               borderRadius: BorderRadius.circular(8),
@@ -298,9 +296,7 @@ class _WhmsPackageTypeListScreenState extends State<WhmsPackageTypeListScreen> {
                                       style: TextStyle(
                                         fontSize: 13,
                                         fontWeight: FontWeight.w600,
-                                        color: isDark
-                                            ? Colors.white
-                                            : Colors.black87,
+                                        color: FieldSalesDensTheme.title(context),
                                       ),
                                     ),
                                     const SizedBox(height: 2),
@@ -308,9 +304,7 @@ class _WhmsPackageTypeListScreenState extends State<WhmsPackageTypeListScreen> {
                                       r.name,
                                       style: TextStyle(
                                         fontSize: 12,
-                                        color: isDark
-                                            ? Colors.white70
-                                            : Colors.black54,
+                                        color: FieldSalesDensTheme.muted(context),
                                       ),
                                     ),
                                   ],

@@ -6,6 +6,7 @@
 // Son Güncelleme: 2026-07-26
 
 import 'dart:convert';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -118,13 +119,13 @@ class OfflineQueueDetailScreen extends StatelessWidget {
     return densSeedJob();
   }
 
-  InputDecoration _denseDecoration(String label) {
+  InputDecoration _denseDecoration(BuildContext context, String label) {
     return InputDecoration(
       isDense: true,
       labelText: label,
       labelStyle: const TextStyle(fontSize: 13),
       filled: true,
-      fillColor: Colors.white,
+      fillColor: FieldSalesDensTheme.surface(context),
       contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
@@ -138,11 +139,12 @@ class OfflineQueueDetailScreen extends StatelessWidget {
   }
 
   Widget _denseField({
+    required BuildContext context,
     required String label,
     required String value,
   }) {
     return InputDecorator(
-      decoration: _denseDecoration(label),
+      decoration: _denseDecoration(context, label),
       child: Text(
         value.isEmpty ? '—' : value,
         style: const TextStyle(fontSize: 14),
@@ -173,10 +175,10 @@ class OfflineQueueDetailScreen extends StatelessWidget {
     final isSeed = resolved['id']?.toString() == 'seed-offline-1';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: AppBar(
         flexibleSpace: Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -255,6 +257,7 @@ class OfflineQueueDetailScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
                 _denseField(
+                  context: context,
                   label: l10n.translate(
                     'field_sales.offline_queue.entity_type',
                   ),
@@ -262,6 +265,7 @@ class OfflineQueueDetailScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 _denseField(
+                  context: context,
                   label: l10n.translate(
                     'field_sales.offline_queue.entity_id',
                   ),
@@ -269,6 +273,7 @@ class OfflineQueueDetailScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 _denseField(
+                  context: context,
                   label: l10n.translate(
                     'field_sales.offline_queue.retry_count',
                   ),
@@ -276,6 +281,7 @@ class OfflineQueueDetailScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 _denseField(
+                  context: context,
                   label: l10n.translate(
                     'field_sales.offline_queue.created_at',
                   ),
@@ -283,6 +289,7 @@ class OfflineQueueDetailScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 _denseField(
+                  context: context,
                   label: l10n.translate(
                     'field_sales.offline_queue.last_error',
                   ),

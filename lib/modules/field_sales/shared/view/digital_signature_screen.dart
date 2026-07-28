@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/localization/app_localization.dart';
 import '../../../../core/widgets/signature_pad.dart';
+import 'field_sales_dens_theme.dart';
 
 enum SignatureType { order, invoice, visit }
 
@@ -77,7 +78,7 @@ class _DigitalSignatureScreenState extends ConsumerState<DigitalSignatureScreen>
                 child: Container(
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: FieldSalesDensTheme.surface(context),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withOpacity(0.1),

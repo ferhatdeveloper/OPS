@@ -16,6 +16,7 @@ import 'credit_card_collection_screen.dart';
 import 'payment_entry_screen.dart';
 import 'promissory_note_screen.dart';
 import 'wire_transfer_screen.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 /// {@template collection_selection_purpose}
 /// Cari seçim sonrası açılacak finans ekranı.
@@ -179,10 +180,10 @@ class _CollectionCustomerSelectionScreenState
     const Color primary = Color(0xFF375A7F);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: AppBar(
         flexibleSpace: Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -244,7 +245,7 @@ class _CollectionCustomerSelectionScreenState
                       )
                     : null,
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: FieldSalesDensTheme.surface(context),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                   borderSide: BorderSide(color: Colors.grey.shade300),
@@ -278,7 +279,7 @@ class _CollectionCustomerSelectionScreenState
                         itemBuilder: (context, index) {
                           final customer = state.customers[index];
                           return Material(
-                            color: Colors.white,
+                            color: FieldSalesDensTheme.surface(context),
                             elevation: 0,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),

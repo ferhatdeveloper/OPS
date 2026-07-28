@@ -6,6 +6,8 @@
 
 import 'package:flutter/material.dart';
 
+import '../../field_sales/shared/view/field_sales_dens_theme.dart';
+
 import '../../../core/localization/app_localization.dart';
 import '../../field_sales/shared/view/field_sales_dens_app_bar.dart';
 import '../contract/whms_route_map.dart';
@@ -158,11 +160,9 @@ class _WhmsTypedOrderListScreenState extends State<WhmsTypedOrderListScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalization.of(context);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor:
-          isDark ? const Color(0xFF121212) : const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: FieldSalesDensAppBar(
         title: l10n.translate(widget.titleKey),
         showCalculatorHome: false,

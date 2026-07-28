@@ -11,6 +11,7 @@ import '../model/finance_movement_type.dart';
 import '../viewmodel/collection_provider.dart';
 import '../widgets/cash_card_code_field.dart';
 import 'collection_customer_selection_screen.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 /// {@template credit_card_collection_screen}
 /// Kredi kartı tahsilatı dens flat form (MBT KREDI KART TAHSILATI).
@@ -152,16 +153,16 @@ class _CreditCardCollectionScreenState
     final l10n = AppLocalization.of(context);
     final state = ref.watch(collectionProvider);
     if (_missingCustomer) {
-      return const Scaffold(
+      return Scaffold(
         body: Center(child: CircularProgressIndicator()),
       );
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: AppBar(
         flexibleSpace: Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -234,7 +235,7 @@ class _CreditCardCollectionScreenState
                     controller: _safeCodeController,
                     label: l10n.translate('field_sales.cc_pos_code'),
                     prefixIcon: Icons.point_of_sale,
-                    fillColor: const Color(0xFFF8F9FD),
+                    fillColor: FieldSalesDensTheme.surface(context),
                   ),
                 ],
               ),
@@ -261,7 +262,7 @@ class _CreditCardCollectionScreenState
                     textInputAction: TextInputAction.done,
                     decoration: InputDecoration(
                       filled: true,
-                      fillColor: const Color(0xFFF8F9FD),
+                      fillColor: FieldSalesDensTheme.surface(context),
                       isDense: true,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
@@ -336,7 +337,7 @@ class _CreditCardCollectionScreenState
         isDense: true,
         prefixIcon: Icon(icon, size: 20),
         filled: true,
-        fillColor: const Color(0xFFF8F9FD),
+        fillColor: FieldSalesDensTheme.surface(context),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(color: Colors.grey.shade200),
@@ -358,7 +359,7 @@ class _CreditCardCollectionScreenState
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: FieldSalesDensTheme.surface(context),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.grey.shade200),
       ),

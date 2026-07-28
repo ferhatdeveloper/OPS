@@ -6,6 +6,8 @@
 
 import 'package:flutter/material.dart';
 
+import '../../../field_sales/shared/view/field_sales_dens_theme.dart';
+
 import '../../../../core/localization/app_localization.dart';
 import '../../../field_sales/shared/view/field_sales_dens_app_bar.dart';
 import '../../contract/whms_route_map.dart';
@@ -117,11 +119,9 @@ class _WhmsDeviceListScreenState extends State<WhmsDeviceListScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalization.of(context);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor:
-          isDark ? const Color(0xFF121212) : const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: FieldSalesDensAppBar(
         title: l10n.translate('field_sales.menu.sub_whms_devices'),
         showCalculatorHome: false,
@@ -165,7 +165,7 @@ class _WhmsDeviceListScreenState extends State<WhmsDeviceListScreen> {
                           l10n.translate('whms.devices.empty'),
                           style: TextStyle(
                             fontSize: 13,
-                            color: isDark ? Colors.white70 : Colors.black54,
+                            color: FieldSalesDensTheme.muted(context),
                           ),
                         ),
                       )
@@ -182,9 +182,7 @@ class _WhmsDeviceListScreenState extends State<WhmsDeviceListScreen> {
                               vertical: 8,
                             ),
                             decoration: BoxDecoration(
-                              color: isDark
-                                  ? const Color(0xFF1E1E1E)
-                                  : Colors.white,
+                              color: FieldSalesDensTheme.surface(context),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Column(
@@ -195,9 +193,7 @@ class _WhmsDeviceListScreenState extends State<WhmsDeviceListScreen> {
                                   style: TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,
-                                    color: isDark
-                                        ? Colors.white
-                                        : Colors.black87,
+                                    color: FieldSalesDensTheme.title(context),
                                   ),
                                 ),
                                 if ((d.mac ?? '').isNotEmpty ||
@@ -210,9 +206,7 @@ class _WhmsDeviceListScreenState extends State<WhmsDeviceListScreen> {
                                     ].join(' · '),
                                     style: TextStyle(
                                       fontSize: 11,
-                                      color: isDark
-                                          ? Colors.white54
-                                          : Colors.black54,
+                                      color: FieldSalesDensTheme.muted(context),
                                     ),
                                   ),
                               ],

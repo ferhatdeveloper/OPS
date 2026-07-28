@@ -2,11 +2,12 @@
 // Açıklama: Dens filtre chip / segment — tek aktif-pasif dil (AppBar altı)
 // Oluşturulma Tarihi: 2026-07-27
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-27
+// Son Güncelleme: 2026-07-28
 
 import 'package:flutter/material.dart';
 
 import 'field_sales_dens_app_bar.dart';
+import 'field_sales_dens_theme.dart';
 
 /// {@template field_sales_dens_chip_item}
 /// Dens chip satırı öğesi (etiket + seçili + tap).
@@ -78,7 +79,9 @@ class FieldSalesDensChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = selected ? primary : Colors.white;
+    final bg = selected
+        ? primary
+        : FieldSalesDensTheme.surface(context);
     final fg = selected ? Colors.white : primary;
 
     return Material(
@@ -199,14 +202,14 @@ class FieldSalesDensFilterBar extends StatelessWidget
   /// [children]: Chip satırları (segment, dönem, …)
   final List<Widget> children;
 
-  /// [backgroundColor]: Şerit arka planı (AppBar bottom için surface)
-  final Color backgroundColor;
+  /// [backgroundColor]: Şerit arka planı (null → dens body)
+  final Color? backgroundColor;
 
   /// {@macro field_sales_dens_filter_bar}
   const FieldSalesDensFilterBar({
     super.key,
     required this.children,
-    this.backgroundColor = const Color(0xFFF8F9FD),
+    this.backgroundColor,
   });
 
   @override
@@ -224,7 +227,8 @@ class FieldSalesDensFilterBar extends StatelessWidget
     if (children.isEmpty) return const SizedBox.shrink();
 
     return Material(
-      color: backgroundColor,
+      color: backgroundColor ??
+          FieldSalesDensTheme.bodyBackground(context),
       child: Padding(
         padding: barPadding,
         child: Column(

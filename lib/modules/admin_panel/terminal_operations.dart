@@ -6,6 +6,8 @@
 
 import 'package:flutter/material.dart';
 
+import '../field_sales/shared/view/field_sales_dens_theme.dart';
+
 /// {@template TerminalOperations}
 /// Terminal işlemleri ekranı: Komut/script çalıştırma, log görüntüleme, çıktı gösterme
 ///
@@ -47,6 +49,7 @@ class _TerminalOperationsState extends State<TerminalOperations> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: AppBar(title: const Text('Terminal İşlemleri')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),

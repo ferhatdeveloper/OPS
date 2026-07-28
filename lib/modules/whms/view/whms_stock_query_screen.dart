@@ -6,6 +6,8 @@
 
 import 'package:flutter/material.dart';
 
+import '../../field_sales/shared/view/field_sales_dens_theme.dart';
+
 import '../../../core/database/migrations/SqlQuerys.dart';
 import '../../../core/localization/app_localization.dart';
 import '../../../service/database_service.dart';
@@ -101,7 +103,6 @@ class _WhmsStockQueryScreenState extends State<WhmsStockQueryScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalization.of(context);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final chips = WarehouseMasterSeed.defaultRows
         .map(
           (s) => FieldSalesDensChipItem(
@@ -117,8 +118,7 @@ class _WhmsStockQueryScreenState extends State<WhmsStockQueryScreen> {
         .toList(growable: false);
 
     return Scaffold(
-      backgroundColor:
-          isDark ? const Color(0xFF121212) : const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: FieldSalesDensAppBar(
         title: l10n.translate('field_sales.menu.sub_whms_query'),
         showCalculatorHome: false,
@@ -163,7 +163,7 @@ class _WhmsStockQueryScreenState extends State<WhmsStockQueryScreen> {
                           l10n.translate('whms.stock_query.empty'),
                           style: TextStyle(
                             fontSize: 13,
-                            color: isDark ? Colors.white70 : Colors.black54,
+                            color: FieldSalesDensTheme.muted(context),
                           ),
                         ),
                       )
@@ -179,9 +179,7 @@ class _WhmsStockQueryScreenState extends State<WhmsStockQueryScreen> {
                               vertical: 8,
                             ),
                             decoration: BoxDecoration(
-                              color: isDark
-                                  ? const Color(0xFF1E1E1E)
-                                  : Colors.white,
+                              color: FieldSalesDensTheme.surface(context),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Row(
@@ -196,18 +194,14 @@ class _WhmsStockQueryScreenState extends State<WhmsStockQueryScreen> {
                                         style: TextStyle(
                                           fontSize: 13,
                                           fontWeight: FontWeight.w600,
-                                          color: isDark
-                                              ? Colors.white
-                                              : Colors.black87,
+                                          color: FieldSalesDensTheme.title(context),
                                         ),
                                       ),
                                       Text(
                                         '${b.warehouseCode} · ${b.source}',
                                         style: TextStyle(
                                           fontSize: 11,
-                                          color: isDark
-                                              ? Colors.white70
-                                              : Colors.black54,
+                                          color: FieldSalesDensTheme.muted(context),
                                         ),
                                       ),
                                     ],
@@ -219,7 +213,7 @@ class _WhmsStockQueryScreenState extends State<WhmsStockQueryScreen> {
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,
                                     color:
-                                        isDark ? Colors.white : Colors.black87,
+                                        FieldSalesDensTheme.title(context),
                                   ),
                                 ),
                               ],

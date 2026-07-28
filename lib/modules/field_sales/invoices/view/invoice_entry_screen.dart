@@ -20,6 +20,7 @@ import '../../shared/view/voucher_defaults_fields.dart';
 import '../../../../service/pod_service.dart';
 import 'package:geolocator/geolocator.dart';
 import 'invoice_customer_selection_screen.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 class InvoiceEntryScreen extends ConsumerStatefulWidget {
   final String customerId;
@@ -127,10 +128,10 @@ class _InvoiceEntryScreenState extends ConsumerState<InvoiceEntryScreen> with Si
       hasUnsaved: state.items.isNotEmpty,
       onDiscard: () => ref.read(invoiceProvider.notifier).discardDraft(),
       child: Scaffold(
-        backgroundColor: const Color(0xFFF8F9FD),
+        backgroundColor: FieldSalesDensTheme.bodyBackground(context),
         appBar: AppBar(
           flexibleSpace: Container(
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -225,7 +226,7 @@ class _InvoiceEntryScreenState extends ConsumerState<InvoiceEntryScreen> with Si
           padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
           child: Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: FieldSalesDensTheme.surface(context),
               borderRadius: BorderRadius.circular(8),
             ),
             child: TextField(
@@ -283,7 +284,7 @@ class _InvoiceEntryScreenState extends ConsumerState<InvoiceEntryScreen> with Si
                       return Container(
                         margin: const EdgeInsets.only(bottom: 6),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: FieldSalesDensTheme.surface(context),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(color: Colors.grey.shade200),
                         ),
@@ -298,7 +299,7 @@ class _InvoiceEntryScreenState extends ConsumerState<InvoiceEntryScreen> with Si
                                 width: 40,
                                 height: 40,
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFF8F9FD),
+                                  color: FieldSalesDensTheme.bodyBackground(context),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: const Icon(
@@ -559,7 +560,7 @@ class _InvoiceEntryScreenState extends ConsumerState<InvoiceEntryScreen> with Si
               vertical: 10,
             ),
             filled: true,
-            fillColor: Colors.white,
+            fillColor: FieldSalesDensTheme.surface(context),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide: BorderSide(color: Colors.grey.shade200),
@@ -587,7 +588,7 @@ class _InvoiceEntryScreenState extends ConsumerState<InvoiceEntryScreen> with Si
       margin: const EdgeInsets.only(bottom: 6),
       padding: const EdgeInsets.fromLTRB(10, 8, 6, 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: FieldSalesDensTheme.surface(context),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.grey.shade200),
       ),
@@ -630,7 +631,7 @@ class _InvoiceEntryScreenState extends ConsumerState<InvoiceEntryScreen> with Si
               Container(
                 height: 32,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8F9FD),
+                  color: FieldSalesDensTheme.bodyBackground(context),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: Colors.grey.shade200),
                 ),
@@ -773,7 +774,7 @@ class _InvoiceEntryScreenState extends ConsumerState<InvoiceEntryScreen> with Si
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: FieldSalesDensTheme.surface(context),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.grey.shade200),
       ),
@@ -800,7 +801,7 @@ class _InvoiceEntryScreenState extends ConsumerState<InvoiceEntryScreen> with Si
                 vertical: 8,
               ),
               filled: true,
-              fillColor: const Color(0xFFF8F9FD),
+              fillColor: FieldSalesDensTheme.surface(context),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
                 borderSide: BorderSide.none,
@@ -837,7 +838,7 @@ class _InvoiceEntryScreenState extends ConsumerState<InvoiceEntryScreen> with Si
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: FieldSalesDensTheme.surface(context),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.grey.shade200),
       ),
@@ -880,7 +881,7 @@ class _InvoiceEntryScreenState extends ConsumerState<InvoiceEntryScreen> with Si
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: FieldSalesDensTheme.surface(context),
         border: Border(top: BorderSide(color: Colors.grey.shade200)),
       ),
       child: SafeArea(

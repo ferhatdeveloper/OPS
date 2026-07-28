@@ -6,6 +6,7 @@
 
 import 'package:flutter/material.dart';
 import '../../../../core/localization/app_localization.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 /// {@template sample_giveaway_screen}
 /// Numune / hediye için stub ekran.
@@ -28,7 +29,7 @@ class SampleGiveawayScreen extends StatelessWidget {
     final title = l10n.translate('field_sales.stubs.sample_giveaway');
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: AppBar(
         title: Text(
           title,

@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/geo/haversine.dart';
 import '../../../../core/localization/app_localization.dart';
@@ -171,7 +172,7 @@ class _InAppRouteMapScreenState extends State<InAppRouteMapScreen> {
     final km = _totalKm;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: FieldSalesDensAppBar(
         title: l10n.translate('field_sales.stubs.in_app_route_map'),
         backgroundColor: primary,
@@ -329,7 +330,7 @@ class _InAppRouteMapScreenState extends State<InAppRouteMapScreen> {
                                             : primary,
                                         shape: BoxShape.circle,
                                         border: Border.all(
-                                          color: Colors.white,
+                                          color: FieldSalesDensTheme.surface(context),
                                           width: 2,
                                         ),
                                       ),

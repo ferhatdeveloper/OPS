@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../field_sales/shared/view/field_sales_dens_app_bar.dart';
+import 'package:exfin_ops/modules/field_sales/shared/view/field_sales_dens_theme.dart';
 
 class TargetAssignmentScreen extends StatefulWidget {
   const TargetAssignmentScreen({Key? key}) : super(key: key);
@@ -137,7 +138,7 @@ class _TargetAssignmentScreenState extends State<TargetAssignmentScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: FieldSalesDensAppBar(
         title: 'Hedef Atama',
         useGradient: true,

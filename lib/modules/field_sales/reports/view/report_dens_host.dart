@@ -6,6 +6,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:sqflite/sqflite.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/localization/app_localization.dart';
 import '../../../../service/database_service.dart';
@@ -197,10 +198,10 @@ class _ReportDensHostState extends State<ReportDensHost> {
     final l10n = AppLocalization.of(context);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: AppBar(
         flexibleSpace: Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,

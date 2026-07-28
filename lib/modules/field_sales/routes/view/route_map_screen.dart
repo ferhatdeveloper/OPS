@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/localization/app_localization.dart';
 import '../../maps/viewmodel/offline_map_tile_store.dart';
@@ -125,7 +126,7 @@ class _RouteMapScreenState extends State<RouteMapScreen> {
         height: 88,
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: FieldSalesDensTheme.surface(context),
           border: Border(top: BorderSide(color: Colors.grey.shade200)),
         ),
         child: Row(

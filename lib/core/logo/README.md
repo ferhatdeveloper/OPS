@@ -29,6 +29,8 @@ Detay: `docs/plans/2026-07-28-logo-then-postgrest-outbound.md`.
 1. Tiger açıkken **Al** / **Tiger’dan çek** → `LogoTigerPullSync`
 2. Base URL sırası: Tiger store → Logo REST prefs → **Sunucu ayarları** (`api_config`)
 3. `LogoServerUrlBridge` — Ayarlar’da kaydedilen link Logo çekimine yazılır
+4. **Düz adres yeterli:** `212.237.124.147:32001` → otomatik `http://…/api/v1`
+   Help linki yapıştırılırsa `api_key` query’den de alınır (`parseUserInput`)
 
 ## Push akışı (gönder)
 1. Saha belgesi SQLite’a yazılır → `JobQueueService.enqueue` (`sync_phase=logo`)

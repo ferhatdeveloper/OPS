@@ -6,6 +6,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/init/navigation/routes.dart';
 import '../../../../core/localization/app_localization.dart';
@@ -236,7 +237,7 @@ class _OrdersUntransferredScreenState
     final title = l10n.translate('field_sales.stubs.orders_untransferred');
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: FieldSalesDensAppBar(
         title: title,
         actions: [

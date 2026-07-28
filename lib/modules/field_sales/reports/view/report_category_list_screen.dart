@@ -5,6 +5,7 @@
 // Son Güncelleme: 2026-07-27
 
 import 'package:flutter/material.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/localization/app_localization.dart';
 import '../../shared/view/field_sales_dens_app_bar.dart';
@@ -54,7 +55,7 @@ class ReportCategoryListScreen extends StatelessWidget {
     const Color primary = FieldSalesDensAppBar.primaryColor;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: FieldSalesDensAppBar(
         title: l10n.translate(category.titleKey),
         backgroundColor: primary,
@@ -71,7 +72,7 @@ class ReportCategoryListScreen extends StatelessWidget {
         itemBuilder: (context, index) {
           final report = items[index];
           return Material(
-            color: Colors.white,
+            color: FieldSalesDensTheme.surface(context),
             borderRadius: BorderRadius.circular(8),
             child: InkWell(
               borderRadius: BorderRadius.circular(8),

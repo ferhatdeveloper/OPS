@@ -10,6 +10,7 @@ import '../../../../core/localization/app_localization.dart';
 import '../model/finance_movement_type.dart';
 import '../viewmodel/collection_provider.dart';
 import 'collection_customer_selection_screen.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 /// {@template promissory_note_screen}
 /// Senet tahsilatı dens flat form (MBT SENET TAHSILATI).
@@ -166,16 +167,16 @@ class _PromissoryNoteScreenState extends ConsumerState<PromissoryNoteScreen> {
     final l10n = AppLocalization.of(context);
     final state = ref.watch(collectionProvider);
     if (_missingCustomer) {
-      return const Scaffold(
+      return Scaffold(
         body: Center(child: CircularProgressIndicator()),
       );
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: AppBar(
         flexibleSpace: Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -258,7 +259,7 @@ class _PromissoryNoteScreenState extends ConsumerState<PromissoryNoteScreen> {
                         vertical: 10,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF8F9FD),
+                        color: FieldSalesDensTheme.bodyBackground(context),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(color: Colors.grey.shade200),
                       ),
@@ -316,7 +317,7 @@ class _PromissoryNoteScreenState extends ConsumerState<PromissoryNoteScreen> {
                     textInputAction: TextInputAction.done,
                     decoration: InputDecoration(
                       filled: true,
-                      fillColor: const Color(0xFFF8F9FD),
+                      fillColor: FieldSalesDensTheme.surface(context),
                       isDense: true,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
@@ -391,7 +392,7 @@ class _PromissoryNoteScreenState extends ConsumerState<PromissoryNoteScreen> {
         isDense: true,
         prefixIcon: Icon(icon, size: 20),
         filled: true,
-        fillColor: const Color(0xFFF8F9FD),
+        fillColor: FieldSalesDensTheme.surface(context),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(color: Colors.grey.shade200),
@@ -413,7 +414,7 @@ class _PromissoryNoteScreenState extends ConsumerState<PromissoryNoteScreen> {
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: FieldSalesDensTheme.surface(context),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.grey.shade200),
       ),

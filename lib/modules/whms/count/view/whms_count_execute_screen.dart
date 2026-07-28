@@ -5,6 +5,9 @@
 // Son Güncelleme: 2026-07-28
 
 import 'package:flutter/material.dart';
+
+import '../../../field_sales/shared/view/field_sales_dens_theme.dart';
+
 import 'package:flutter/services.dart';
 
 import '../../../../core/init/navigation/routes.dart';
@@ -391,13 +394,11 @@ class _WhmsCountExecuteScreenState extends State<WhmsCountExecuteScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalization.of(context);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final o = _order;
     final title = l10n.translate('whms.count.execute_title');
 
     return Scaffold(
-      backgroundColor:
-          isDark ? const Color(0xFF121212) : const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: FieldSalesDensAppBar(
         title: title,
         showCalculatorHome: false,
@@ -424,7 +425,7 @@ class _WhmsCountExecuteScreenState extends State<WhmsCountExecuteScreen> {
                     l10n.translate('whms.count.load_failed'),
                     style: TextStyle(
                       fontSize: 13,
-                      color: isDark ? Colors.white54 : Colors.black54,
+                      color: FieldSalesDensTheme.muted(context),
                     ),
                   ),
                 )
@@ -440,7 +441,7 @@ class _WhmsCountExecuteScreenState extends State<WhmsCountExecuteScreen> {
                         '${_totalVariance.toStringAsFixed(_totalVariance == _totalVariance.roundToDouble() ? 0 : 2)}',
                         style: TextStyle(
                           fontSize: 12,
-                          color: isDark ? Colors.white70 : Colors.black54,
+                          color: FieldSalesDensTheme.muted(context),
                         ),
                       ),
                     ),
@@ -452,9 +453,7 @@ class _WhmsCountExecuteScreenState extends State<WhmsCountExecuteScreen> {
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                   fontSize: 13,
-                                  color: isDark
-                                      ? Colors.white54
-                                      : Colors.black54,
+                                  color: FieldSalesDensTheme.muted(context),
                                 ),
                               ),
                             )
@@ -467,7 +466,6 @@ class _WhmsCountExecuteScreenState extends State<WhmsCountExecuteScreen> {
                               itemBuilder: (context, index) {
                                 return _CountLineRow(
                                   line: _lines[index],
-                                  isDark: isDark,
                                   systemLabel:
                                       l10n.translate('whms.count.system_qty'),
                                   actualLabel:
@@ -506,7 +504,6 @@ class _WhmsCountExecuteScreenState extends State<WhmsCountExecuteScreen> {
 
 class _CountLineRow extends StatelessWidget {
   final WhmsCountResultLine line;
-  final bool isDark;
   final String systemLabel;
   final String actualLabel;
   final String varianceLabel;
@@ -514,7 +511,6 @@ class _CountLineRow extends StatelessWidget {
 
   const _CountLineRow({
     required this.line,
-    required this.isDark,
     required this.systemLabel,
     required this.actualLabel,
     required this.varianceLabel,
@@ -532,7 +528,7 @@ class _CountLineRow extends StatelessWidget {
         : '${line.productCode} · $name';
 
     return Material(
-      color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+      color: FieldSalesDensTheme.surface(context),
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
         onTap: onTap,
@@ -547,7 +543,7 @@ class _CountLineRow extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: isDark ? Colors.white : Colors.black87,
+                  color: FieldSalesDensTheme.title(context),
                 ),
               ),
               const SizedBox(height: 2),
@@ -557,7 +553,7 @@ class _CountLineRow extends StatelessWidget {
                 '$varianceLabel: ${_fmt(line.variance)}',
                 style: TextStyle(
                   fontSize: 11,
-                  color: isDark ? Colors.white54 : Colors.black54,
+                  color: FieldSalesDensTheme.muted(context),
                 ),
               ),
             ],

@@ -5,6 +5,7 @@
 // Son Güncelleme: 2026-07-28
 
 import 'package:flutter/material.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/localization/app_localization.dart';
 import '../../../../service/language_service.dart';
@@ -240,7 +241,7 @@ class _ReportLayoutDesignerScreenState
     final reportTitle = l10n.translate(layout.titleKey);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: FieldSalesDensAppBar(
         title: l10n.translate('field_sales.mbt_reports.layout_designer_title'),
         backgroundColor: FieldSalesDensAppBar.primaryColor,
@@ -274,7 +275,7 @@ class _ReportLayoutDesignerScreenState
                       height: 30,
                       padding: const EdgeInsets.symmetric(horizontal: 8),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: FieldSalesDensTheme.surface(context),
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(
                           color: FieldSalesDensAppBar.primaryColor,
@@ -563,7 +564,7 @@ class _ReportLayoutDesignerScreenState
       margin: const EdgeInsets.only(bottom: 4),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: FieldSalesDensTheme.surface(context),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.grey.shade300),
       ),

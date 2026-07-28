@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../viewmodel/vehicle_provider.dart';
 import '../model/vehicle_model.dart';
 import '../../../../service/database_service.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 class VehicleLoadingScreen extends ConsumerStatefulWidget {
   const VehicleLoadingScreen({super.key});
@@ -127,7 +128,7 @@ class _VehicleLoadingScreenState extends ConsumerState<VehicleLoadingScreen> {
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      color: Colors.white,
+      color: FieldSalesDensTheme.surface(context),
       child: Row(
         children: [
           const Icon(Icons.delivery_dining, color: Color(0xFF375A7F)),
@@ -156,7 +157,7 @@ class _VehicleLoadingScreenState extends ConsumerState<VehicleLoadingScreen> {
   Widget _buildSearchBox() {
     return Container(
       padding: const EdgeInsets.all(16),
-      color: Colors.white,
+      color: FieldSalesDensTheme.surface(context),
       child: TextField(
         controller: _searchController,
         onChanged: _filterProducts,
@@ -164,7 +165,7 @@ class _VehicleLoadingScreenState extends ConsumerState<VehicleLoadingScreen> {
           prefixIcon: const Icon(Icons.search, color: Color(0xFF375A7F)),
           hintText: 'Ürün ara...',
           filled: true,
-          fillColor: const Color(0xFFF8F9FD),
+          fillColor: FieldSalesDensTheme.surface(context),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         ),
@@ -235,7 +236,7 @@ class _VehicleLoadingScreenState extends ConsumerState<VehicleLoadingScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: FieldSalesDensTheme.surface(context),
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -4))],
       ),
       child: ElevatedButton(

@@ -15,6 +15,7 @@ import '../model/period_comparison_models.dart';
 import '../viewmodel/period_comparison_provider.dart';
 import '../widgets/period_comparison_chart.dart';
 import '../widgets/period_comparison_pivot_table.dart';
+import 'package:exfin_ops/modules/field_sales/shared/view/field_sales_dens_theme.dart';
 
 /// {@template period_comparison_report_screen}
 /// Yönetici dönem karşılaştırma — SQLite A/B metrik + dens grafik.
@@ -37,7 +38,7 @@ class PeriodComparisonReportScreen extends ConsumerWidget {
     final async = ref.watch(periodComparisonResultProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: FieldSalesDensAppBar(
         title: l10n.translate('advanced.period_comparison'),
         bottom: FieldSalesDensFilterBar(

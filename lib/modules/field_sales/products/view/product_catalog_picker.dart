@@ -5,6 +5,7 @@
 // Son Güncelleme: 2026-07-26
 
 import 'package:flutter/material.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/localization/app_localization.dart';
 import '../../../../service/database_service.dart';
@@ -78,7 +79,7 @@ Future<ProductModel?> showProductCatalogPicker(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
-    backgroundColor: const Color(0xFFF8F9FD),
+    backgroundColor: FieldSalesDensTheme.bodyBackground(context),
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
     ),
@@ -193,7 +194,7 @@ class _ProductCatalogPickerSheetState extends State<ProductCatalogPickerSheet> {
         Container(
           width: double.infinity,
           padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: Color(0xFF375A7F),
             borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
           ),
@@ -229,7 +230,7 @@ class _ProductCatalogPickerSheetState extends State<ProductCatalogPickerSheet> {
               hintText: l10n.translate('field_sales.search_products_hint'),
               prefixIcon: const Icon(Icons.search, size: 20),
               filled: true,
-              fillColor: Colors.white,
+              fillColor: FieldSalesDensTheme.surface(context),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
                 borderSide: BorderSide(color: Colors.grey.shade200),
@@ -278,7 +279,7 @@ class _ProductCatalogPickerSheetState extends State<ProductCatalogPickerSheet> {
       itemBuilder: (context, index) {
         final product = _filtered[index];
         return Material(
-          color: Colors.white,
+          color: FieldSalesDensTheme.surface(context),
           borderRadius: BorderRadius.circular(8),
           child: InkWell(
             borderRadius: BorderRadius.circular(8),

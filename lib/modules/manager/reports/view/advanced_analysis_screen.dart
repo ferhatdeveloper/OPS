@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/localization/app_localization.dart';
 import '../../../field_sales/shared/view/field_sales_dens_app_bar.dart';
+import 'package:exfin_ops/modules/field_sales/shared/view/field_sales_dens_theme.dart';
 
 class AdvancedAnalysisScreen extends StatelessWidget {
   const AdvancedAnalysisScreen({Key? key}) : super(key: key);
@@ -8,7 +9,7 @@ class AdvancedAnalysisScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: FieldSalesDensAppBar(
         title: AppLocalization.of(context)
             .translate('advanced.advanced_analysis'),

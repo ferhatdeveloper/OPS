@@ -477,7 +477,6 @@ class _PickLineTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalization.of(context);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final code = (line.productCode ?? '').trim();
     final name = (line.productName ?? '').trim();
     final loc = (line.locationCode ?? '').trim();
@@ -490,7 +489,7 @@ class _PickLineTile extends StatelessWidget {
     final serialOk = !needsSerial || serial.isNotEmpty;
 
     return Material(
-      color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+      color: FieldSalesDensTheme.surface(context),
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
         borderRadius: BorderRadius.circular(8),
@@ -501,7 +500,7 @@ class _PickLineTile extends StatelessWidget {
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
               color: serialOk
-                  ? (isDark ? Colors.white24 : Colors.grey.shade300)
+                  ? (FieldSalesDensTheme.border(context))
                   : const Color(0xFF375A7F),
             ),
           ),

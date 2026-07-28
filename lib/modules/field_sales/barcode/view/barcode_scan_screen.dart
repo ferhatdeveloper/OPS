@@ -6,6 +6,7 @@
 
 import 'package:barcode_scan2/barcode_scan2.dart';
 import 'package:flutter/material.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/localization/app_localization.dart';
 import '../../products/model/product_catalog_row.dart';
@@ -278,7 +279,7 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
     const Color primary = FieldSalesDensAppBar.primaryColor;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: FieldSalesDensAppBar(
         title: title,
         backgroundColor: primary,
@@ -324,7 +325,7 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
                   fontSize: 13,
                 ),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: FieldSalesDensTheme.surface(context),
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 10,
                   vertical: 8,
@@ -457,7 +458,7 @@ class _ProductLookupDensTile extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: FieldSalesDensTheme.surface(context),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
               color: selected

@@ -5,6 +5,7 @@
 // Son Güncelleme: 2026-07-26
 
 import 'package:flutter/material.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import 'package:uuid/uuid.dart';
 
@@ -255,10 +256,10 @@ class _WaybillEntryScreenState extends State<WaybillEntryScreen>
       hasUnsaved: _lines.isNotEmpty,
       onDiscard: () => setState(() => _lines.clear()),
       child: Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: AppBar(
         flexibleSpace: Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -387,7 +388,7 @@ class _WaybillEntryScreenState extends State<WaybillEntryScreen>
           padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
           child: Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: FieldSalesDensTheme.surface(context),
               borderRadius: BorderRadius.circular(8),
             ),
             child: TextField(
@@ -457,7 +458,7 @@ class _WaybillEntryScreenState extends State<WaybillEntryScreen>
                         return Container(
                           margin: const EdgeInsets.only(bottom: 6),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: FieldSalesDensTheme.surface(context),
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(color: Colors.grey.shade200),
                           ),
@@ -488,7 +489,7 @@ class _WaybillEntryScreenState extends State<WaybillEntryScreen>
                                     width: 40,
                                     height: 40,
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFFF8F9FD),
+                                      color: FieldSalesDensTheme.bodyBackground(context),
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                     child: const Icon(
@@ -558,7 +559,7 @@ class _WaybillEntryScreenState extends State<WaybillEntryScreen>
           return Container(
             margin: const EdgeInsets.only(bottom: 6),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: FieldSalesDensTheme.surface(context),
               borderRadius: BorderRadius.circular(8),
               border: Border.all(color: Colors.grey.shade200),
             ),
@@ -775,7 +776,7 @@ class _WaybillEntryScreenState extends State<WaybillEntryScreen>
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: FieldSalesDensTheme.surface(context),
         border: Border(top: BorderSide(color: Colors.grey.shade200)),
       ),
       child: SafeArea(

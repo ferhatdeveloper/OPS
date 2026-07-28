@@ -6,6 +6,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/localization/app_localization.dart';
 import '../model/expense_record.dart';
@@ -45,13 +46,13 @@ class ExpenseEntryMbtFields extends StatelessWidget {
     required this.noteController,
   }) : super(key: key);
 
-  InputDecoration _decoration(String label) {
+  InputDecoration _decoration(BuildContext context, String label) {
     return InputDecoration(
       isDense: true,
       labelText: label,
       labelStyle: const TextStyle(fontSize: 13),
       filled: true,
-      fillColor: Colors.white,
+      fillColor: FieldSalesDensTheme.surface(context),
       contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
@@ -83,7 +84,7 @@ class ExpenseEntryMbtFields extends StatelessWidget {
         DropdownButtonFormField<ExpenseType>(
           value: type,
           isExpanded: true,
-          decoration: _decoration(
+          decoration: _decoration(context, 
             l10n.translate('field_sales.expense.type_label'),
           ),
           items: ExpenseType.values
@@ -111,7 +112,7 @@ class ExpenseEntryMbtFields extends StatelessWidget {
           inputFormatters: [
             FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
           ],
-          decoration: _decoration(
+          decoration: _decoration(context, 
             l10n.translate('field_sales.expense.amount_label'),
           ),
         ),
@@ -123,7 +124,7 @@ class ExpenseEntryMbtFields extends StatelessWidget {
           keyboardType: TextInputType.multiline,
           textInputAction: TextInputAction.done,
           textCapitalization: TextCapitalization.sentences,
-          decoration: _decoration(
+          decoration: _decoration(context, 
             l10n.translate('field_sales.expense.note_label'),
           ),
         ),

@@ -6,6 +6,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/localization/app_localization.dart';
 import '../../shared/view/field_sales_dens_app_bar.dart';
@@ -149,7 +150,7 @@ class _GeofenceSettingsScreenState extends State<GeofenceSettingsScreen> {
       labelText: label,
       labelStyle: const TextStyle(fontSize: 13),
       filled: true,
-      fillColor: Colors.white,
+      fillColor: FieldSalesDensTheme.surface(context),
       contentPadding:
           const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       border: OutlineInputBorder(
@@ -169,7 +170,7 @@ class _GeofenceSettingsScreenState extends State<GeofenceSettingsScreen> {
     final title = l10n.translate('field_sales.stubs.geofence_settings');
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: FieldSalesDensAppBar(title: title),
       body: _loading
           ? const Center(child: CircularProgressIndicator())

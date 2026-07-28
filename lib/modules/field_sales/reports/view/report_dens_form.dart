@@ -6,6 +6,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/localization/app_localization.dart';
 import 'report_dens_empty_state.dart';
@@ -83,13 +84,13 @@ class ReportDensForm extends StatelessWidget {
     this.onRun,
   }) : super(key: key);
 
-  InputDecoration _denseDecoration(String? label) {
+  InputDecoration _denseDecoration(BuildContext context, String? label) {
     return InputDecoration(
       isDense: true,
       labelText: label,
       labelStyle: const TextStyle(fontSize: 13),
       filled: true,
-      fillColor: Colors.white,
+      fillColor: FieldSalesDensTheme.surface(context),
       contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
@@ -103,6 +104,7 @@ class ReportDensForm extends StatelessWidget {
   }
 
   Widget _dateField({
+    required BuildContext context,
     required AppLocalization l10n,
     required String labelKey,
     required DateTime date,
@@ -113,7 +115,7 @@ class ReportDensForm extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
       child: InputDecorator(
-        decoration: _denseDecoration(l10n.translate(labelKey)),
+        decoration: _denseDecoration(context, l10n.translate(labelKey)),
         child: Row(
           children: [
             Expanded(
@@ -143,7 +145,7 @@ class ReportDensForm extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: FieldSalesDensTheme.surface(context),
             border: Border(
               bottom: BorderSide(color: Colors.grey.shade200),
             ),
@@ -151,6 +153,7 @@ class ReportDensForm extends StatelessWidget {
           child: Column(
             children: [
               _dateField(
+                context: context,
                 l10n: l10n,
                 labelKey: 'field_sales.report_dens.date_from',
                 date: dateFrom,
@@ -158,6 +161,7 @@ class ReportDensForm extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               _dateField(
+                context: context,
                 l10n: l10n,
                 labelKey: 'field_sales.report_dens.date_to',
                 date: dateTo,
@@ -212,7 +216,7 @@ class ReportDensForm extends StatelessWidget {
                     return Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: FieldSalesDensTheme.surface(context),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(color: Colors.grey.shade200),
                       ),

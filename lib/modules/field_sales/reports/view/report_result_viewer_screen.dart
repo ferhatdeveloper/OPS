@@ -5,6 +5,7 @@
 // Son Güncelleme: 2026-07-28
 
 import 'package:flutter/material.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/localization/app_localization.dart';
 import '../../ai/widgets/report_ai_insight_banner.dart';
@@ -158,7 +159,7 @@ class _ReportResultViewerScreenState extends State<ReportResultViewerScreen> {
     final chartKind = ReportChartKindX.forCategory(widget.category);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: FieldSalesDensAppBar(
         title: widget.title,
         backgroundColor: FieldSalesDensAppBar.primaryColor,
@@ -170,7 +171,7 @@ class _ReportResultViewerScreenState extends State<ReportResultViewerScreen> {
           ),
         ],
         bottom: FieldSalesDensFilterBar(
-          backgroundColor: Colors.white,
+          backgroundColor: FieldSalesDensTheme.surface(context),
           children: [
             FieldSalesDensChipRow(
               fontSize: 11,

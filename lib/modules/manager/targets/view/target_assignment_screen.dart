@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 import '../model/target_model.dart';
 import '../viewmodel/target_provider.dart';
 import '../../../../core/localization/app_localization.dart';
+import 'package:exfin_ops/modules/field_sales/shared/view/field_sales_dens_theme.dart';
 
 class TargetAssignmentScreen extends ConsumerStatefulWidget {
   const TargetAssignmentScreen({Key? key}) : super(key: key);
@@ -54,7 +55,7 @@ class _TargetAssignmentScreenState extends ConsumerState<TargetAssignmentScreen>
     final targetState = ref.watch(targetProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: AppBar(
         title: Text(AppLocalization.of(context).translate('target.target_assignment'), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
         backgroundColor: const Color(0xFF375A7F),

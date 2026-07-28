@@ -12,9 +12,9 @@ import 'permission_groups_screen.dart';
 import 'sync_operations.dart';
 import 'terminal_operations.dart';
 import 'device_approval_screen.dart';
+import '../field_sales/shared/view/field_sales_dens_theme.dart';
 
 const Color exfinDarkBlue = Color.fromARGB(255, 5, 79, 153);
-const Color surfaceColor = Color(0xFFF9FAFB);
 const Color menuBackgroundColor = Color(0xFF4A6583);
 
 /// {@template AdminPanelScreen}
@@ -73,6 +73,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
     final isDesktop = size.width > 1200;
 
     return Scaffold(
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: AppBar(
         backgroundColor: exfinDarkBlue,
         title: const Row(
@@ -195,7 +196,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
           if (!_isMenuVisible || !isDesktop) const SizedBox.shrink(),
           Expanded(
             child: Container(
-              color: surfaceColor,
+              color: FieldSalesDensTheme.bodyBackground(context),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -234,7 +235,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                   Expanded(
                     child: Container(
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: FieldSalesDensTheme.surface(context),
                         borderRadius: BorderRadius.circular(18),
                       ),
                       margin: const EdgeInsets.symmetric(

@@ -12,6 +12,7 @@ import '../../customers/model/customer_model.dart';
 import '../model/order_model.dart';
 import '../viewmodel/order_provider.dart';
 import 'order_entry_screen.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 /// {@template order_customer_selection_screen}
 /// Plasiyer sipariş/fatura girmeden önce cari kart seçer.
@@ -142,10 +143,10 @@ class _OrderCustomerSelectionScreenState
         : 'field_sales.customer_selection';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: AppBar(
         flexibleSpace: Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -206,7 +207,7 @@ class _OrderCustomerSelectionScreenState
                       )
                     : null,
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: FieldSalesDensTheme.surface(context),
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 10,
                   vertical: 10,
@@ -249,7 +250,7 @@ class _OrderCustomerSelectionScreenState
                           final customer = visibleCustomers[index];
                           return Container(
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: FieldSalesDensTheme.surface(context),
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(color: Colors.grey.shade200),
                             ),

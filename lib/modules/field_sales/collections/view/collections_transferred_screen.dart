@@ -5,6 +5,7 @@
 // Son Güncelleme: 2026-07-26
 
 import 'package:flutter/material.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/database/migrations/SqlQuerys.dart';
 import '../../../../core/localization/app_localization.dart';
@@ -117,7 +118,7 @@ class _CollectionsTransferredScreenState
     final rows = _rows;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: AppBar(
         title: Text(
           title,
@@ -215,7 +216,7 @@ class _TransferredDensTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: FieldSalesDensTheme.surface(context),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.grey.shade200),
       ),
@@ -224,7 +225,7 @@ class _TransferredDensTile extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: const Color(0xFFF8F9FD),
+              color: FieldSalesDensTheme.bodyBackground(context),
               borderRadius: BorderRadius.circular(8),
             ),
             child: const Icon(

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../../../core/localization/app_localization.dart';
 import '../viewmodel/report_provider.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 class LogoReportsScreen extends ConsumerStatefulWidget {
   const LogoReportsScreen({Key? key}) : super(key: key);
@@ -67,7 +68,7 @@ class _LogoReportsScreenState extends ConsumerState<LogoReportsScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: FieldSalesDensTheme.surface(context),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))

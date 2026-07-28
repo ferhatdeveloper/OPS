@@ -204,10 +204,7 @@ class _WhmsOrderListScreenState extends State<WhmsOrderListScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalization.of(context);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final filterBg = isDark
-        ? Theme.of(context).scaffoldBackgroundColor
-        : const Color(0xFFF8F9FD);
+    final filterBg = FieldSalesDensTheme.bodyBackground(context);
 
     final typeItems = <FieldSalesDensChipItem>[
       FieldSalesDensChipItem(

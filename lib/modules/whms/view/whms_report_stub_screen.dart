@@ -6,6 +6,8 @@
 
 import 'package:flutter/material.dart';
 
+import '../../field_sales/shared/view/field_sales_dens_theme.dart';
+
 import '../../../core/localization/app_localization.dart';
 import '../../field_sales/shared/view/field_sales_dens_app_bar.dart';
 import '../reports/model/whms_order_kpi_summary.dart';
@@ -77,11 +79,9 @@ class _WhmsReportStubScreenState extends State<WhmsReportStubScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalization.of(context);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor:
-          isDark ? const Color(0xFF121212) : const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: FieldSalesDensAppBar(
         title: l10n.translate(widget.titleKey),
         showCalculatorHome: false,
@@ -95,7 +95,7 @@ class _WhmsReportStubScreenState extends State<WhmsReportStubScreen> {
               l10n.translate(widget.hintKey),
               style: TextStyle(
                 fontSize: 12,
-                color: isDark ? Colors.white70 : Colors.black54,
+                color: FieldSalesDensTheme.muted(context),
               ),
             ),
             const SizedBox(height: 8),
@@ -112,35 +112,23 @@ class _WhmsReportStubScreenState extends State<WhmsReportStubScreen> {
               )
             else ...[
               if (widget.kind == 'order_perf') ...[
-                _metric(
-                  isDark,
-                  l10n.translate('whms.reports.metric_total'),
+                _metric(l10n.translate('whms.reports.metric_total'),
                   '${_summary.totalOrders}',
                 ),
-                _metric(
-                  isDark,
-                  l10n.translate('whms.reports.metric_completed'),
+                _metric(l10n.translate('whms.reports.metric_completed'),
                   '${_summary.completedOrders}',
                 ),
-                _metric(
-                  isDark,
-                  l10n.translate('whms.reports.metric_open'),
+                _metric(l10n.translate('whms.reports.metric_open'),
                   '${_summary.openOrders}',
                 ),
               ] else ...[
-                _metric(
-                  isDark,
-                  l10n.translate('whms.reports.metric_count_rows'),
+                _metric(l10n.translate('whms.reports.metric_count_rows'),
                   '${_summary.countResultRows}',
                 ),
-                _metric(
-                  isDark,
-                  l10n.translate('whms.reports.metric_var_sum'),
+                _metric(l10n.translate('whms.reports.metric_var_sum'),
                   _summary.countVarianceSum.toStringAsFixed(2),
                 ),
-                _metric(
-                  isDark,
-                  l10n.translate('whms.reports.metric_var_abs'),
+                _metric(l10n.translate('whms.reports.metric_var_abs'),
                   _summary.countVarianceAbsSum.toStringAsFixed(2),
                 ),
               ],
@@ -151,11 +139,11 @@ class _WhmsReportStubScreenState extends State<WhmsReportStubScreen> {
     );
   }
 
-  Widget _metric(bool isDark, String label, String value) {
+  Widget _metric(String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
       child: Material(
-        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        color: FieldSalesDensTheme.surface(context),
         borderRadius: BorderRadius.circular(8),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -166,7 +154,7 @@ class _WhmsReportStubScreenState extends State<WhmsReportStubScreen> {
                   label,
                   style: TextStyle(
                     fontSize: 13,
-                    color: isDark ? Colors.white : Colors.black87,
+                    color: FieldSalesDensTheme.title(context),
                   ),
                 ),
               ),
@@ -175,7 +163,7 @@ class _WhmsReportStubScreenState extends State<WhmsReportStubScreen> {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: isDark ? Colors.white : Colors.black87,
+                  color: FieldSalesDensTheme.title(context),
                 ),
               ),
             ],

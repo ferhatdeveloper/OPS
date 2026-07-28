@@ -6,6 +6,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/localization/app_localization.dart';
 import '../engine/hatwan_market_rates_service.dart';
@@ -223,7 +224,7 @@ class _CurrencyRatesScreenState extends State<CurrencyRatesScreen> {
     const Color primary = Color(0xFF375A7F);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: AppBar(
         backgroundColor: primary,
         elevation: 0,
@@ -290,7 +291,7 @@ class _CurrencyRatesScreenState extends State<CurrencyRatesScreen> {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: FieldSalesDensTheme.surface(context),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: Colors.grey.shade300),
                   ),

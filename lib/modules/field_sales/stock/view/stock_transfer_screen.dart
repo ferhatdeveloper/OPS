@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/localization/app_localization.dart';
 import '../engine/stock_transfer_service.dart';
 import '../model/stock_transfer_model.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 class StockTransferScreen extends StatefulWidget {
   const StockTransferScreen({Key? key}) : super(key: key);
@@ -34,10 +35,10 @@ class _StockTransferScreenState extends State<StockTransferScreen> {
     final l10n = AppLocalization.of(context);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: AppBar(
         flexibleSpace: Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,

@@ -3,6 +3,7 @@ import '../../../../service/print_settings_service.dart';
 import '../../../../service/bluetooth_print_service.dart';
 import 'package:blue_thermal_printer/blue_thermal_printer.dart';
 import '../../../../view/widgets/template_preview_card.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 class SlipDefaultsScreen extends StatefulWidget {
   const SlipDefaultsScreen({Key? key}) : super(key: key);
@@ -210,10 +211,10 @@ class _SlipDefaultsScreenState extends State<SlipDefaultsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: AppBar(
         flexibleSpace: Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -303,7 +304,7 @@ class _SlipDefaultsScreenState extends State<SlipDefaultsScreen> {
                     hint: const Text('Yazıcı Seçin'),
                     decoration: InputDecoration(
                       filled: true,
-                      fillColor: Colors.white,
+                      fillColor: FieldSalesDensTheme.surface(context),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade200)),
                       enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade200)),
                     ),
@@ -396,7 +397,7 @@ class _SlipDefaultsScreenState extends State<SlipDefaultsScreen> {
                     hint: const Text('Etiket Yazıcısı Seçin'),
                     decoration: InputDecoration(
                       filled: true,
-                      fillColor: Colors.white,
+                      fillColor: FieldSalesDensTheme.surface(context),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade200)),
                       enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade200)),
                     ),
@@ -445,7 +446,7 @@ class _SlipDefaultsScreenState extends State<SlipDefaultsScreen> {
                 value: _paperWidth,
                 decoration: InputDecoration(
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: FieldSalesDensTheme.surface(context),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade200)),
                   enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade200)),
                 ),
@@ -475,7 +476,7 @@ class _SlipDefaultsScreenState extends State<SlipDefaultsScreen> {
                 decoration: InputDecoration(
                   hintText: 'Örn: Bizi tercih ettiğiniz için teşekkürler!',
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: FieldSalesDensTheme.surface(context),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade200)),
                   enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade200)),
                 ),
@@ -490,7 +491,7 @@ class _SlipDefaultsScreenState extends State<SlipDefaultsScreen> {
                 decoration: InputDecoration(
                   hintText: 'Örn: https://exfinerp.com/feedback',
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: FieldSalesDensTheme.surface(context),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade200)),
                   enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade200)),
                 ),
@@ -523,7 +524,7 @@ class _SlipDefaultsScreenState extends State<SlipDefaultsScreen> {
       value: value,
       decoration: InputDecoration(
         filled: true,
-        fillColor: Colors.white,
+        fillColor: FieldSalesDensTheme.surface(context),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade200)),
         enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade200)),
       ),
