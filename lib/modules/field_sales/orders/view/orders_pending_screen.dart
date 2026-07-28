@@ -2,7 +2,7 @@
 // Açıklama: Bekleyen siparişler dens kuyruk (SQLite + ONAY durumu)
 // Oluşturulma Tarihi: 2026-07-26
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-26
+// Son Güncelleme: 2026-07-27
 
 import 'package:flutter/material.dart';
 
@@ -11,6 +11,7 @@ import '../../shared/view/mbt_sales_purchase_queue_body.dart';
 import '../model/order_pending_record.dart';
 import '../viewmodel/order_pending_store.dart';
 import '../widgets/order_pending_dens_tile.dart';
+import '../../shared/view/field_sales_dens_app_bar.dart';
 
 /// {@template orders_pending_screen}
 /// Bekleyen siparişler dens kuyruk (ONAY=0 · 1-SATIŞ / 2-ALIŞ).
@@ -95,26 +96,8 @@ class _OrdersPendingScreenState extends State<OrdersPendingScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FD),
-      appBar: AppBar(
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF375A7F), Color(0xFF00A8E8)],
-            ),
-          ),
-        ),
-        title: Text(
-          title,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-            color: Colors.white,
-          ),
-        ),
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
+      appBar: FieldSalesDensAppBar(
+        title: title,
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())

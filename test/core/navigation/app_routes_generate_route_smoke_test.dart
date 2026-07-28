@@ -2,11 +2,12 @@
 // Açıklama: AppRoutes.generateRoute null/unknown ve kritik path smoke
 // Oluşturulma Tarihi: 2026-07-26
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-26
+// Son Güncelleme: 2026-07-27
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:exfin_ops/core/init/navigation/routes.dart';
+import 'package:exfin_ops/modules/field_sales/products/view/product_catalog_screen.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -81,7 +82,12 @@ void main() {
         '/field-sales/visit-form',
         '/field-sales/visit-new',
         '/field-sales/visit-history',
+        '/field-sales/visit-detail',
         '/field-sales/visit-untransferred',
+        '/field-sales/weekly-route-plan',
+        '/field-sales/offline-map-download',
+        '/field-sales/in-app-route-map',
+        '/field-sales/routes/plan',
         '/field-sales/orders',
         '/field-sales/orders-list',
         '/field-sales/orders-tracking',
@@ -93,7 +99,12 @@ void main() {
         '/field-sales/invoices-untransferred',
         '/field-sales/invoices-approval',
         '/field-sales/cash-cards',
+        '/field-sales/cash-card-detail',
+        '/field-sales/bank-cards',
         '/field-sales/checks',
+        '/field-sales/promissory-list',
+        '/field-sales/company-general',
+        '/field-sales/manager-dashboard',
         '/field-sales/voucher-defaults',
         '/field-sales/invoice-defaults',
         '/field-sales/payment-entry',
@@ -111,8 +122,16 @@ void main() {
         '/field-sales/announcements',
         '/field-sales/admin',
         '/field-sales/currency-rates',
+        '/field-sales/companies',
+        '/field-sales/warehouses',
         '/field-sales/report-backup',
         '/field-sales/report-sales',
+        '/field-sales/report-cari',
+        '/field-sales/report-siparis',
+        '/field-sales/report-params',
+        '/field-sales/report-layout',
+        '/field-sales/report-pdf',
+        '/field-sales/report-logo-settings',
       ];
       for (final path in critical) {
         final route = AppRoutes.generateRoute(RouteSettings(name: path));
@@ -145,6 +164,28 @@ void main() {
           final page = route as MaterialPageRoute<dynamic>;
           expect(page.builder, isNotNull, reason: 'builder: $path');
         }
+      },
+    );
+
+    testWidgets(
+      'STOK Detay /field-sales/products → ProductCatalogScreen',
+      (tester) async {
+        final route = AppRoutes.generateRoute(
+          const RouteSettings(name: AppRoutes.fieldSalesProducts),
+        );
+        expect(route, isA<MaterialPageRoute<dynamic>>());
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Builder(
+              builder: (context) =>
+                  (route as MaterialPageRoute<dynamic>).builder(context),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        expect(find.byType(ProductCatalogScreen), findsOneWidget);
       },
     );
 

@@ -399,6 +399,9 @@ class LogoPayloadMapper {
     String? customerName,
     String? documentNo,
     String? currencyCode,
+    double? exchangeRate,
+    double? baseAmount,
+    String? baseCurrencyCode,
     String? salesmanCode,
     String? specialCode1,
     String? bankName,
@@ -449,6 +452,13 @@ class LogoPayloadMapper {
       },
       if (currencyCode != null && currencyCode.trim().isNotEmpty)
         'currency_code': currencyCode.trim(),
+      if (exchangeRate != null && exchangeRate > 0) ...{
+        'exchange_rate': exchangeRate,
+        'TC_XRATE': exchangeRate,
+      },
+      if (baseAmount != null && baseAmount > 0) 'base_amount': baseAmount,
+      if (baseCurrencyCode != null && baseCurrencyCode.trim().isNotEmpty)
+        'base_currency_code': baseCurrencyCode.trim(),
       if (salesmanCode != null && salesmanCode.trim().isNotEmpty)
         'salesman_code': salesmanCode.trim(),
       if (specialCode1 != null && specialCode1.trim().isNotEmpty)
@@ -908,5 +918,117 @@ class LogoPayloadMapper {
     } catch (_) {
       return raw;
     }
+  }
+
+  /// [bankCardEntityType]: JobQueue banka kart master
+  static const String bankCardEntityType = 'bank_card';
+
+  /// [checkPortfolioEntityType]: JobQueue çek portföy
+  static const String checkPortfolioEntityType = 'check_portfolio';
+
+  /// [promissoryPortfolioEntityType]: JobQueue senet portföy
+  static const String promissoryPortfolioEntityType = 'promissory_portfolio';
+
+  /// {@template bank_card_from_local}
+  /// `bank_cards` satırı → Logo banka hesap stub payload.
+  /// {@endtemplate}
+  static Map<String, dynamic> bankCardFromLocal(Map<String, dynamic> row) {
+    final code = _firstNonEmpty([
+      row['code'],
+      row['bank_code'],
+    ]) ??
+        '';
+    final name = _firstNonEmpty([
+      row['name'],
+      row['display_name'],
+      row['title'],
+    ]) ??
+        code;
+    return {
+      'entity_type': bankCardEntityType,
+      'local_id': row['id']?.toString() ?? '',
+      'bank_code': code,
+      'CODE': code,
+      'name': name,
+      'TITLE': name,
+      'balance_tl': _asDouble(row['balance_tl']),
+      'balance_usd': _asDouble(row['balance_usd']),
+      'balance_iqd': _asDouble(row['balance_iqd']),
+      'is_active': (row['is_active'] as num?)?.toInt() != 0,
+      'sync_stub': true,
+    };
+  }
+
+  /// {@template check_portfolio_from_local}
+  /// `check_portfolio` → Logo CSCARD çek stub (tahsilat alanları ile).
+  /// {@endtemplate}
+  static Map<String, dynamic> checkPortfolioFromLocal(
+    Map<String, dynamic> row, {
+    String? customerCode,
+  }) {
+    final arp = _firstNonEmpty([
+      customerCode,
+      row['customer_code'],
+      row['customer_id'],
+    ]) ??
+        '';
+    final dueRaw = row['due_date'];
+    DateTime? due;
+    if (dueRaw != null) {
+      due = DateTime.tryParse(dueRaw.toString());
+    }
+    final base = collectionFromLocal(
+      customerCode: arp,
+      amount: _asDouble(row['amount']),
+      paymentType: 'check',
+      bankName: row['bank_name']?.toString(),
+      branchName: row['branch_name']?.toString(),
+      checkNumber: row['check_number']?.toString(),
+      dueDate: due,
+      documentNo: row['document_no']?.toString(),
+    );
+    return {
+      ...base,
+      'entity_type': checkPortfolioEntityType,
+      'local_id': row['id']?.toString() ?? '',
+      'portfolio_status': row['check_status']?.toString() ?? '',
+      'sync_stub': true,
+    };
+  }
+
+  /// {@template promissory_portfolio_from_local}
+  /// `promissory_portfolio` → Logo CSCARD senet stub.
+  /// {@endtemplate}
+  static Map<String, dynamic> promissoryPortfolioFromLocal(
+    Map<String, dynamic> row, {
+    String? customerCode,
+  }) {
+    final arp = _firstNonEmpty([
+      customerCode,
+      row['customer_code'],
+      row['customer_id'],
+    ]) ??
+        '';
+    final dueRaw = row['due_date'];
+    DateTime? due;
+    if (dueRaw != null) {
+      due = DateTime.tryParse(dueRaw.toString());
+    }
+    final base = collectionFromLocal(
+      customerCode: arp,
+      amount: _asDouble(row['amount']),
+      paymentType: 'note',
+      bankName: row['bank_name']?.toString(),
+      checkNumber: row['note_number']?.toString(),
+      dueDate: due,
+      documentNo: row['document_no']?.toString(),
+    );
+    return {
+      ...base,
+      'entity_type': promissoryPortfolioEntityType,
+      'local_id': row['id']?.toString() ?? '',
+      'portfolio_status': row['note_status']?.toString() ?? '',
+      'sync_stub': true,
+    };
   }
 }

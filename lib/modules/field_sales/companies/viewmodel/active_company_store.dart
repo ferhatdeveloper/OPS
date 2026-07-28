@@ -4,6 +4,7 @@
 // Geliştirici: Ferhat NAS
 // Son Güncelleme: 2026-07-26
 
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/services/logo_rest_settings_service.dart';
@@ -50,6 +51,14 @@ class ActiveCompanyStore {
 
   /// [current]: Son kaydedilen / yüklenen oturum
   static ActiveCompanySession? get current => _current;
+
+  /// [revision]: Kaydet/yükle sonrası chip yenileme sinyali
+  static final ValueNotifier<int> revision = ValueNotifier<int>(0);
+
+  /// Chip / dinleyicilere değişiklik bildirir.
+  static void _notify() {
+    revision.value = revision.value + 1;
+  }
 
   /// Logo REST prefs senkronu (testte kapatılabilir)
   final bool syncLogoPrefs;
@@ -99,6 +108,7 @@ class ActiveCompanyStore {
     await prefs.setString(prefsEndDate, session.endDate.trim());
 
     _current = session.isEmpty ? null : session;
+    _notify();
 
     if (syncLogoPrefs && session.isNotEmpty) {
       await LogoRestSettingsService().setFirmaPeriod(
@@ -127,10 +137,12 @@ class ActiveCompanyStore {
     await prefs.remove(prefsStartDate);
     await prefs.remove(prefsEndDate);
     _current = null;
+    _notify();
   }
 
   /// Test / sıcak reload için bellek oturumunu sıfırlar.
   static void resetMemory() {
     _current = null;
+    revision.value = 0;
   }
 }

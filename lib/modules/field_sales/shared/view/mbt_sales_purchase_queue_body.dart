@@ -2,12 +2,15 @@
 // Açıklama: MBT kuyruk dens gövde — 1-SATIŞ/2-ALIŞ + dönem filtre
 // Oluşturulma Tarihi: 2026-07-26
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-26
+// Son Güncelleme: 2026-07-27
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/localization/app_localization.dart';
+import 'field_sales_dens_app_bar.dart';
+import 'field_sales_dens_filter_bar.dart';
+import 'field_sales_dens_theme.dart';
 
 /// {@template MbtQueueDocSide}
 /// Belge yönü: satış veya alış.
@@ -134,7 +137,7 @@ class _MbtSalesPurchaseQueueBodyState extends State<MbtSalesPurchaseQueueBody> {
   final TextEditingController _searchController = TextEditingController();
 
   /// [_primary]: OPS dens primary
-  static const Color _primary = Color(0xFF375A7F);
+  static const Color _primary = FieldSalesDensAppBar.primaryColor;
 
   @override
   void initState() {
@@ -254,46 +257,51 @@ class _MbtSalesPurchaseQueueBodyState extends State<MbtSalesPurchaseQueueBody> {
     final filtered = _filteredRows();
     final itemCount = filtered.length;
 
+    final periodEntries = <(MbtQueuePeriod, String)>[
+      (MbtQueuePeriod.today, 'field_sales.period_today'),
+      (MbtQueuePeriod.thisWeek, 'field_sales.period_this_week'),
+      (MbtQueuePeriod.thisMonth, 'field_sales.period_this_month'),
+      (MbtQueuePeriod.thisYear, 'field_sales.period_this_year'),
+    ];
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
-          child: _SegmentRow(
-            primary: _primary,
-            leftLabel: l10n.translate('field_sales.queue_tab_sales'),
-            rightLabel: l10n.translate('field_sales.queue_tab_purchase'),
-            leftSelected: _docSide == MbtQueueDocSide.sales,
-            onLeft: () => setState(() => _docSide = MbtQueueDocSide.sales),
-            onRight: () => setState(() => _docSide = MbtQueueDocSide.purchase),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-          child: Row(
-            children: [
-              for (final entry in <(MbtQueuePeriod, String)>[
-                (MbtQueuePeriod.today, 'field_sales.period_today'),
-                (MbtQueuePeriod.thisWeek, 'field_sales.period_this_week'),
-                (MbtQueuePeriod.thisMonth, 'field_sales.period_this_month'),
-                (MbtQueuePeriod.thisYear, 'field_sales.period_this_year'),
-              ])
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 2),
-                    child: _PeriodChip(
-                      primary: _primary,
-                      label: l10n.translate(entry.$2),
-                      selected: _period == entry.$1,
-                      onTap: () => _applyPeriod(entry.$1),
-                    ),
-                  ),
+        FieldSalesDensFilterBar(
+          children: [
+            FieldSalesDensChipRow(
+              primary: _primary,
+              items: [
+                FieldSalesDensChipItem(
+                  label: l10n.translate('field_sales.queue_tab_sales'),
+                  selected: _docSide == MbtQueueDocSide.sales,
+                  onTap: () =>
+                      setState(() => _docSide = MbtQueueDocSide.sales),
                 ),
-            ],
-          ),
+                FieldSalesDensChipItem(
+                  label: l10n.translate('field_sales.queue_tab_purchase'),
+                  selected: _docSide == MbtQueueDocSide.purchase,
+                  onTap: () =>
+                      setState(() => _docSide = MbtQueueDocSide.purchase),
+                ),
+              ],
+            ),
+            FieldSalesDensChipRow(
+              primary: _primary,
+              fontSize: 11,
+              items: [
+                for (final entry in periodEntries)
+                  FieldSalesDensChipItem(
+                    label: l10n.translate(entry.$2),
+                    selected: _period == entry.$1,
+                    onTap: () => _applyPeriod(entry.$1),
+                  ),
+              ],
+            ),
+          ],
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+          padding: const EdgeInsetsDirectional.fromSTEB(10, 0, 10, 0),
           child: Row(
             children: [
               Expanded(
@@ -317,7 +325,7 @@ class _MbtSalesPurchaseQueueBodyState extends State<MbtSalesPurchaseQueueBody> {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+          padding: const EdgeInsetsDirectional.fromSTEB(10, 6, 10, 4),
           child: TextField(
             controller: _searchController,
             textCapitalization: TextCapitalization.none,
@@ -326,12 +334,12 @@ class _MbtSalesPurchaseQueueBodyState extends State<MbtSalesPurchaseQueueBody> {
             decoration: InputDecoration(
               isDense: true,
               hintText: l10n.translate('common.search'),
-              hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 14),
+              hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 13),
               filled: true,
               fillColor: Colors.white,
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 10,
-                vertical: 10,
+                vertical: 8,
               ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
@@ -358,7 +366,7 @@ class _MbtSalesPurchaseQueueBodyState extends State<MbtSalesPurchaseQueueBody> {
                   ),
                 )
               : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+                  padding: const EdgeInsetsDirectional.fromSTEB(10, 4, 10, 8),
                   itemCount: filtered.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 6),
                   itemBuilder: (context, index) {
@@ -378,17 +386,19 @@ class _MbtSalesPurchaseQueueBodyState extends State<MbtSalesPurchaseQueueBody> {
                           ),
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.grey.shade200),
+                            border: Border.all(
+                              color: FieldSalesDensTheme.border(context),
+                            ),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
                                 row.title,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontWeight: FontWeight.w600,
                                   fontSize: 14,
-                                  color: Color(0xFF2C3E50),
+                                  color: FieldSalesDensTheme.title(context),
                                 ),
                               ),
                               if (row.subtitle.isNotEmpty) ...[
@@ -397,7 +407,7 @@ class _MbtSalesPurchaseQueueBodyState extends State<MbtSalesPurchaseQueueBody> {
                                   row.subtitle,
                                   style: TextStyle(
                                     fontSize: 12,
-                                    color: Colors.grey.shade600,
+                                    color: FieldSalesDensTheme.muted(context),
                                   ),
                                 ),
                               ],
@@ -426,184 +436,21 @@ class _MbtSalesPurchaseQueueBodyState extends State<MbtSalesPurchaseQueueBody> {
                 ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+          padding: const EdgeInsetsDirectional.fromSTEB(10, 0, 10, 10),
           child: Text(
             l10n.translate(
               'field_sales.queue_count_label',
               args: {'count': '$itemCount'},
             ),
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               fontWeight: FontWeight.w600,
               fontSize: 14,
-              color: Color(0xFF2C3E50),
+              color: FieldSalesDensTheme.title(context),
             ),
           ),
         ),
       ],
-    );
-  }
-}
-
-/// {@template _SegmentRow}
-/// İki bölmeli dens sekme satırı (1-SATIŞ / 2-ALIŞ).
-/// {@endtemplate}
-class _SegmentRow extends StatelessWidget {
-  /// [primary]: Vurgu rengi
-  final Color primary;
-
-  /// [leftLabel]: Sol sekme metni
-  final String leftLabel;
-
-  /// [rightLabel]: Sağ sekme metni
-  final String rightLabel;
-
-  /// [leftSelected]: Sol seçili mi
-  final bool leftSelected;
-
-  /// [onLeft]: Sol tap
-  final VoidCallback onLeft;
-
-  /// [onRight]: Sağ tap
-  final VoidCallback onRight;
-
-  const _SegmentRow({
-    required this.primary,
-    required this.leftLabel,
-    required this.rightLabel,
-    required this.leftSelected,
-    required this.onLeft,
-    required this.onRight,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _SegmentButton(
-            primary: primary,
-            label: leftLabel,
-            selected: leftSelected,
-            onTap: onLeft,
-          ),
-        ),
-        const SizedBox(width: 6),
-        Expanded(
-          child: _SegmentButton(
-            primary: primary,
-            label: rightLabel,
-            selected: !leftSelected,
-            onTap: onRight,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// {@template _SegmentButton}
-/// Tek dens segment düğmesi.
-/// {@endtemplate}
-class _SegmentButton extends StatelessWidget {
-  /// [primary]: Vurgu rengi
-  final Color primary;
-
-  /// [label]: Etiket
-  final String label;
-
-  /// [selected]: Seçili mi
-  final bool selected;
-
-  /// [onTap]: Tap
-  final VoidCallback onTap;
-
-  const _SegmentButton({
-    required this.primary,
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: selected ? Colors.white : primary,
-      borderRadius: BorderRadius.circular(8),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: primary),
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 13,
-              color: selected ? primary : Colors.white,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// {@template _PeriodChip}
-/// Dönem dens chip.
-/// {@endtemplate}
-class _PeriodChip extends StatelessWidget {
-  /// [primary]: Vurgu rengi
-  final Color primary;
-
-  /// [label]: Etiket
-  final String label;
-
-  /// [selected]: Seçili mi
-  final bool selected;
-
-  /// [onTap]: Tap
-  final VoidCallback onTap;
-
-  const _PeriodChip({
-    required this.primary,
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: selected ? Colors.white : primary.withOpacity(0.85),
-      borderRadius: BorderRadius.circular(6),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(6),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: primary),
-          ),
-          child: Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 11,
-              color: selected ? primary : Colors.white,
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

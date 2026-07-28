@@ -1424,7 +1424,13 @@
     "welcome_message": "Привет! Я EXFIN AI Assistant. Могу я чем-нибудь помочь?",
     "analyzing_data": "Я понимаю, что анализирую ваши данные...",
     "ai_assistant": "Помощник по искусственному интеллекту",
-    "type_your_message": "Напишите свое сообщение..."
+    "type_your_message": "Напишите свое сообщение...",
+    "model_select": "Модель OpenRouter",
+    "model_select_hint": "Выберите модель из списка",
+    "model_list_loading": "Загрузка моделей…",
+    "model_list_refresh": "Обновить список",
+    "model_list_fallback": "Нет списка API — показаны фиксированные популярные модели",
+    "model_selected": "Модель сохранена"
   },
   "gamification": {
     "title": "Центр геймификации",
@@ -1458,6 +1464,29 @@
     "balance_bucket_warehouse": "складской запас",
     "route_ops_stub": "Заглушка ОПС (россыпь)",
     "route_whms_future": "Целевой маршрут WHMS (в будущем)",
-    "phase2_shell": "WHMS этап 2 — оболочка готова; баланс Logo + очередь одобренных перемещений; живой WHMS REST нет"
+    "phase2_shell": "WHMS этап 2 — оболочка готова; баланс Logo + очередь одобренных перемещений; живой WHMS REST нет",
+    "count": {
+      "title": "Инвентаризация",
+      "empty": "Нет заказов",
+      "search_hint": "Поиск",
+      "create": "Заказ",
+      "warehouse": "Склад",
+      "status": "Статус",
+      "enqueue_ok": "В очереди",
+      "enqueue_skip": "Нужно утверждение",
+      "execute_title": "Провести инвентаризацию",
+      "scan_barcode": "Сканировать штрихкод",
+      "system_qty": "Система",
+      "actual_qty": "Факт",
+      "variance": "Отклонение",
+      "complete": "Завершить",
+      "qty_dialog": "Фактическое кол-во",
+      "lines_empty": "Отсканируйте штрихкод или добавьте строку",
+      "lines_required": "Нужна хотя бы одна строка",
+      "product_not_found": "Товар не найден",
+      "load_failed": "Не удалось загрузить заказ",
+      "complete_failed": "Не удалось завершить",
+      "already_done": "Инвентаризация уже завершена"
+    }
   }
 }

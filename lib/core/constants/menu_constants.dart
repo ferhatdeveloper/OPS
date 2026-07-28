@@ -53,13 +53,17 @@ class ModuleSubmenuItem {
   /// Menü seed `route` — boşsa dashboard title-switch kullanılır
   final String route;
 
+  /// [uuid]: SQLite menu.uuid (`sub_*`) — rol alt menü filtresi
+  final String uuid;
+
   const ModuleSubmenuItem({
     required this.title,
     this.route = '',
+    this.uuid = '',
   });
 
   Map<String, dynamic> toMap() {
-    return {'title': title, 'route': route};
+    return {'title': title, 'route': route, 'uuid': uuid};
   }
 }
 
@@ -67,6 +71,9 @@ class ModuleSubmenuItem {
 class ModuleCardData {
   /// [id]: SQLite menu.id — favori toggle için (0 = sentetik kart)
   final int id;
+
+  /// [uuid]: SQLite menu.uuid (`fs_*`) — rol menü filtresi
+  final String uuid;
 
   final String title;
   final String subtitle;
@@ -78,6 +85,7 @@ class ModuleCardData {
 
   const ModuleCardData({
     this.id = 0,
+    this.uuid = '',
     required this.title,
     required this.subtitle,
     required this.icon,
@@ -89,6 +97,7 @@ class ModuleCardData {
   Map<String, dynamic> toMap() {
     return {
       'id': id,
+      'uuid': uuid,
       'title': title,
       'subtitle': subtitle,
       'icon': icon,

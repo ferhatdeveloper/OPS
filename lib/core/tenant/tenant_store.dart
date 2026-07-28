@@ -77,8 +77,12 @@ class TenantStore {
     return ctx;
   }
 
-  /// SaaS kök override (boşsa varsayılan).
+  /// SaaS kök: dart-define > prefs override > varsayılan.
   Future<String> loadSaasOrigin() async {
+    final defined = PostgrestTenantDefaults.webSaasOriginDefine
+        .trim()
+        .replaceAll(RegExp(r'/+$'), '');
+    if (defined.isNotEmpty) return defined;
     final override = await loadSaasOriginOverride();
     return override.isEmpty
         ? PostgrestTenantDefaults.saasOrigin
@@ -106,11 +110,11 @@ class TenantStore {
     final prefs = await SharedPreferences.getInstance();
     final previousRaw = (prefs.getString(prefsSaasOrigin) ?? '').trim();
     final previousEffective = previousRaw.isEmpty
-        ? PostgrestTenantDefaults.saasOrigin
+        ? PostgrestTenantDefaults.effectiveSaasOrigin
         : previousRaw;
     final o = origin.trim().replaceAll(RegExp(r'/+$'), '');
     final nextEffective =
-        o.isEmpty ? PostgrestTenantDefaults.saasOrigin : o;
+        o.isEmpty ? PostgrestTenantDefaults.effectiveSaasOrigin : o;
 
     if (o.isEmpty) {
       await prefs.remove(prefsSaasOrigin);

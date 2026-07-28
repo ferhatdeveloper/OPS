@@ -81,6 +81,8 @@ class VisitModel {
   final String? notes;
   /// VisitReasonMaster stabil kodu (ROUTINE, ORDER, …)
   final String? reasonCode;
+  /// STT oturumu ses dosyası yolu (metadata; `record` paketi yoksa stub)
+  final String? audioRecordingPath;
   final String status; // 'Open', 'Completed'
   final int? durationMinutes;
   final bool isSynced;
@@ -98,6 +100,7 @@ class VisitModel {
     this.checkOutLong,
     this.notes,
     this.reasonCode,
+    this.audioRecordingPath,
     this.status = 'Open',
     this.durationMinutes,
     this.isSynced = false,
@@ -119,6 +122,7 @@ class VisitModel {
       checkOutLong: (map['check_out_long'] as num?)?.toDouble(),
       notes: map['notes'] as String?,
       reasonCode: map['reason_code'] as String?,
+      audioRecordingPath: map['audio_recording_path'] as String?,
       status: map['status'] as String? ?? 'Open',
       durationMinutes: map['duration_minutes'] as int?,
       isSynced: (map['is_synced'] as int?) == 1,
@@ -139,6 +143,7 @@ class VisitModel {
       'check_out_long': checkOutLong,
       'notes': notes,
       'reason_code': reasonCode,
+      'audio_recording_path': audioRecordingPath,
       'status': status,
       'duration_minutes': durationMinutes,
       'is_synced': isSynced ? 1 : 0,

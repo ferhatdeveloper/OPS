@@ -10,6 +10,8 @@ import '../../../../core/localization/app_localization.dart';
 import '../../other/model/day_status_record.dart';
 import '../../other/viewmodel/day_status_store.dart';
 import '../../other/widgets/day_status_mbt_fields.dart';
+import '../../gps/viewmodel/live_location_session.dart';
+import '../../../../service/auth_service.dart';
 
 /// {@template day_open_screen}
 /// MBT "Güne Başlama" ekranı (plaka + başlangıç KM).
@@ -107,6 +109,11 @@ class _DayOpenScreenState extends State<DayOpenScreen> {
         now: DateTime.now(),
       );
       await _store.save(next);
+      final user = AuthService.getCurrentUser() ?? '';
+      await LiveLocationSession().start(
+        userId: user,
+        salespersonCode: user,
+      );
       if (!mounted) return;
       final l10n = AppLocalization.of(context);
       setState(() => _record = next);

@@ -36,6 +36,9 @@ void main() {
           enabled: false,
           radiusMeters: 250,
           failClosed: false,
+          orderRequireGeofence: true,
+          proximityAlertsEnabled: false,
+          proximityRadiusMeters: 180,
         ),
       );
 
@@ -43,6 +46,25 @@ void main() {
       expect(loaded.enabled, isFalse);
       expect(loaded.radiusMeters, 250);
       expect(loaded.failClosed, isFalse);
+      expect(loaded.orderRequireGeofence, isTrue);
+      expect(loaded.proximityAlertsEnabled, isFalse);
+      expect(loaded.proximityRadiusMeters, 180);
+      expect(loaded.effectiveProximityRadiusMeters, 180);
+    });
+
+    test('proximityRadius 0 → effective check-in yarıçapı', () {
+      const r = GeofenceSettingsRecord(
+        radiusMeters: 120,
+        proximityRadiusMeters: 0,
+      );
+      expect(r.effectiveProximityRadiusMeters, 120);
+    });
+
+    test('orderRequireGeofence varsayılan false', () async {
+      const store = GeofenceSettingsStore();
+      final record = await store.load();
+      expect(record.orderRequireGeofence, isFalse);
+      expect(record.proximityAlertsEnabled, isTrue);
     });
 
     test('save yarıçapı min/max aralığına sıkıştırır', () async {

@@ -3,6 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../../../core/localization/app_localization.dart';
+import '../../maps/viewmodel/offline_map_tile_store.dart';
 import '../engine/route_optimizer.dart';
 import '../model/route_model.dart';
 
@@ -83,8 +84,38 @@ class _RouteMapScreenState extends State<RouteMapScreen> {
         ),
         children: [
           TileLayer(
-            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+            urlTemplate: OfflineMapTileStore.tileUrlTemplate,
+            subdomains: OfflineMapTileStore.tileSubdomains,
             userAgentPackageName: 'com.exfin.ops',
+            tileProvider: NetworkTileProvider(
+              headers: OfflineMapTileStore.tileRequestHeaders,
+              silenceExceptions: true,
+            ),
+          ),
+          Align(
+            alignment: Alignment.bottomRight,
+            child: Padding(
+              padding: const EdgeInsets.all(4),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.8),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  child: Text(
+                    l10n.translate('field_sales.offline_maps.attribution'),
+                    style: TextStyle(
+                      fontSize: 9,
+                      color: Colors.grey.shade800,
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
           PolylineLayer<Object>(polylines: [polyline]),
           MarkerLayer(markers: markers),

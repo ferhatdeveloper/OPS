@@ -1,41 +1,28 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/localization/app_localization.dart';
+// Dosya Adı: warehouse_management_screen.dart
+// Açıklama: Inventory depo — OPS çoklu ambar dens ekranına yönlendirir
+// Oluşturulma Tarihi: 2024-03-20
+// Geliştirici: Ferhat NAS
+// Son Güncelleme: 2026-07-28
 
-class WarehouseManagementScreen extends ConsumerStatefulWidget {
+import 'package:flutter/material.dart';
+
+import '../../field_sales/stock/view/multi_warehouse_screen.dart';
+
+/// {@template warehouse_management_screen}
+/// Eski inventory “Depo Yönetimi” girişi — OPS `MultiWarehouseScreen` dens.
+/// WHMS domain değil; canlı REST yok.
+///
+/// Kullanım örneği:
+/// ```dart
+/// const WarehouseManagementScreen();
+/// ```
+/// {@endtemplate}
+class WarehouseManagementScreen extends StatelessWidget {
+  /// {@macro warehouse_management_screen}
   const WarehouseManagementScreen({Key? key}) : super(key: key);
 
   @override
-  ConsumerState<WarehouseManagementScreen> createState() => _WarehouseManagementScreenState();
-}
-
-class _WarehouseManagementScreenState extends ConsumerState<WarehouseManagementScreen> {
-  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(AppLocalization.of(context).translate('inventory.warehouse_management')),
-        backgroundColor: const Color(0xFF8B7CC7),
-        foregroundColor: Colors.white,
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.warehouse, size: 64, color: Colors.grey),
-            const SizedBox(height: 16),
-            Text(
-              AppLocalization.of(context).translate('inventory.warehouse_management_module'),
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              AppLocalization.of(context).translate('inventory.warehouse_management_desc'),
-              style: const TextStyle(color: Colors.grey),
-            ),
-          ],
-        ),
-      ),
-    );
+    return const MultiWarehouseScreen();
   }
 }

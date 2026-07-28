@@ -67,4 +67,71 @@ void main() {
     final miss = await store.loadAll(search: 'XXXX-YOK');
     expect(miss, isEmpty);
   });
+
+  test('upsert ürün yazar ve sync_queue ekler', () async {
+    final db = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath);
+    addTearDown(() async => db.close());
+
+    final store = ProductCatalogStore(openDb: () async => db);
+    await store.ensureReady();
+    await db.delete(ProductCatalogStore.tableName);
+
+    final saved = await store.upsert(
+      const ProductCatalogRow(
+        id: 'p-new',
+        code: 'NEW-01',
+        name: 'Yeni Ürün',
+        price: 12.5,
+        vatRate: 20,
+      ),
+    );
+    expect(saved.id, 'p-new');
+    expect(saved.code, 'NEW-01');
+
+    final rows = await store.loadAll();
+    expect(rows, hasLength(1));
+    expect(rows.single.name, 'Yeni Ürün');
+
+    final queue = await db.query('sync_queue');
+    expect(queue, isNotEmpty);
+    expect(queue.first['entity_type'], 'product');
+    expect(queue.first['entity_id'], 'p-new');
+  });
+
+  test('deleteById ürünü siler ve queue delete ekler', () async {
+    final db = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath);
+    addTearDown(() async => db.close());
+
+    final store = ProductCatalogStore(openDb: () async => db);
+    await store.upsert(
+      const ProductCatalogRow(
+        id: 'p-del',
+        code: 'DEL-01',
+        name: 'Silinecek',
+      ),
+    );
+    final ok = await store.deleteById('p-del');
+    expect(ok, isTrue);
+    expect(await store.getById('p-del'), isNull);
+
+    final queue = await db.query(
+      'sync_queue',
+      where: 'entity_id = ?',
+      whereArgs: ['p-del'],
+    );
+    expect(queue.any((r) => (r['payload'] as String).contains('"op":"delete"')),
+        isTrue);
+  });
+
+  test('upsert boş kod/ad ArgumentError fırlatır', () async {
+    final db = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath);
+    addTearDown(() async => db.close());
+    final store = ProductCatalogStore(openDb: () async => db);
+    expect(
+      () => store.upsert(
+        const ProductCatalogRow(id: 'x', code: '', name: 'A'),
+      ),
+      throwsA(isA<ArgumentError>()),
+    );
+  });
 }

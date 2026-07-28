@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../model/invoice_model.dart';
@@ -162,8 +163,20 @@ class InvoiceNotifier extends StateNotifier<InvoiceState> {
     );
   }
 
-  Future<void> addItem(String productId, String name, double price, double quantity, {double vatRate = 20.0}) async {
-    final existingIndex = state.items.indexWhere((i) => i.productId == productId);
+  /// {@template invoice_add_item}
+  /// Fatura satırına ürün ekler (aynı ürün+birim birleşir).
+  /// {@endtemplate}
+  Future<void> addItem(
+    String productId,
+    String name,
+    double price,
+    double quantity, {
+    double vatRate = 20.0,
+    String? unitName,
+  }) async {
+    final existingIndex = state.items.indexWhere(
+      (i) => i.productId == productId && i.unitName == unitName,
+    );
     List<InvoiceItemModel> newItems = List.from(state.items);
 
     if (existingIndex != -1) {
@@ -178,6 +191,7 @@ class InvoiceNotifier extends StateNotifier<InvoiceState> {
         vatAmount: (price * newQty) * (vatRate / 100),
         totalAmount: price * newQty,
         productName: name,
+        unitName: unitName ?? existing.unitName,
       );
     } else {
       newItems.add(InvoiceItemModel(
@@ -189,6 +203,7 @@ class InvoiceNotifier extends StateNotifier<InvoiceState> {
         vatAmount: (price * quantity) * (vatRate / 100),
         totalAmount: price * quantity,
         productName: name,
+        unitName: unitName,
       ));
     }
 
@@ -196,24 +211,30 @@ class InvoiceNotifier extends StateNotifier<InvoiceState> {
     _calculateTotals();
   }
 
-  void updateQuantity(String productId, double quantity) {
+  /// {@template invoice_update_quantity}
+  /// Satır miktarını günceller (0 → satır silinir). [itemId] ile eşleşir.
+  /// {@endtemplate}
+  void updateQuantity(String itemId, double quantity) {
     if (quantity <= 0) {
-      state = state.copyWith(items: state.items.where((i) => i.productId != productId).toList());
+      state = state.copyWith(
+        items: state.items.where((i) => i.id != itemId).toList(),
+      );
       _calculateTotals();
       return;
     }
 
     final newItems = state.items.map((i) {
-      if (i.productId == productId) {
+      if (i.id == itemId) {
         return InvoiceItemModel(
           id: i.id,
           invoiceId: i.invoiceId,
           productId: i.productId,
           quantity: quantity,
           price: i.price,
-          vatAmount: (i.price * quantity) * 0.2, 
+          vatAmount: (i.price * quantity) * 0.2,
           totalAmount: i.price * quantity,
           productName: i.productName,
+          unitName: i.unitName,
         );
       }
       return i;
@@ -436,14 +457,18 @@ class InvoiceNotifier extends StateNotifier<InvoiceState> {
         priority: 2,
       );
 
-      // Phase 9: Reward Points
-      final session = await db.getUserSession();
-      final userId = session?['id'] as String? ?? 'current_user';
-      await GamificationService().addPoints(
-        userId,
-        GamificationService.pointsPerInvoice, 
-        'Yeni Fatura Kesildi: ${draft.id}'
-      );
+      // Phase 9: Reward Points — puan hatası fatura kaydını engellemez
+      try {
+        final session = await db.getUserSession();
+        final userId = session?['id'] as String? ?? 'current_user';
+        await GamificationService().addPoints(
+          userId,
+          GamificationService.pointsPerInvoice,
+          'Yeni Fatura Kesildi: ${draft.id}',
+        );
+      } catch (e) {
+        debugPrint('Invoice gamification skipped: $e');
+      }
 
       // Notify
       await NotificationService().showNotification(

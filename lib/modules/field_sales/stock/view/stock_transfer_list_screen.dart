@@ -1,26 +1,58 @@
 // Dosya Adı: stock_transfer_list_screen.dart
-// Açıklama: Stok transfer edilen/edilmeyen dens liste iskeleti
+// Açıklama: Stok transfer edilen/edilmeyen dens liste — SQLite warehouse_transfers
 // Oluşturulma Tarihi: 2026-07-26
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-26
+// Son Güncelleme: 2026-07-28
 
 import 'package:flutter/material.dart';
 
 import '../../../../core/localization/app_localization.dart';
+import '../../shared/view/field_sales_dens_app_bar.dart';
+import '../engine/stock_transfer_service.dart';
+import '../model/stock_transfer_model.dart';
 
 /// {@template stock_transfer_list_mode}
 /// Transfer listesi modu (edilen / edilmeyen).
 /// {@endtemplate}
 enum StockTransferListMode {
-  /// Transfer edilen stok fişleri
+  /// Transfer edilen stok fişleri (is_synced=1)
   transferred,
 
-  /// Transfer edilmeyen stok fişleri
+  /// Transfer edilmeyen stok fişleri (is_synced=0)
   untransferred,
 }
 
+/// {@template stock_transfer_dens_group}
+/// Dens grup satırı: depo · tarih · satır adedi.
+/// {@endtemplate}
+class StockTransferDensGroup {
+  /// [id]: Grup anahtarı
+  final String id;
+
+  /// [warehouse]: Kaynak→hedef özeti
+  final String warehouse;
+
+  /// [date]: Görünen tarih
+  final String date;
+
+  /// [lineCount]: Kalem sayısı
+  final int lineCount;
+
+  /// [synced]: Sync durumu
+  final bool synced;
+
+  /// {@macro stock_transfer_dens_group}
+  const StockTransferDensGroup({
+    required this.id,
+    required this.warehouse,
+    required this.date,
+    required this.lineCount,
+    required this.synced,
+  });
+}
+
 /// {@template stock_transfer_list_screen}
-/// Stok transfer listesi dens iskeleti — her satırda Depo · Tarih · Satırlar.
+/// Stok transfer listesi dens — SQLite `warehouse_transfers` gruplu.
 ///
 /// Rotalar:
 /// - `/field-sales/stock-transferred`
@@ -31,7 +63,7 @@ enum StockTransferListMode {
 /// const StockTransferListScreen(mode: StockTransferListMode.transferred);
 /// ```
 /// {@endtemplate}
-class StockTransferListScreen extends StatelessWidget {
+class StockTransferListScreen extends StatefulWidget {
   /// [routeTransferred]: Transfer edilenler yolu
   static const String routeTransferred = '/field-sales/stock-transferred';
 
@@ -41,82 +73,149 @@ class StockTransferListScreen extends StatelessWidget {
   /// [mode]: Liste filtresi
   final StockTransferListMode mode;
 
+  /// [initialGroups]: Test enjeksiyonu
+  final List<StockTransferDensGroup>? initialGroups;
+
+  /// [loader]: Test / özel yükleyici
+  final Future<List<StockTransferModel>> Function()? loader;
+
+  /// {@macro stock_transfer_list_screen}
   const StockTransferListScreen({
     Key? key,
     required this.mode,
+    this.initialGroups,
+    this.loader,
   }) : super(key: key);
 
-  /// Yer tutucu dens satırlar (alanlar görünür olsun).
-  List<Map<String, String>> _placeholderRows(AppLocalization l10n) {
-    final warehouseCenter =
-        l10n.translate('field_sales.stock_slip.warehouse_center');
-    final warehouseVehicle =
-        l10n.translate('field_sales.stock_slip.warehouse_vehicle');
-    if (mode == StockTransferListMode.transferred) {
-      return [
-        {
-          'id': 'STK-T-001',
-          'warehouse': warehouseCenter,
-          'date': '24.07.2026',
-          'lines': '4',
-        },
-        {
-          'id': 'STK-T-002',
-          'warehouse': warehouseVehicle,
-          'date': '25.07.2026',
-          'lines': '2',
-        },
-      ];
+  /// {@template stock_transfer_list_group_rows}
+  /// Satırları dens gruplara çevirir (gün + kaynak/hedef + sync).
+  ///
+  /// Parametreler:
+  /// - [rows]: Ham transfer satırları
+  /// - [syncedOnly]: true → is_synced=1; false → is_synced=0
+  ///
+  /// Dönüş değeri:
+  /// - [List]<[StockTransferDensGroup]>
+  /// {@endtemplate}
+  static List<StockTransferDensGroup> groupRows(
+    List<StockTransferModel> rows, {
+    required bool syncedOnly,
+  }) {
+    final filtered = rows.where((r) => r.isSynced == syncedOnly);
+    final map = <String, StockTransferDensGroup>{};
+    for (final r in filtered) {
+      final day = DateTime(
+        r.transferDate.year,
+        r.transferDate.month,
+        r.transferDate.day,
+      );
+      final key =
+          '${r.fromWarehouse}|${r.toWarehouse}|${day.toIso8601String()}|'
+          '${r.isSynced ? 1 : 0}';
+      final existing = map[key];
+      if (existing == null) {
+        map[key] = StockTransferDensGroup(
+          id: key,
+          warehouse: '${r.fromWarehouse} → ${r.toWarehouse}',
+          date: _fmtDate(day),
+          lineCount: 1,
+          synced: r.isSynced,
+        );
+      } else {
+        map[key] = StockTransferDensGroup(
+          id: existing.id,
+          warehouse: existing.warehouse,
+          date: existing.date,
+          lineCount: existing.lineCount + 1,
+          synced: existing.synced,
+        );
+      }
     }
-    return [
-      {
-        'id': 'STK-U-001',
-        'warehouse': warehouseVehicle,
-        'date': '26.07.2026',
-        'lines': '3',
-      },
-    ];
+    final list = map.values.toList(growable: false);
+    list.sort((a, b) => b.date.compareTo(a.date));
+    return list;
+  }
+
+  static String _fmtDate(DateTime d) {
+    final dd = d.day.toString().padLeft(2, '0');
+    final mm = d.month.toString().padLeft(2, '0');
+    return '$dd.$mm.${d.year}';
+  }
+
+  @override
+  State<StockTransferListScreen> createState() =>
+      _StockTransferListScreenState();
+}
+
+class _StockTransferListScreenState extends State<StockTransferListScreen> {
+  List<StockTransferDensGroup> _groups = const [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    final injected = widget.initialGroups;
+    if (injected != null) {
+      _groups = injected;
+      _loading = false;
+    } else {
+      _load();
+    }
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      final loader = widget.loader ?? StockTransferService.getTransfers;
+      final rows = await loader();
+      if (!mounted) return;
+      setState(() {
+        _groups = StockTransferListScreen.groupRows(
+          rows,
+          syncedOnly: widget.mode == StockTransferListMode.transferred,
+        );
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _groups = const [];
+        _loading = false;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalization.of(context);
-    final titleKey = mode == StockTransferListMode.transferred
+    final titleKey = widget.mode == StockTransferListMode.transferred
         ? 'field_sales.stubs.stock_transferred'
         : 'field_sales.stubs.stock_untransferred';
-    final rows = _placeholderRows(l10n);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
-      appBar: AppBar(
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF375A7F), Color(0xFF00A8E8)],
-            ),
+      backgroundColor: isDark ? const Color(0xFF121212) : const Color(0xFFF8F9FD),
+      appBar: FieldSalesDensAppBar(
+        title: l10n.translate(titleKey),
+        actions: [
+          FieldSalesDensAppBar.densIconButton(
+            icon: Icons.refresh,
+            onPressed: _load,
           ),
-        ),
-        title: Text(
-          l10n.translate(titleKey),
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
-        ),
-        foregroundColor: Colors.white,
-        elevation: 0,
+        ],
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            padding: const EdgeInsets.fromLTRB(10, 6, 10, 4),
             child: Text(
               l10n.translate('field_sales.stock_slip.list_hint'),
-              style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
+              style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+            padding: const EdgeInsets.fromLTRB(10, 2, 10, 4),
             child: Row(
               children: [
                 Expanded(
@@ -156,83 +255,83 @@ class StockTransferListScreen extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-              itemCount: rows.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
-              itemBuilder: (context, index) {
-                final row = rows[index];
-                final linesLabel = l10n
-                    .translate('field_sales.stock_slip.line_count')
-                    .replaceAll('{count}', row['lines']!);
-                return Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.grey.shade200),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF375A7F).withOpacity(0.08),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        row['id']!,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
+            child: _loading
+                ? const Center(
+                    child: SizedBox(
+                      width: 28,
+                      height: 28,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                : _groups.isEmpty
+                    ? Center(
+                        child: Text(
+                          l10n.translate('field_sales.queue_empty'),
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey.shade600,
+                          ),
                         ),
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+                        itemCount: _groups.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 4),
+                        itemBuilder: (context, index) {
+                          final g = _groups[index];
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? const Color(0xFF1F1B24)
+                                  : Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: FieldSalesDensAppBar.primaryColor
+                                    .withValues(alpha: 0.25),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    g.warehouse,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(
+                                  width: 88,
+                                  child: Text(
+                                    g.date,
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                ),
+                                SizedBox(
+                                  width: 72,
+                                  child: Text(
+                                    l10n.translate(
+                                      'field_sales.stock_slip.line_count',
+                                    ).replaceAll(
+                                      '{count}',
+                                      '${g.lineCount}',
+                                    ),
+                                    textAlign: TextAlign.end,
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
                       ),
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              row['warehouse']!,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey.shade700,
-                              ),
-                            ),
-                          ),
-                          SizedBox(
-                            width: 88,
-                            child: Text(
-                              row['date']!,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey.shade700,
-                              ),
-                            ),
-                          ),
-                          SizedBox(
-                            width: 72,
-                            child: Text(
-                              linesLabel,
-                              textAlign: TextAlign.end,
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.grey.shade800,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
           ),
         ],
       ),

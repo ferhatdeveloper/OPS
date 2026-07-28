@@ -124,13 +124,15 @@ class PostgrestTenantService {
         saasOrigin: saasOrigin,
       );
 
-      // Aynı kod için kayıtlı rest URL tercih et (özel deploy / registry)
+      // Aynı kod için kayıtlı rest URL tercih et (özel deploy / registry).
+      // SaaS kök değişince TenantStore remoteRestUrl’yi zaten temizler;
+      // burada startsWith(origin) ile özel deploy URL’lerini düşürme.
       if (cached.isNotEmpty &&
           cached.tenantCode.toLowerCase() ==
               resolved.tenantCode.toLowerCase() &&
-              cached.remoteRestUrl.trim().isNotEmpty) {
+          cached.remoteRestUrl.trim().isNotEmpty) {
         resolved = resolved.copyWith(
-          remoteRestUrl: cached.remoteRestUrl,
+          remoteRestUrl: cached.remoteRestUrl.trim(),
           schema: cached.schema,
           source: 'cached',
         );
@@ -170,13 +172,19 @@ class PostgrestTenantService {
         final codeMatch = input.isNotEmpty &&
             cached.tenantCode.toLowerCase() == input.toLowerCase();
         if (codeMatch || input.isEmpty) {
-          _bindPostgres(cached);
-          return TenantApplyResult(
-            ok: true,
-            context: cached,
-            usedOfflineCache: true,
-            errorDetail: e.message,
-          );
+          try {
+            _bindPostgres(cached);
+            return TenantApplyResult(
+              ok: true,
+              context: cached,
+              usedOfflineCache: true,
+              errorDetail: e.message,
+            );
+          } catch (bindError) {
+            debugPrint(
+              'PostgrestTenantService FormatException bind: $bindError',
+            );
+          }
         }
       }
       return TenantApplyResult(
@@ -206,20 +214,29 @@ class PostgrestTenantService {
           usedOfflineCache: true,
           errorDetail: e.toString(),
         );
-      } catch (_) {
+      } catch (fallbackError) {
+        debugPrint(
+          'PostgrestTenantService.applyTenantCode fallback: $fallbackError',
+        );
         if (allowOfflineLastTenant && cached.isNotEmpty) {
-          _bindPostgres(cached);
-          return TenantApplyResult(
-            ok: true,
-            context: cached,
-            usedOfflineCache: true,
-            errorDetail: e.toString(),
-          );
+          try {
+            _bindPostgres(cached);
+            return TenantApplyResult(
+              ok: true,
+              context: cached,
+              usedOfflineCache: true,
+              errorDetail: e.toString(),
+            );
+          } catch (bindError) {
+            debugPrint(
+              'PostgrestTenantService.applyTenantCode cache bind: $bindError',
+            );
+          }
         }
         return TenantApplyResult(
           ok: false,
           errorKey: 'auth.tenant_resolve_failed',
-          errorDetail: e.toString(),
+          errorDetail: '$e | $fallbackError',
         );
       }
     }
@@ -268,9 +285,15 @@ class PostgrestTenantService {
       final code = codeMatch?.group(1)?.trim() ?? tenantCode;
       if (restUrl.isEmpty) return null;
 
+      final normalized = TenantConnectionResolver.normalizeBaseUrl(restUrl);
+      final effective = TenantConnectionResolver.rewriteRestUrlForSaasOrigin(
+        normalized,
+        saasOrigin: saasOrigin,
+      );
+
       return TenantResolveResult(
         tenantCode: code,
-        remoteRestUrl: TenantConnectionResolver.normalizeBaseUrl(restUrl),
+        remoteRestUrl: effective,
         schema: PostgrestTenantDefaults.defaultSchema,
         source: 'tenant_registry',
       );

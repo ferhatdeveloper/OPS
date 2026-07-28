@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../viewmodel/visit_open_redirect.dart';
 import '../viewmodel/visit_provider.dart';
 import '../../merchandising/viewmodel/merchandising_provider.dart';
 import '../../merchandising/view/audit_form_screen.dart';
@@ -375,11 +376,18 @@ class _RoutePlanScreenState extends ConsumerState<RoutePlanScreen> {
 
   void _handleCheckIn(String customerId, AppLocalization l10n) async {
     final success = await ref.read(visitProvider.notifier).checkIn(customerId);
+    if (!mounted) return;
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.translate('field_sales.visit_started'))));
     } else {
+      final redirected = await redirectToOpenVisitIfNeeded(
+        context: context,
+        ref: ref,
+        l10n: l10n,
+      );
+      if (redirected || !mounted) return;
       final err = ref.read(visitProvider).error;
-      if (err != null && mounted) {
+      if (err != null) {
         final message = err.contains('.') ? l10n.translate(err) : err;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(message)),

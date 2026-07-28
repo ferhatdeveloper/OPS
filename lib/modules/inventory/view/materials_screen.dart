@@ -1,10 +1,28 @@
+// Dosya Adı: materials_screen.dart
+// Açıklama: Malzeme listesi dens kart + uzun basma işlemleri (MBT STOK)
+// Oluşturulma Tarihi: 2024-03-20
+// Geliştirici: Ferhat NAS
+// Son Güncelleme: 2026-07-26
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../viewmodel/material_provider.dart';
-import '../model/material_model.dart';
-import '../../../../core/localization/app_localization.dart';
 
+import '../../../core/init/navigation/routes.dart';
+import '../../../core/localization/app_localization.dart';
+import '../../field_sales/products/view/product_detail_screen.dart';
+import '../model/material_model.dart';
+import '../viewmodel/material_provider.dart';
+
+/// {@template materials_screen}
+/// Malzeme / ürün dens listesi — arama, kompakt kart, uzun basma işlemleri.
+///
+/// Kullanım örneği:
+/// ```dart
+/// const MaterialsScreen();
+/// ```
+/// {@endtemplate}
 class MaterialsScreen extends ConsumerStatefulWidget {
+  /// {@macro materials_screen}
   const MaterialsScreen({Key? key}) : super(key: key);
 
   @override
@@ -12,7 +30,10 @@ class MaterialsScreen extends ConsumerStatefulWidget {
 }
 
 class _MaterialsScreenState extends ConsumerState<MaterialsScreen> {
+  /// [_searchController]: Arama alanı
   final TextEditingController _searchController = TextEditingController();
+
+  /// [_searchQuery]: Aktif arama metni
   String _searchQuery = '';
 
   @override
@@ -21,6 +42,9 @@ class _MaterialsScreenState extends ConsumerState<MaterialsScreen> {
     super.dispose();
   }
 
+  /// {@template materials_screen_filtered}
+  /// Kod / açıklama filtresi.
+  /// {@endtemplate}
   List<MaterialItem> _filtered(List<MaterialItem> items) {
     if (_searchQuery.isEmpty) return items;
     final q = _searchQuery.toLowerCase();
@@ -36,6 +60,7 @@ class _MaterialsScreenState extends ConsumerState<MaterialsScreen> {
     final materialState = ref.watch(materialProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final filtered = _filtered(materialState.items);
+    final l10n = AppLocalization.of(context);
 
     return Scaffold(
       backgroundColor:
@@ -51,7 +76,7 @@ class _MaterialsScreenState extends ConsumerState<MaterialsScreen> {
           ),
         ),
         title: Text(
-          AppLocalization.of(context).translate('inventory.materials'),
+          l10n.translate('inventory.materials'),
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
         ),
         foregroundColor: Colors.white,
@@ -59,46 +84,45 @@ class _MaterialsScreenState extends ConsumerState<MaterialsScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh, color: Colors.white),
-            tooltip: AppLocalization.of(context).translate('common.reload'),
+            tooltip: l10n.translate('common.reload'),
             onPressed: () =>
                 ref.read(materialProvider.notifier).fetchMaterials(),
           ),
           IconButton(
             icon: const Icon(Icons.add, color: Colors.white),
-            tooltip: AppLocalization.of(context).translate('inventory.new_material'),
+            tooltip: l10n.translate('inventory.new_material'),
             onPressed: () => _showAddMaterialDialog(context),
           ),
         ],
       ),
       body: Column(
         children: [
-          // Search bar
           Container(
             color: const Color(0xFF8B7CC7),
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
             child: Container(
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
+                borderRadius: BorderRadius.circular(8),
               ),
               child: TextField(
                 controller: _searchController,
+                textCapitalization: TextCapitalization.none,
+                keyboardType: TextInputType.text,
+                textInputAction: TextInputAction.search,
                 decoration: InputDecoration(
-                  hintText: AppLocalization.of(context).translate('inventory.search_material'),
+                  isDense: true,
+                  hintText: l10n.translate('inventory.search_material'),
                   hintStyle:
-                      TextStyle(color: Colors.grey.shade400, fontSize: 14),
-                  prefixIcon:
-                      const Icon(Icons.search, color: Color(0xFF8B7CC7)),
+                      TextStyle(color: Colors.grey.shade400, fontSize: 13),
+                  prefixIcon: const Icon(
+                    Icons.search,
+                    color: Color(0xFF8B7CC7),
+                    size: 20,
+                  ),
                   suffixIcon: _searchQuery.isNotEmpty
                       ? IconButton(
-                          icon: const Icon(Icons.clear, color: Colors.grey),
+                          icon: const Icon(Icons.clear, color: Colors.grey, size: 18),
                           onPressed: () {
                             _searchController.clear();
                             setState(() => _searchQuery = '');
@@ -107,38 +131,34 @@ class _MaterialsScreenState extends ConsumerState<MaterialsScreen> {
                       : null,
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 14),
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
                 ),
                 onChanged: (v) => setState(() => _searchQuery = v),
               ),
             ),
           ),
-
-          // Count bar
           Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  AppLocalization.of(context).translate('inventory.products'),
+                  l10n.translate('inventory.products'),
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: 16,
+                    fontSize: 14,
                     color: isDark ? Colors.white : const Color(0xFF2C3E50),
                   ),
                 ),
                 Text(
-                  '${filtered.length} ${AppLocalization.of(context).translate('inventory.records')}',
-                  style:
-                      TextStyle(color: Colors.grey.shade500, fontSize: 14),
+                  '${filtered.length} ${l10n.translate('inventory.records')}',
+                  style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
                 ),
               ],
             ),
           ),
-
-          // Grid
           Expanded(
             child: materialState.isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -151,10 +171,11 @@ class _MaterialsScreenState extends ConsumerState<MaterialsScreen> {
                       )
                     : filtered.isEmpty
                         ? _buildEmpty(context)
-                        : ListView.builder(
-                            padding:
-                                const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                        : ListView.separated(
+                            padding: const EdgeInsets.fromLTRB(10, 0, 10, 12),
                             itemCount: filtered.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 4),
                             itemBuilder: (context, i) =>
                                 _buildCard(context, filtered[i], isDark),
                           ),
@@ -164,48 +185,42 @@ class _MaterialsScreenState extends ConsumerState<MaterialsScreen> {
     );
   }
 
+  /// {@template materials_screen_build_card}
+  /// Dens malzeme satırı — dokununca detay, uzun basınca işlemler.
+  /// {@endtemplate}
   Widget _buildCard(BuildContext context, MaterialItem item, bool isDark) {
     final stockColor = item.availableStock > 0
         ? const Color(0xFF27AE60)
         : item.availableStock < 0
             ? Colors.red
             : Colors.orange;
+    final l10n = AppLocalization.of(context);
 
-    return GestureDetector(
-      onTap: () => _showDetailDialog(context, item),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1E1E2E) : Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(isDark ? 0.25 : 0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
+    return Material(
+      color: isDark ? const Color(0xFF1E1E2E) : Colors.white,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: () => _showDetailDialog(context, item),
+        onLongPress: () => _showMaterialActions(context, item),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
           child: Row(
             children: [
-              // Icon
               Container(
-                width: 44,
-                height: 44,
+                width: 28,
+                height: 28,
                 decoration: BoxDecoration(
                   color: const Color(0xFF8B7CC7).withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: const Icon(
                   Icons.inventory_2_outlined,
                   color: Color(0xFF8B7CC7),
-                  size: 22,
+                  size: 16,
                 ),
               ),
-              const SizedBox(width: 14),
-              // Name + code + unit
+              const SizedBox(width: 8),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -214,20 +229,22 @@ class _MaterialsScreenState extends ConsumerState<MaterialsScreen> {
                       item.description,
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
-                        fontSize: 14,
+                        fontSize: 12,
+                        height: 1.15,
                         color: isDark
                             ? Colors.white
                             : const Color(0xFF2C3E50),
                       ),
-                      maxLines: 2,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 3),
                     Text(
-                      '${AppLocalization.of(context).translate('inventory.code')}: ${item.code}  •  ${item.unitOfMeasure}',
+                      '${l10n.translate('inventory.code')}: ${item.code}'
+                      '  •  ${item.unitOfMeasure}',
                       style: TextStyle(
                         color: Colors.grey.shade500,
-                        fontSize: 12,
+                        fontSize: 10,
+                        height: 1.2,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -235,21 +252,19 @@ class _MaterialsScreenState extends ConsumerState<MaterialsScreen> {
                   ],
                 ),
               ),
-              const SizedBox(width: 10),
-              // Stock badge
+              const SizedBox(width: 6),
               Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 10, vertical: 5),
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                 decoration: BoxDecoration(
                   color: stockColor.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   '${item.availableStock}',
                   style: TextStyle(
                     color: stockColor,
                     fontWeight: FontWeight.bold,
-                    fontSize: 14,
+                    fontSize: 12,
                   ),
                 ),
               ),
@@ -260,23 +275,130 @@ class _MaterialsScreenState extends ConsumerState<MaterialsScreen> {
     );
   }
 
+  /// {@template materials_screen_actions}
+  /// MBT parity: Detay · Fiyat Gör · Barkod Ekle.
+  /// {@endtemplate}
+  void _showMaterialActions(BuildContext context, MaterialItem item) {
+    final l10n = AppLocalization.of(context);
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFFF8F9FD),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+      ),
+      builder: (sheetCtx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.translate('inventory.material_actions'),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${item.code} · ${item.description}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                dense: true,
+                leading: const Icon(Icons.info_outline, size: 22),
+                title: Text(
+                  l10n.translate('inventory.action_detail'),
+                  style: const TextStyle(fontSize: 14),
+                ),
+                onTap: () {
+                  Navigator.pop(sheetCtx);
+                  _openDetail(item);
+                },
+              ),
+              ListTile(
+                dense: true,
+                leading: const Icon(Icons.price_check, size: 22),
+                title: Text(
+                  l10n.translate('inventory.action_view_price'),
+                  style: const TextStyle(fontSize: 14),
+                ),
+                onTap: () {
+                  Navigator.pop(sheetCtx);
+                  Navigator.pushNamed(context, AppRoutes.fieldSalesPrices);
+                },
+              ),
+              ListTile(
+                dense: true,
+                leading: const Icon(Icons.qr_code_scanner, size: 22),
+                title: Text(
+                  l10n.translate('inventory.action_add_barcode'),
+                  style: const TextStyle(fontSize: 14),
+                ),
+                onTap: () {
+                  Navigator.pop(sheetCtx);
+                  Navigator.pushNamed(
+                    context,
+                    AppRoutes.fieldSalesStockBarcode,
+                  );
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// Detay ekranı (uzun bas → Detay).
+  void _openDetail(MaterialItem item) {
+    Navigator.pushNamed(
+      context,
+      ProductDetailScreen.routeName,
+      arguments: {
+        'id': item.code,
+        'code': item.code,
+        'name': item.description,
+      },
+    );
+  }
 
   Widget _buildEmpty(BuildContext context) {
+    final l10n = AppLocalization.of(context);
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.inventory_2_outlined,
-              size: 80, color: Colors.grey.shade300),
-          const SizedBox(height: 16),
+          Icon(
+            Icons.inventory_2_outlined,
+            size: 56,
+            color: Colors.grey.shade300,
+          ),
+          const SizedBox(height: 12),
           Text(
             _searchQuery.isNotEmpty
-                ? AppLocalization.of(context).translate('inventory.no_search_result')
-                : AppLocalization.of(context).translate('inventory.no_material_found'),
+                ? l10n.translate('inventory.no_search_result')
+                : l10n.translate('inventory.no_material_found'),
             style: TextStyle(
-                color: Colors.grey.shade500,
-                fontSize: 16,
-                fontWeight: FontWeight.w500),
+              color: Colors.grey.shade500,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
             textAlign: TextAlign.center,
           ),
         ],
@@ -285,15 +407,16 @@ class _MaterialsScreenState extends ConsumerState<MaterialsScreen> {
   }
 
   void _showAddMaterialDialog(BuildContext context) {
+    final l10n = AppLocalization.of(context);
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(AppLocalization.of(context).translate('inventory.new_material')),
-        content: Text(AppLocalization.of(context).translate('inventory.feature_in_development')),
+        title: Text(l10n.translate('inventory.new_material')),
+        content: Text(l10n.translate('inventory.feature_in_development')),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: Text(AppLocalization.of(context).translate('common.close')),
+            child: Text(l10n.translate('common.close')),
           ),
         ],
       ),
@@ -301,6 +424,7 @@ class _MaterialsScreenState extends ConsumerState<MaterialsScreen> {
   }
 
   void _showDetailDialog(BuildContext context, MaterialItem item) {
+    final l10n = AppLocalization.of(context);
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -309,19 +433,31 @@ class _MaterialsScreenState extends ConsumerState<MaterialsScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('${AppLocalization.of(context).translate('inventory.code')}: ${item.code}'),
+            Text('${l10n.translate('inventory.code')}: ${item.code}'),
             if (item.description2 != null && item.description2!.isNotEmpty)
-              Text('${AppLocalization.of(context).translate('inventory.description_2')}: ${item.description2}'),
-            Text('${AppLocalization.of(context).translate('inventory.unit')}: ${item.unitOfMeasure}'),
-            Text('${AppLocalization.of(context).translate('inventory.current_stock')}: ${item.currentStock}'),
-            Text('${AppLocalization.of(context).translate('inventory.actual_stock')}: ${item.actualStock}'),
-            Text('${AppLocalization.of(context).translate('inventory.available_stock')}: ${item.availableStock}'),
+              Text(
+                '${l10n.translate('inventory.description_2')}: '
+                '${item.description2}',
+              ),
+            Text('${l10n.translate('inventory.unit')}: ${item.unitOfMeasure}'),
+            Text(
+              '${l10n.translate('inventory.current_stock')}: '
+              '${item.currentStock}',
+            ),
+            Text(
+              '${l10n.translate('inventory.actual_stock')}: '
+              '${item.actualStock}',
+            ),
+            Text(
+              '${l10n.translate('inventory.available_stock')}: '
+              '${item.availableStock}',
+            ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: Text(AppLocalization.of(context).translate('common.close')),
+            child: Text(l10n.translate('common.close')),
           ),
         ],
       ),

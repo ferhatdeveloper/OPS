@@ -5,7 +5,10 @@ import 'package:uuid/uuid.dart';
 import 'package:crypto/crypto.dart';
 import 'dart:convert';
 import '../service/database_service.dart';
+import '../service/postgres_service.dart';
 import '../core/services/postgre_service.dart';
+import '../core/tenant/postgrest_auth_service.dart';
+import '../core/auth/remember_me_store.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Kullanıcı oturum yönetimi için servis
@@ -36,6 +39,36 @@ class AuthService {
   }) async {
     debugPrint(
         'AUTH DEBUG: loginWithUsernameAndPassword başladı. username: $username, forceLogout: $forceLogout');
+
+    // 1) Kiracı PostgREST aktifse önce oradan doğrula (bcrypt)
+    final restUrl = PostgresService.instance.activeRemoteRestUrl.trim();
+    if (restUrl.isNotEmpty) {
+      debugPrint('AUTH DEBUG: PostgREST girişi deneniyor → $restUrl');
+      final remote = await PostgrestAuthService().login(
+        username: username,
+        password: password,
+      );
+      if (remote.ok && remote.session != null) {
+        _currentUser = username;
+        _currentSessionId = remote.session!['session_id']?.toString();
+        return remote.session;
+      }
+      // Ağ hatasında yerel SQLite yedeğine düş; kimlik hatasında dur
+      final key = remote.errorKey ?? '';
+      if (key == 'auth.postgrest_user_not_found' ||
+          key == 'auth.postgrest_bad_password' ||
+          key == 'auth.postgrest_user_inactive') {
+        return {
+          'error': key,
+          'error_key': key,
+          'error_detail': remote.errorDetail,
+        };
+      }
+      debugPrint(
+        'AUTH DEBUG: PostgREST ağ hatası, yerel yedek deneniyor: '
+        '${remote.errorDetail}',
+      );
+    }
     
     final isMobile = defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS;
     Map<String, dynamic>? user;
@@ -62,8 +95,12 @@ class AuthService {
     if (isDeleted) return {'error': 'Kullanıcı silinmis'};
     if (!isActive) return {'error': 'Kullanıcı pasif'};
     
-    final hashedInput = hashPassword(password);
-    if (user['password_hash'] != hashedInput) {
+    final storedHash = (user['password_hash'] ?? '').toString();
+    final passwordOk = PostgrestAuthService.verifyPassword(
+      password,
+      storedHash,
+    );
+    if (!passwordOk) {
       return {'error': 'Şifre hatali. Lütfen şifrenizi tekrar kontrol edin.'};
     }
 
@@ -105,6 +142,21 @@ class AuthService {
     return _currentUser;
   }
 
+  /// {@template auth_service_restore_session}
+  /// Beni hatırla / cold start: bellek oturumunu geri yükler.
+  ///
+  /// Parametreler:
+  /// - [username]: Kullanıcı adı
+  /// - [sessionId]: Yerel session_id token
+  /// {@endtemplate}
+  static void restoreSession({
+    required String username,
+    required String sessionId,
+  }) {
+    _currentUser = username;
+    _currentSessionId = sessionId;
+  }
+
   /// Logout işlemi
   static Future<void> logout(BuildContext context) async {
     final isMobile = defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS;
@@ -126,12 +178,17 @@ class AuthService {
         );
       }
     }
-    // Local session ve kimlik bilgilerini temizle
+    // Local session + beni hatırla temizle
     try {
       final db = await DatabaseService.getInstance();
       await db.logout();
     } catch (e) {
       debugPrint('Local logout sırasında hata: $e');
+    }
+    try {
+      await const RememberMeStore().clear();
+    } catch (e) {
+      debugPrint('RememberMe clear: $e');
     }
     _currentUser = null;
     _currentSessionId = null;

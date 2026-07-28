@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/localization/app_localization.dart';
+import '../../shared/view/field_sales_dens_app_bar.dart';
 import '../../shared/view/mbt_sales_purchase_queue_body.dart';
 import '../model/discount_approval_record.dart';
 import '../viewmodel/discount_approval_store.dart';
@@ -151,34 +152,15 @@ class _DiscountApprovalScreenState extends State<DiscountApprovalScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FD),
-      appBar: AppBar(
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF375A7F), Color(0xFF00A8E8)],
-            ),
-          ),
-        ),
-        title: Text(
-          title,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-            color: Colors.white,
-          ),
-        ),
-        foregroundColor: Colors.white,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
+      appBar: FieldSalesDensAppBar(
+        title: title,
         actions: [
-          IconButton(
+          FieldSalesDensAppBar.densIconButton(
+            icon: Icons.percent,
+            onPressed: () => _addSample(l10n),
             tooltip: l10n.translate(
               'field_sales.discount_approval.add_request',
             ),
-            icon: const Icon(Icons.percent),
-            onPressed: () => _addSample(l10n),
           ),
         ],
       ),

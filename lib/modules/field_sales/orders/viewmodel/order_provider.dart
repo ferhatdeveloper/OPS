@@ -1,13 +1,21 @@
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sqflite/sqflite.dart' as sqflite;
 import 'package:uuid/uuid.dart';
 import '../model/order_model.dart';
 import '../../campaigns/engine/campaign_engine.dart';
 import '../../campaigns/model/campaign_model.dart' as cm;
 import '../../customers/model/customer_model.dart';
+import '../../../../core/database/migrations/SqlQuerys.dart';
 import '../../../../service/database_service.dart';
 import '../../../../service/job_queue_service.dart';
+import '../../../../core/services/gps_service.dart';
 import '../../../../core/services/logo_payload_mapper.dart';
+import '../../gps/engine/order_geofence_gate.dart';
+import '../../gps/viewmodel/geofence_settings_store.dart';
 import '../engine/price_engine.dart';
+import 'order_dens_store.dart';
 
 class OrderState {
   final OrderModel? draftOrder;
@@ -173,6 +181,156 @@ class OrderNotifier extends StateNotifier<OrderState> {
   /// {@endtemplate}
   void discardDraft() {
     state = OrderState();
+  }
+
+  /// {@template loadDraftFromOrderId}
+  /// Aktarılmamış yerel siparişi düzenleme taslağına yükler.
+  /// {@endtemplate}
+  Future<bool> loadDraftFromOrderId(String orderId) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final store = const OrderDensStore();
+      final header = await store.fetchOrderHeader(orderId);
+      if (header == null) {
+        state = state.copyWith(
+          isLoading: false,
+          error: 'field_sales.order_edit_not_found',
+        );
+        return false;
+      }
+      if ((header['is_synced'] as num?)?.toInt() == 1) {
+        state = state.copyWith(
+          isLoading: false,
+          error: 'field_sales.order_edit_synced_blocked',
+        );
+        return false;
+      }
+      final itemMaps = await store.fetchOrderItems(orderId);
+      final orderType = OrderType.fromStorage(header['order_type']?.toString());
+      final draft = OrderModel(
+        id: orderId,
+        customerId: header['customer_id']?.toString() ?? '',
+        orderDate: DateTime.tryParse(header['order_date']?.toString() ?? '') ??
+            DateTime.now(),
+        totalAmount: (header['total_amount'] as num?)?.toDouble() ?? 0,
+        status: header['status']?.toString() ?? 'Pending',
+        notes: header['notes']?.toString(),
+        orderType: orderType,
+      );
+      final items = itemMaps.map((m) => OrderItemModel.fromMap(m)).toList();
+      state = OrderState(
+        draftOrder: draft,
+        items: items,
+        isLoading: false,
+      );
+      await _calculateTotals();
+      return true;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+      return false;
+    }
+  }
+
+  /// {@template softDeleteLocalOrder}
+  /// Aktarılmamış yerel sipariş soft-delete.
+  /// {@endtemplate}
+  Future<bool> softDeleteLocalOrder(String orderId) async {
+    try {
+      return await const OrderDensStore().softDeleteLocal(orderId);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// {@template cancelLocalOrder}
+  /// Aktarılmamış siparişi iptal (Cancelled) + sync_queue stub.
+  /// {@endtemplate}
+  Future<bool> cancelLocalOrder(String orderId) async {
+    try {
+      final ok = await const OrderDensStore().cancelLocal(orderId);
+      if (ok && state.draftOrder?.id == orderId.trim()) {
+        state = OrderState();
+      }
+      return ok;
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+      return false;
+    }
+  }
+
+  /// {@template updateLocalOrder}
+  /// Mevcut aktarılmamış siparişi günceller (üst + kalemler).
+  /// {@endtemplate}
+  Future<bool> updateLocalOrder(String? notes) async {
+    final orderId = state.draftOrder?.id;
+    if (orderId == null || orderId.isEmpty) {
+      state = state.copyWith(error: 'field_sales.order_edit_not_found');
+      return false;
+    }
+    if (state.items.isEmpty) {
+      state = state.copyWith(error: 'field_sales.order_min_products');
+      return false;
+    }
+    state = state.copyWith(isLoading: true);
+    try {
+      final store = const OrderDensStore();
+      final header = await store.fetchOrderHeader(orderId);
+      if (header == null ||
+          (header['is_synced'] as num?)?.toInt() == 1) {
+        state = state.copyWith(
+          isLoading: false,
+          error: 'field_sales.order_edit_synced_blocked',
+        );
+        return false;
+      }
+      final db = await DatabaseService.getInstance();
+      final sqliteDb = await db.getDatabase();
+      await sqliteDb.execute(SqlQuerys.createSyncQueueTable);
+      final now = DateTime.now().toIso8601String();
+      final savedItems = List<OrderItemModel>.from(state.items);
+
+      await sqliteDb.transaction((txn) async {
+        await txn.update(
+          'orders',
+          {
+            'total_amount': state.grandTotal,
+            'notes': notes,
+            'updated_at': now,
+            'is_synced': 0,
+          },
+          where: 'id = ?',
+          whereArgs: [orderId],
+        );
+        await txn.delete('order_items', where: 'order_id = ?', whereArgs: [
+          orderId,
+        ]);
+        for (final item in savedItems) {
+          await txn.insert('order_items', item.toMap());
+        }
+        await txn.insert('sync_queue', {
+          'id': const Uuid().v4(),
+          'entity_type': 'order',
+          'entity_id': orderId,
+          'payload': jsonEncode({
+            'id': orderId,
+            'op': 'update',
+            'total_amount': state.grandTotal,
+            'notes': notes,
+            'updated_at': now,
+          }),
+          'priority': 0,
+          'retry_count': 0,
+          'created_at': now,
+        });
+      });
+
+      JobQueueService().processQueue();
+      state = state.copyWith(isLoading: false, draftOrder: null, items: []);
+      return true;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+      return false;
+    }
   }
 
   Future<void> addItem(String productId, String name, double quantity, {String? unitName, double vatRate = 20.0}) async {
@@ -369,6 +527,9 @@ class OrderNotifier extends StateNotifier<OrderState> {
       return false;
     }
 
+    final geofenceOk = await _ensureOrderGeofence(customerId!);
+    if (!geofenceOk) return false;
+
     state = state.copyWith(isLoading: true);
     try {
       final db = await DatabaseService.getInstance();
@@ -389,10 +550,25 @@ class OrderNotifier extends StateNotifier<OrderState> {
       await sqliteDb.transaction((txn) async {
         final orderMap = order.toMap();
         orderMap['is_synced'] = 0;
+        orderMap['is_deleted'] = 0;
         orderMap['approval_status'] = order.approvalStatus;
-        await txn.insert('orders', orderMap);
+        orderMap['updated_at'] = DateTime.now().toIso8601String();
+        await txn.insert(
+          'orders',
+          orderMap,
+          conflictAlgorithm: sqflite.ConflictAlgorithm.replace,
+        );
+        await txn.delete(
+          'order_items',
+          where: 'order_id = ?',
+          whereArgs: [order.id],
+        );
         for (var item in savedItems) {
-          await txn.insert('order_items', item.toMap());
+          await txn.insert(
+            'order_items',
+            item.toMap(),
+            conflictAlgorithm: sqflite.ConflictAlgorithm.replace,
+          );
         }
       });
 
@@ -456,6 +632,53 @@ class OrderNotifier extends StateNotifier<OrderState> {
       state = state.copyWith(isLoading: false, error: e.toString());
       return false;
     }
+  }
+
+  /// {@template order_notifier_ensure_order_geofence}
+  /// Parametre açıksa müşteri GPS yarıçapında değilse siparişi engeller.
+  /// Check-in geofence [enabled] bayrağına dokunmaz.
+  /// {@endtemplate}
+  Future<bool> _ensureOrderGeofence(String customerId) async {
+    final settings = await const GeofenceSettingsStore().load();
+    if (!settings.orderRequireGeofence) return true;
+
+    double? custLat;
+    double? custLng;
+    try {
+      final db = await DatabaseService.getInstance();
+      final sqliteDb = await db.getDatabase();
+      final rows = await sqliteDb.query(
+        'customers',
+        columns: ['latitude', 'longitude'],
+        where: 'id = ?',
+        whereArgs: [customerId],
+        limit: 1,
+      );
+      if (rows.isNotEmpty) {
+        custLat = (rows.first['latitude'] as num?)?.toDouble();
+        custLng = (rows.first['longitude'] as num?)?.toDouble();
+      }
+    } catch (_) {
+      // DB okunamazsa failClosed kurallarına bırak
+    }
+
+    final pos = await GpsService().getCurrentPosition();
+    final decision = OrderGeofenceGate.evaluate(
+      orderRequireGeofence: true,
+      radiusMeters: settings.radiusMeters,
+      failClosed: settings.failClosed,
+      customerLat: custLat,
+      customerLng: custLng,
+      deviceLat: pos?.latitude,
+      deviceLng: pos?.longitude,
+    );
+    if (!decision.allowed) {
+      state = state.copyWith(
+        error: decision.errorKey ?? 'field_sales.order_geofence_outside',
+      );
+      return false;
+    }
+    return true;
   }
 }
 

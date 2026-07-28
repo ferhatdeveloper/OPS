@@ -2,7 +2,7 @@
 // Açıklama: WHMS Faz 2.2 onaylı transfer kuyruk köprüsü testleri
 // Oluşturulma Tarihi: 2026-07-26
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-26
+// Son Güncelleme: 2026-07-28
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:exfin_ops/modules/whms/whms.dart';
@@ -12,6 +12,7 @@ void main() {
     test('ONAY≠1 ise skip; enqueue çağrılmaz', () async {
       var calls = 0;
       final bridge = WhmsTransferQueueBridge(
+        mirrorOrder: false,
         enqueueFn: ({
           required entityType,
           required entityId,
@@ -44,6 +45,7 @@ void main() {
     test('ONAY=1 ise payload ONAY + kuyruk', () async {
       Map<String, dynamic>? seen;
       final bridge = WhmsTransferQueueBridge(
+        mirrorOrder: false,
         enqueueFn: ({
           required entityType,
           required entityId,
@@ -74,6 +76,59 @@ void main() {
       expect(seen?['from_warehouse_code'], 'MRK');
       expect(seen?['to_warehouse_code'], 'IAD');
       expect(seen?['entity'], 'stock_transfer');
+    });
+  });
+
+  group('WhmsBridgeOrderMapper', () {
+    test('transfer → WhmsOrderType.transfer + completed', () {
+      final order = WhmsBridgeOrderMapper.fromTransfer(
+        WhmsWarehouseTransferDto(
+          id: 'tr1',
+          fromWarehouseCode: 'MRK',
+          toWarehouseCode: 'IAD',
+          date: DateTime(2026, 7, 28),
+          lines: const [
+            WhmsBridgeLine(
+              productId: 'p1',
+              productCode: 'SKU',
+              quantity: 3,
+            ),
+          ],
+          transferIds: const ['t1', 't2'],
+          approval: WhmsApprovalStatus.approved,
+        ),
+      );
+      expect(order.orderType, WhmsOrderType.transfer);
+      expect(order.status, WhmsOrderStatus.done);
+      expect(order.approval, WhmsApprovalStatus.approved);
+      expect(order.fromWarehouseCode, 'MRK');
+      expect(order.toWarehouseCode, 'IAD');
+      expect(order.lines, hasLength(1));
+      expect(order.toTransferDto()?.id, 'tr1');
+    });
+
+    test('load → WhmsOrderType.load + toLoadOrderDto', () {
+      final order = WhmsBridgeOrderMapper.fromLoad(
+        WhmsLoadOrderDto(
+          id: 'lo1',
+          fromWarehouseCode: 'MRK',
+          toVehicleId: 'veh-1',
+          date: DateTime(2026, 7, 28),
+          lines: const [
+            WhmsBridgeLine(
+              productId: 'p1',
+              productCode: 'SKU',
+              quantity: 2,
+            ),
+          ],
+          approval: WhmsApprovalStatus.approved,
+        ),
+      );
+      expect(order.orderType, WhmsOrderType.load);
+      expect(order.toVehicleId, 'veh-1');
+      final load = order.toLoadOrderDto();
+      expect(load?.toVehicleId, 'veh-1');
+      expect(load?.approval, WhmsApprovalStatus.approved);
     });
   });
 }

@@ -2,15 +2,17 @@
 // Açıklama: MBT Çek Listesi dens — collections check tipi + durum sekmeleri
 // Oluşturulma Tarihi: 2026-07-26
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-26
+// Son Güncelleme: 2026-07-27
 
 import 'package:flutter/material.dart';
 
 import '../../../../core/localization/app_localization.dart';
+import '../../shared/view/field_sales_dens_app_bar.dart';
 import '../model/check_list_row.dart';
 import '../model/check_list_seed.dart';
 import '../model/check_list_status.dart';
 import '../model/collection_model.dart';
+import '../viewmodel/check_list_store.dart';
 
 /// {@template check_list_screen}
 /// Çek Listesi dens ekranı — `payment_type=check` collections.
@@ -29,13 +31,17 @@ class CheckListScreen extends StatefulWidget {
   /// [routeName]: Named route — `/field-sales/checks`
   static const String routeName = '/field-sales/checks';
 
-  /// [rows]: Opsiyonel dens satırlar (null → [CheckListSeed.defaultRows])
+  /// [rows]: Opsiyonel dens satırlar (null → [CheckListStore])
   final List<CheckListRow>? rows;
+
+  /// Store enjeksiyonu (test)
+  final CheckListStore? store;
 
   /// {@macro check_list_screen}
   const CheckListScreen({
     super.key,
     this.rows,
+    this.store,
   });
 
   /// {@template check_list_screen_from_collections}
@@ -66,6 +72,8 @@ class _CheckListScreenState extends State<CheckListScreen>
   /// [_source]: Check tipi dens kaynak satırlar
   late List<CheckListRow> _source;
 
+  CheckListStore get _store => widget.store ?? const CheckListStore();
+
   @override
   void initState() {
     super.initState();
@@ -81,6 +89,156 @@ class _CheckListScreenState extends State<CheckListScreen>
         setState(() {});
       }
     });
+    if (widget.rows == null) {
+      _loadFromStore();
+    }
+  }
+
+  Future<void> _loadFromStore() async {
+    try {
+      final rows = await _store.listActive();
+      if (!mounted || rows.isEmpty) return;
+      setState(() => _source = List<CheckListRow>.from(rows));
+    } catch (_) {
+      // seed fallback
+    }
+  }
+
+  Future<void> _showCreateDialog() async {
+    final l10n = AppLocalization.of(context);
+    final customerCtrl = TextEditingController();
+    final numberCtrl = TextEditingController();
+    final amountCtrl = TextEditingController();
+    final bankCtrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          l10n.translate('field_sales.check_create'),
+          style: const TextStyle(fontSize: 16),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: customerCtrl,
+                textCapitalization: TextCapitalization.characters,
+                keyboardType: TextInputType.text,
+                textInputAction: TextInputAction.next,
+                style: const TextStyle(fontSize: 13),
+                decoration: InputDecoration(
+                  isDense: true,
+                  labelText: l10n.translate('field_sales.check_customer_id'),
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: numberCtrl,
+                textCapitalization: TextCapitalization.characters,
+                keyboardType: TextInputType.text,
+                textInputAction: TextInputAction.next,
+                style: const TextStyle(fontSize: 13),
+                decoration: InputDecoration(
+                  isDense: true,
+                  labelText: l10n.translate('field_sales.check_number'),
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: amountCtrl,
+                textCapitalization: TextCapitalization.none,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                textInputAction: TextInputAction.next,
+                style: const TextStyle(fontSize: 13),
+                decoration: InputDecoration(
+                  isDense: true,
+                  labelText: l10n.translate('field_sales.check_amount'),
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: bankCtrl,
+                textCapitalization: TextCapitalization.words,
+                keyboardType: TextInputType.text,
+                textInputAction: TextInputAction.done,
+                style: const TextStyle(fontSize: 13),
+                decoration: InputDecoration(
+                  isDense: true,
+                  labelText: l10n.translate('field_sales.check_bank'),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.translate('common.cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l10n.translate('common.save')),
+          ),
+        ],
+      ),
+    );
+    final customerId = customerCtrl.text.trim();
+    final number = numberCtrl.text.trim();
+    final amount = double.tryParse(
+          amountCtrl.text.trim().replaceAll(',', '.'),
+        ) ??
+        0;
+    final bank = bankCtrl.text.trim();
+    customerCtrl.dispose();
+    numberCtrl.dispose();
+    amountCtrl.dispose();
+    bankCtrl.dispose();
+    if (ok != true || !mounted) return;
+    if (customerId.isEmpty || number.isEmpty || amount <= 0) return;
+    await _store.create(
+      customerId: customerId,
+      amount: amount,
+      checkNumber: number,
+      bankName: bank.isEmpty ? null : bank,
+      status: _activeStatus,
+    );
+    await _loadFromStore();
+  }
+
+  Future<void> _softDelete(CheckListRow row) async {
+    final l10n = AppLocalization.of(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          l10n.translate('field_sales.check_delete'),
+          style: const TextStyle(fontSize: 16),
+        ),
+        content: Text(
+          l10n.translate(
+            'field_sales.check_delete_confirm',
+            args: {'no': row.checkNumber},
+          ),
+          style: const TextStyle(fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.translate('common.cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l10n.translate('common.delete')),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    await _store.softDelete(row.id);
+    await _loadFromStore();
   }
 
   @override
@@ -131,45 +289,63 @@ class _CheckListScreenState extends State<CheckListScreen>
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FD),
-      appBar: AppBar(
+      appBar: FieldSalesDensAppBar(
+        title: l10n.translate('field_sales.stubs.check_list'),
         backgroundColor: appBarBlue,
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: Text(
-          l10n.translate('field_sales.stubs.check_list'),
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
+        actions: [
+          FieldSalesDensAppBar.densIconButton(
+            icon: Icons.add,
+            tooltip: l10n.translate('field_sales.check_create'),
+            onPressed: widget.rows == null ? _showCreateDialog : null,
           ),
-        ),
-        bottom: TabBar(
-          controller: _tabController,
-          isScrollable: true,
-          tabAlignment: TabAlignment.start,
-          indicatorColor: Colors.white,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
-          labelStyle: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 12,
+        ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(36),
+          child: TabBar(
+            controller: _tabController,
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
+            indicatorColor: Colors.white,
+            indicatorWeight: 2,
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white70,
+            labelPadding: const EdgeInsets.symmetric(horizontal: 10),
+            labelStyle: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 11,
+            ),
+            unselectedLabelStyle: const TextStyle(
+              fontWeight: FontWeight.normal,
+              fontSize: 11,
+            ),
+            tabs: [
+              for (final status in CheckListStatus.tabs)
+                Tab(
+                  height: 32,
+                  text: l10n.translate(status.l10nKey),
+                ),
+            ],
           ),
-          tabs: [
-            for (final status in CheckListStatus.tabs)
-              Tab(text: l10n.translate(status.l10nKey)),
-          ],
         ),
       ),
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            padding: const EdgeInsets.fromLTRB(10, 6, 10, 4),
             child: TextField(
               controller: _searchController,
               textCapitalization: TextCapitalization.none,
               keyboardType: TextInputType.text,
               textInputAction: TextInputAction.search,
+              style: const TextStyle(fontSize: 13),
               decoration: InputDecoration(
+                isDense: true,
                 hintText: l10n.translate('common.search'),
-                prefixIcon: const Icon(Icons.search),
+                prefixIcon: const Icon(Icons.search, size: 18),
+                prefixIconConstraints: const BoxConstraints(
+                  minWidth: 36,
+                  minHeight: 32,
+                ),
                 filled: true,
                 fillColor: Colors.white,
                 border: OutlineInputBorder(
@@ -181,15 +357,15 @@ class _CheckListScreenState extends State<CheckListScreen>
                   borderSide: BorderSide(color: Colors.grey.shade300),
                 ),
                 contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 12,
+                  horizontal: 10,
+                  vertical: 8,
                 ),
               ),
               onChanged: (_) => setState(() {}),
             ),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
             child: Row(
               children: [
                 Expanded(
@@ -200,7 +376,7 @@ class _CheckListScreenState extends State<CheckListScreen>
                     ),
                     style: const TextStyle(
                       fontWeight: FontWeight.w600,
-                      fontSize: 14,
+                      fontSize: 12,
                       color: Color(0xFF2C3E50),
                     ),
                   ),
@@ -212,7 +388,7 @@ class _CheckListScreenState extends State<CheckListScreen>
                   ),
                   style: const TextStyle(
                     fontWeight: FontWeight.w600,
-                    fontSize: 14,
+                    fontSize: 12,
                     color: Color(0xFF2C3E50),
                   ),
                 ),
@@ -246,11 +422,16 @@ class _CheckListScreenState extends State<CheckListScreen>
       return _buildStatusEmpty(l10n, status);
     }
     return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+      padding: const EdgeInsets.fromLTRB(10, 4, 10, 16),
       itemCount: rows.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      separatorBuilder: (_, __) => const SizedBox(height: 4),
       itemBuilder: (context, index) {
-        return _CheckDensTile(row: rows[index]);
+        final row = rows[index];
+        return InkWell(
+          onLongPress:
+              widget.rows == null ? () => _softDelete(row) : null,
+          child: _CheckDensTile(row: row),
+        );
       },
     );
   }
@@ -367,7 +548,7 @@ class _CheckDensTile extends StatelessWidget {
             borderRadius: BorderRadius.circular(8),
             border: Border.all(color: Colors.grey.shade200),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           child: Row(
             children: [
               Expanded(
@@ -380,16 +561,16 @@ class _CheckDensTile extends StatelessWidget {
                           : row.checkNumber,
                       style: const TextStyle(
                         fontWeight: FontWeight.w700,
-                        fontSize: 14,
+                        fontSize: 13,
                         color: Color(0xFF2C3E50),
                       ),
                     ),
                     if (subtitleParts.isNotEmpty) ...[
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 2),
                       Text(
                         subtitleParts.join(' · '),
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 11,
                           color: Colors.grey.shade600,
                         ),
                       ),
@@ -401,7 +582,7 @@ class _CheckDensTile extends StatelessWidget {
                 CheckListRow.formatAmount(row.amount),
                 style: const TextStyle(
                   fontWeight: FontWeight.w700,
-                  fontSize: 14,
+                  fontSize: 13,
                   color: Color(0xFF2C3E50),
                 ),
               ),

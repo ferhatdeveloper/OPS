@@ -8,16 +8,20 @@ alwaysApply: false
 
 **Kural:** Mevcut UI güzel — dokunma. Sadece dil bağlama (l10n / `translate`).
 
+Dens istisna değil, **yeniden tasarım sayılmaz**: boşluk israfını küçültmek ve
+`FieldSalesDensAppBar` reuse → bak `.cursor/rules/dens-minimal-ui.mdc`.
+
 ## İzinli
 
 - Hardcoded metni `AppLocalization` / çeviri anahtarına bağlamak
 - Eksik çeviri anahtarı eklemek (`assets/translations/*.json`)
 - Layout bozan animasyonda **yalnızca** timing/duration/curve
 - İş kuralı için zorunlu minimal metin (SnackBar, guard mesajı) — yeni tema/renk/spacing yok
+- Dens AppBar / kompakt arama / sıkı liste (dens-minimal-ui) — renk/tema yok
 
 ## Yasak (onaysız)
 
-- Renk, gradient, tipografi, spacing, radius, elevation değiştirmek
+- Renk, gradient, tipografi, radius, elevation değiştirmek; dens dışı “spacing modernize”
 - Yeni kart / hero / empty-state illüstrasyon / “modernize” redesign
 - Mevcut widget ağacını görsel amaçlı yeniden yazmak
 - Login, dashboard, field_sales AppBar/palette’ini yeniden tasarlamak

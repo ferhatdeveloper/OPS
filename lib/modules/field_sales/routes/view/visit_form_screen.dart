@@ -1,8 +1,8 @@
 // Dosya Adı: visit_form_screen.dart
-// Açıklama: MBT ziyaret formu (alan seti + ZIYARETI TAMAMLA)
+// Açıklama: MBT ziyaret formu (alan seti + STT not + ZIYARETI TAMAMLA)
 // Oluşturulma Tarihi: 2024-03-20
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-26
+// Son Güncelleme: 2026-07-28
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,15 +10,25 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/localization/app_localization.dart';
 import '../../../../service/database_service.dart';
 import '../../customers/model/customer_model.dart';
+import '../../orders/model/order_model.dart';
+import '../../orders/view/order_entry_screen.dart';
+import '../../shared/view/catalog_barcode_actions.dart';
 import '../model/visit_mbt_form_data.dart';
 import '../model/visit_reason_master.dart';
+import '../model/visit_speech_notes.dart';
 import '../viewmodel/visit_provider.dart';
+import '../viewmodel/visit_speech_to_text_store.dart';
 import '../widgets/visit_mbt_fields.dart';
+import '../widgets/visit_speech_record_bar.dart';
+import '../../ai_visit_intelligence/view/visit_voice_intelligence_banner.dart';
+import 'visit_history_screen.dart';
 
 /// {@template visit_form_screen}
 /// Cari bağlamında MBT ziyaret formu (not / sonuç / tamamla).
 ///
 /// Rota: [VisitFormScreen.routeName] — arguments: cariId (String)
+/// Check-in sonrası form açılınca isteğe bağlı / otomatik STT başlar;
+/// metin [notesController] → SQLite `visits.notes`.
 /// {@endtemplate}
 class VisitFormScreen extends ConsumerStatefulWidget {
   /// [routeName]: Named route — `/field-sales/visit-form`
@@ -64,6 +74,9 @@ class _VisitFormScreenState extends ConsumerState<VisitFormScreen> {
   /// [_saving]: Tamamlama devam ediyor
   bool _saving = false;
 
+  /// [_speechAutoStarted]: Check-in sonrası otomatik STT denendi mi
+  bool _speechAutoStarted = false;
+
   @override
   void initState() {
     super.initState();
@@ -86,9 +99,12 @@ class _VisitFormScreenState extends ConsumerState<VisitFormScreen> {
       if (!mounted) return;
       if (rows.isEmpty) {
         setState(() => _loadingCustomer = false);
+        _maybeAutoStartSpeech();
         return;
       }
       final customer = CustomerModel.fromMap(rows.first);
+      final active = ref.read(visitProvider).activeVisit;
+      final existingNotes = active?.notes?.trim() ?? '';
       setState(() {
         _codeController.text =
             (customer.code?.trim().isNotEmpty == true)
@@ -100,11 +116,104 @@ class _VisitFormScreenState extends ConsumerState<VisitFormScreen> {
         _districtController.text = customer.ilce ?? '';
         _countryController.text = customer.ulke ?? '';
         _contactController.text = customer.yetkili ?? '';
+        if (existingNotes.isNotEmpty &&
+            !existingNotes.startsWith('SONUC:') &&
+            !existingNotes.startsWith('SEBEP:') &&
+            !existingNotes.startsWith('NOT:')) {
+          _notesController.text = existingNotes;
+        }
         _loadingCustomer = false;
       });
+      _maybeAutoStartSpeech();
     } catch (_) {
-      if (mounted) setState(() => _loadingCustomer = false);
+      if (mounted) {
+        setState(() => _loadingCustomer = false);
+        _maybeAutoStartSpeech();
+      }
     }
+  }
+
+  /// {@template _maybe_auto_start_speech}
+  /// Açık ziyaret varken formu açınca STT’yi bir kez dener (izin gerekir).
+  /// {@endtemplate}
+  Future<void> _maybeAutoStartSpeech() async {
+    if (_speechAutoStarted || !mounted) return;
+    final active = ref.read(visitProvider).activeVisit;
+    if (active == null || active.customerId != widget.customerId) return;
+    _speechAutoStarted = true;
+    await _startSpeech();
+  }
+
+  /// {@template _append_speech_to_notes}
+  /// Nihai STT metnini not alanına yazar; varsa ses yolunu da kaydeder.
+  /// {@endtemplate}
+  Future<void> _appendSpeechToNotes(String chunk) async {
+    final next = VisitSpeechNotes.appendFinal(_notesController.text, chunk);
+    _notesController.text = next;
+    _notesController.selection = TextSelection.collapsed(
+      offset: next.length,
+    );
+    final audioPath = ref.read(visitSpeechProvider).audioRecordingPath;
+    await ref.read(visitProvider.notifier).updateActiveVisitNotes(
+          next,
+          audioRecordingPath: audioPath,
+        );
+  }
+
+  /// {@template _start_speech}
+  /// Mikrofon dinlemeyi başlatır; ses yolu notlarla birlikte tutulur.
+  /// {@endtemplate}
+  Future<void> _startSpeech() async {
+    final l10n = AppLocalization.of(context);
+    final visitId = ref.read(visitProvider).activeVisit?.id;
+    final ok = await ref.read(visitSpeechProvider.notifier).startListening(
+          languageCode: l10n.locale.languageCode,
+          visitId: visitId,
+          onFinalText: (text) {
+            // ignore: discarded_futures
+            _appendSpeechToNotes(text);
+          },
+          onAudioPathReady: (path) {
+            // ignore: discarded_futures
+            _persistSpeechAudioPath(path);
+          },
+        );
+    if (ok && mounted) {
+      final path = ref.read(visitSpeechProvider).audioRecordingPath;
+      if (path != null && path.trim().isNotEmpty) {
+        await _persistSpeechAudioPath(path);
+      }
+    }
+    if (!ok && mounted) {
+      final speech = ref.read(visitSpeechProvider);
+      final key = speech.errorKey;
+      if (key != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.translate(key))),
+        );
+      }
+    }
+  }
+
+  /// {@template _persist_speech_audio_path}
+  /// STT oturumu ses yolunu ziyaret satırına yazar (stub metadata).
+  /// {@endtemplate}
+  Future<void> _persistSpeechAudioPath(String path) async {
+    await ref
+        .read(visitProvider.notifier)
+        .updateActiveVisitAudioRecordingPath(path);
+  }
+
+  /// {@template _toggle_speech}
+  /// Dens chip: dinleme aç/kapa.
+  /// {@endtemplate}
+  Future<void> _toggleSpeech() async {
+    final speech = ref.read(visitSpeechProvider);
+    if (speech.isListening) {
+      await ref.read(visitSpeechProvider.notifier).stopListening();
+      return;
+    }
+    await _startSpeech();
   }
 
   /// {@template _outcomeOptions}
@@ -141,7 +250,35 @@ class _VisitFormScreenState extends ConsumerState<VisitFormScreen> {
   /// VAZGEÇ — formu kapatır.
   /// {@endtemplate}
   void _onCancel() {
+    // ignore: discarded_futures
+    ref.read(visitSpeechProvider.notifier).stopListening();
     Navigator.of(context).maybePop();
+  }
+
+  /// {@template _open_barcode_order}
+  /// Barkod lookup → sipariş ekranı (sepete ekle).
+  /// {@endtemplate}
+  Future<void> _openBarcodeOrder() async {
+    final product = await openFieldSalesBarcodeScan(
+      context,
+      autoScan: true,
+    );
+    if (product == null || !mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => OrderEntryScreen(
+          customerId: widget.customerId,
+          customerName: _titleController.text.trim().isEmpty
+              ? null
+              : _titleController.text.trim(),
+          customerCode: _codeController.text.trim().isEmpty
+              ? null
+              : _codeController.text.trim(),
+          orderType: OrderType.sales,
+          initialProductToAdd: product,
+        ),
+      ),
+    );
   }
 
   /// {@template _onComplete}
@@ -150,6 +287,8 @@ class _VisitFormScreenState extends ConsumerState<VisitFormScreen> {
   Future<void> _onComplete(AppLocalization l10n) async {
     if (_saving) return;
     if (!_formKey.currentState!.validate()) return;
+
+    await ref.read(visitSpeechProvider.notifier).stopListening();
 
     setState(() => _saving = true);
     try {
@@ -201,11 +340,27 @@ class _VisitFormScreenState extends ConsumerState<VisitFormScreen> {
     }
   }
 
+  /// {@template _speech_hint}
+  /// STT durum ipucu (l10n).
+  /// {@endtemplate}
+  String? _speechHint(AppLocalization l10n, VisitSpeechState speech) {
+    final key = speech.errorKey;
+    if (key == null) return null;
+    if (speech.status == VisitSpeechStatus.listening ||
+        speech.status == VisitSpeechStatus.idle ||
+        speech.status == VisitSpeechStatus.initializing) {
+      return null;
+    }
+    return l10n.translate(key);
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalization.of(context);
     final reasons = VisitReasonMaster.labeled(l10n);
     final outcomes = _outcomeOptions(l10n);
+    final speech = ref.watch(visitSpeechProvider);
+    final activeVisit = ref.watch(visitProvider).activeVisit;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FD),
@@ -224,6 +379,24 @@ class _VisitFormScreenState extends ConsumerState<VisitFormScreen> {
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
         ),
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.history),
+            tooltip: l10n.translate('field_sales.stubs.visit_history'),
+            onPressed: () {
+              Navigator.pushNamed(
+                context,
+                VisitHistoryScreen.routeName,
+                arguments: {'customerId': widget.customerId},
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.qr_code_scanner),
+            tooltip: l10n.translate('field_sales.barcode_scan'),
+            onPressed: _saving ? null : _openBarcodeOrder,
+          ),
+        ],
       ),
       body: _loadingCustomer
           ? const Center(child: CircularProgressIndicator())
@@ -234,6 +407,8 @@ class _VisitFormScreenState extends ConsumerState<VisitFormScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    if (activeVisit != null)
+                      VisitVoiceIntelligenceBanner(visitId: activeVisit.id),
                     VisitMbtFields(
                       codeController: _codeController,
                       titleController: _titleController,
@@ -248,6 +423,22 @@ class _VisitFormScreenState extends ConsumerState<VisitFormScreen> {
                       referenceController: _referenceController,
                       attachmentsController: _attachmentsController,
                       notesController: _notesController,
+                      notesHeader: VisitSpeechRecordBar(
+                        status: speech.status,
+                        listeningLabel: l10n.translate(
+                          'field_sales.visit_speech_listening',
+                        ),
+                        idleLabel: l10n.translate(
+                          'field_sales.visit_speech_idle',
+                        ),
+                        partialText: speech.partialText,
+                        statusHint: _speechHint(l10n, speech),
+                        onToggle: _saving ? null : () {
+                          // ignore: discarded_futures
+                          _toggleSpeech();
+                        },
+                        enabled: !_saving,
+                      ),
                       visitReason: _visitReason,
                       onVisitReasonChanged: (val) {
                         setState(() => _visitReason = val);

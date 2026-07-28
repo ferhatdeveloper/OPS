@@ -23,10 +23,23 @@ import '../service/theme_service.dart';
 
 import '../service/language_service.dart';
 import '../core/tenant/postgrest_tenant_service.dart';
+import '../core/tenant/postgrest_http_client.dart';
+import '../core/tenant/postgrest_master_sync.dart';
+import '../core/tenant/postgrest_table_names.dart';
 import '../core/tenant/saas_origin_override_dialog.dart';
 import '../core/tenant/tenant_store.dart';
+import '../service/postgres_service.dart';
+import 'widgets/login_tenant_code_chip.dart';
+import '../modules/field_sales/companies/model/active_company_session.dart';
+import '../modules/field_sales/companies/viewmodel/active_company_store.dart';
+import '../modules/field_sales/stock/model/active_warehouse_session.dart';
+import '../modules/field_sales/stock/model/warehouse_master_seed.dart';
+import '../modules/field_sales/stock/viewmodel/active_warehouse_store.dart';
+import '../core/auth/remember_me_session.dart';
+import '../core/auth/remember_me_store.dart';
 import '../modules/admin_panel/admin_password_dialog.dart'
     show showAdminPasswordDialog;
+import 'package:http/http.dart' as http;
 
 export 'login_screen.dart' show showForceLogoutDialog;
 
@@ -67,11 +80,30 @@ void debugLog(String message) {
   print('EXFIN-LOGIN: $message');
 }
 
-class LoginScreen extends ConsumerWidget {
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends ConsumerState<LoginScreen> {
+  /// Form ↔ yarım ay (tema) yanı dens kiracı butonu köprüsü
+  final ValueNotifier<LoginTenantChipData> _tenantChip =
+      ValueNotifier(const LoginTenantChipData());
+
+  /// Formun kayıt ettiği Değiştir / düzenle aksiyonu
+  VoidCallback? _tenantHeaderAction;
+
+  @override
+  void dispose() {
+    _tenantChip.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ref = this.ref;
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
     final isSmallScreen = screenWidth < 600;
@@ -250,6 +282,26 @@ class LoginScreen extends ConsumerWidget {
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
                                 Row(children: [
+                                  // Bina + minimal kiracı kodu (üst ikon çubuğu)
+                                  ValueListenableBuilder<LoginTenantChipData>(
+                                    valueListenable: _tenantChip,
+                                    builder: (context, data, _) {
+                                      if (!data.visible) {
+                                        return const SizedBox.shrink();
+                                      }
+                                      return Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 2,
+                                        ),
+                                        child: LoginTenantCodeChip(
+                                          tenantCode: data.tenantCode,
+                                          busy: data.busy,
+                                          onPressed: () =>
+                                              _tenantHeaderAction?.call(),
+                                        ),
+                                      );
+                                    },
+                                  ),
                                   Padding(
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 4),
@@ -634,7 +686,14 @@ class LoginScreen extends ConsumerWidget {
                             const SizedBox(height: 30),
 
                             // Login form
-                            ExfinLoginForm(exfinRed: exfinRed, ref: ref),
+                            ExfinLoginForm(
+                              exfinRed: exfinRed,
+                              ref: ref,
+                              tenantChip: _tenantChip,
+                              onRegisterHeaderAction: (action) {
+                                _tenantHeaderAction = action;
+                              },
+                            ),
                           ],
                         ),
                       ),
@@ -657,8 +716,19 @@ class ExfinLoginForm extends StatefulWidget {
   final Color exfinRed;
   final WidgetRef ref;
 
-  const ExfinLoginForm({Key? key, required this.exfinRed, required this.ref})
-      : super(key: key);
+  /// Yarım ay yanı dens kiracı butonu durumu
+  final ValueNotifier<LoginTenantChipData>? tenantChip;
+
+  /// Header butonuna Değiştir aksiyonunu kaydet
+  final void Function(VoidCallback action)? onRegisterHeaderAction;
+
+  const ExfinLoginForm({
+    Key? key,
+    required this.exfinRed,
+    required this.ref,
+    this.tenantChip,
+    this.onRegisterHeaderAction,
+  }) : super(key: key);
 
   @override
   State<ExfinLoginForm> createState() => _ExfinLoginFormState();
@@ -667,6 +737,7 @@ class ExfinLoginForm extends StatefulWidget {
 class _ExfinLoginFormState extends State<ExfinLoginForm> {
   final _formKey = GlobalKey<FormState>();
   final _tenantCodeController = TextEditingController();
+  final _tenantFocusNode = FocusNode();
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _rememberMe = false;
@@ -683,14 +754,35 @@ class _ExfinLoginFormState extends State<ExfinLoginForm> {
   int _loginCountdown = 0;
   Timer? _loginCountdownTimer;
 
+  /// Kayıtlı kiracı varsa kilitli (RetailEX: Değiştir ile açılır)
+  bool _tenantLocked = false;
+
+  /// Prefs kiracı yüklemesi bitti mi
+  bool _tenantLoadDone = false;
+
+  /// Kiracı Bağlan tamamlandı → login formu açılır
+  bool _tenantGatePassed = false;
+
+  /// Kiracı bağlanırken (firma/dönem çekimi)
+  bool _tenantConnecting = false;
+
   // Firma değişkeni
   Company? _selectedCompany;
   List<Company> _companies = [];
   StreamSubscription<List<Map<String, dynamic>>>? _companyStreamSub;
+  String _selectedPeriodNo = '01';
+  String _selectedPeriodStart = '';
+  String _selectedPeriodEnd = '';
+  List<PostgrestPeriodRow> _periods = const [];
+  PostgrestPeriodRow? _selectedPeriod;
+  List<WarehouseMasterSeedRow> _warehouses = WarehouseMasterSeed.defaultRows;
+  WarehouseMasterSeedRow? _selectedWarehouse;
+  http.Client? _httpClient;
 
   @override
   void initState() {
     super.initState();
+    widget.onRegisterHeaderAction?.call(_onHeaderTenantTap);
     _initializeDbAndLoad();
     _usernameController.addListener(_onUsernameChanged);
     // İlk açılışta kullanıcı adı varsa stream başlat
@@ -699,10 +791,33 @@ class _ExfinLoginFormState extends State<ExfinLoginForm> {
     }
   }
 
+  /// Header bina chip: kayıtlıysa Değiştir+dialog; değilse kod girişi dialog.
+  void _onHeaderTenantTap() {
+    if (_isLoading || _tenantConnecting) return;
+    if (_tenantGatePassed &&
+        _tenantCodeController.text.trim().isNotEmpty) {
+      unawaited(_onChangeTenant());
+    } else {
+      unawaited(_openTenantEditDialog());
+    }
+  }
+
+  /// Parent ValueNotifier ile yarım ay yanı butonu senkronu.
+  void _syncTenantChip() {
+    widget.tenantChip?.value = LoginTenantChipData(
+      tenantCode: _tenantCodeController.text,
+      gatePassed: _tenantGatePassed,
+      loadDone: _tenantLoadDone,
+      busy: _tenantConnecting,
+    );
+  }
+
   void _onUsernameChanged() {
     final username = _usernameController.text.trim();
     if (username.isNotEmpty) {
       _subscribeToCompanyStreamByUsername(username);
+    } else if (_tenantCodeController.text.trim().isNotEmpty) {
+      _loadFirmsFromPostgrest();
     } else {
       _companyStreamSub?.cancel();
       setState(() {
@@ -712,16 +827,131 @@ class _ExfinLoginFormState extends State<ExfinLoginForm> {
     }
   }
 
+  http.Client get _client {
+    return _httpClient ??= http.Client();
+  }
+
+  /// Kiracı PostgREST `/firms` (+ kullanıcı firm_nr yedek).
+  Future<void> _loadFirmsFromPostgrest({
+    String? preferFirmNr,
+    List<String> allowedFirmNrs = const [],
+  }) async {
+    final tenant = _tenantCodeController.text.trim();
+    if (tenant.isEmpty) return;
+    try {
+      final apply = await PostgrestTenantService(
+        httpClient: _client,
+      ).applyTenantCode(tenant);
+      if (!apply.ok) return;
+
+      final sync = PostgrestMasterSync(
+        client: PostgrestHttpClient(httpClient: _client),
+      );
+      final firms = await sync.fetchFirms(
+        preferFirmNr: preferFirmNr,
+        allowedFirmNrs: allowedFirmNrs,
+      );
+      if (!mounted) return;
+      if (firms.isEmpty) {
+        // Ağ yok / boş: demo satırı bırakma — kullanıcıya seçim için
+        // sentetik yoksa mevcut mock'a düşme.
+        return;
+      }
+      final companies = firms
+          .map(
+            (f) => Company(
+              id: f.id,
+              name: f.name,
+              companyNo: f.firmNr,
+              description: 'firm_nr=${f.firmNr}',
+              isActive: f.isActive,
+            ),
+          )
+          .toList();
+      setState(() {
+        _companies = companies;
+        _selectedCompany = companies.isNotEmpty ? companies.first : null;
+      });
+      if (_selectedCompany != null) {
+        await _loadPeriodForSelectedCompany();
+        await _loadWarehouses();
+      }
+    } catch (e) {
+      debugPrint('Firma listesi PostgREST: $e');
+    }
+  }
+
+  Future<void> _loadPeriodForSelectedCompany() async {
+    final company = _selectedCompany;
+    if (company == null) return;
+    try {
+      final sync = PostgrestMasterSync(
+        client: PostgrestHttpClient(httpClient: _client),
+      );
+      final firm = PostgrestFirmRow(
+        id: company.id,
+        firmNr: PostgrestTableNames.padFirm(company.companyNo ?? ''),
+        name: company.name,
+      );
+      final periods = await sync.fetchPeriodsForFirm(firm);
+      final picked = sync.pickDefaultPeriod(periods);
+      if (!mounted) return;
+      setState(() {
+        _periods = periods;
+        _selectedPeriod = picked;
+        _selectedPeriodNo = picked.nr;
+        _selectedPeriodStart = picked.begDate;
+        _selectedPeriodEnd = picked.endDate;
+      });
+    } catch (e) {
+      debugPrint('Dönem yükleme: $e');
+      if (!mounted) return;
+      final fallback = PostgrestPeriodRow.fallback(company.id);
+      setState(() {
+        _periods = [fallback];
+        _selectedPeriod = fallback;
+        _selectedPeriodNo = '01';
+        _selectedPeriodStart = '';
+        _selectedPeriodEnd = '';
+      });
+    }
+  }
+
+  String _periodChoiceLabel(PostgrestPeriodRow p) {
+    final range = [
+      if (p.begDate.trim().isNotEmpty) p.begDate.trim(),
+      if (p.endDate.trim().isNotEmpty) p.endDate.trim(),
+    ].join(' — ');
+    if (range.isEmpty) {
+      return AppLocalization.of(context)
+          .translate('auth.period_nr_label', args: {'nr': p.nr});
+    }
+    return '${p.nr} · $range';
+  }
+
+  String _warehouseChoiceLabel(WarehouseMasterSeedRow w) {
+    // API store: nameKey api.store.* → seedName; seed MRK/ARC/IAD → l10n
+    if (w.nameKey.startsWith('api.store.')) {
+      return '${w.code} · ${w.seedName}';
+    }
+    final name = AppLocalization.of(context).translate(w.nameKey);
+    final display = name == w.nameKey ? w.seedName : name;
+    return '${w.code} · $display';
+  }
+
   void _subscribeToCompanyStreamByUsername(String username) {
     debugPrint('[FİRMA STREAM] Kullanıcı adı ile filtre: $username');
     _companyStreamSub?.cancel();
-    
-    // Supabase iptal edildi. Local/Mock DB üzerinden firma listesi döndürülüyor.
+    // Tenant doluysa PostgREST firms; değilse eski mock (offline demo)
+    if (_tenantCodeController.text.trim().isNotEmpty) {
+      _loadFirmsFromPostgrest();
+      return;
+    }
     final companies = [
       Company(
         id: '${username}_1',
         name: 'EXFIN-ERP Demo Firma',
-        companyNo: '1',
+        companyNo: '001',
         description: 'Mock Demo Firma',
         isActive: true,
         createdAt: null,
@@ -740,36 +970,465 @@ class _ExfinLoginFormState extends State<ExfinLoginForm> {
   Future<void> _initializeDbAndLoad() async {
     final dbService = await DatabaseService.getInstance();
     await dbService.initialize();
+    await dbService.ensureWarehousesSchema();
     await _loadSavedTenantCode();
+    await _loadWarehouses();
+    await _loadSavedWarehouse();
     _loadSavedCredentials();
     _cihazOnayKontrol();
   }
 
+  /// Ambar/mağaza: kiracı aktifse PostgREST `/stores`, yoksa yerel seed.
+  Future<void> _loadWarehouses() async {
+    final rawFirm = (_selectedCompany?.companyNo ?? '').trim();
+    final firmNr =
+        rawFirm.isEmpty ? '' : PostgrestTableNames.padFirm(rawFirm);
+    final restReady =
+        PostgresService.instance.activeRemoteRestUrl.trim().isNotEmpty;
+
+    if (restReady) {
+      try {
+        final sync = PostgrestMasterSync();
+        var stores = await sync.fetchStores(
+          firmNr: firmNr.isEmpty ? null : firmNr,
+        );
+        if (firmNr.isNotEmpty) {
+          stores = stores.where((s) => s.firmNr == firmNr).toList();
+        }
+        if (stores.isNotEmpty) {
+          await sync.syncStoresToSqlite(stores);
+          if (!mounted) return;
+          final rows = stores.map((s) => s.toWarehouseSeedRow()).toList();
+          final picked = sync.pickDefaultStore(stores);
+          final selectedCode = picked?.code;
+          WarehouseMasterSeedRow? selected;
+          if (selectedCode != null) {
+            for (final r in rows) {
+              if (r.code == selectedCode) {
+                selected = r;
+                break;
+              }
+            }
+          }
+          selected ??= rows.first;
+          setState(() {
+            _warehouses = rows;
+            final stillValid = _selectedWarehouse != null &&
+                rows.any((r) => r.code == _selectedWarehouse!.code);
+            _selectedWarehouse = stillValid ? _selectedWarehouse : selected;
+          });
+          return;
+        }
+        debugPrint('PostgREST /stores boş — seed kullanılmayacak (tenant).');
+        if (!mounted) return;
+        setState(() {
+          _warehouses = const [];
+          _selectedWarehouse = null;
+        });
+        return;
+      } catch (e) {
+        debugPrint('Ambar PostgREST: $e');
+      }
+    }
+
+    try {
+      final dbService = await DatabaseService.getInstance();
+      await dbService.ensureWarehousesSchema();
+      final db = await dbService.getDatabase();
+      final maps = await db.query(WarehouseMasterSeed.tableName);
+      if (!mounted) return;
+      if (maps.isEmpty) {
+        setState(() {
+          _warehouses = WarehouseMasterSeed.defaultRows;
+          _selectedWarehouse ??= WarehouseMasterSeed.byCode('ARC') ??
+              WarehouseMasterSeed.defaultRows.first;
+        });
+        return;
+      }
+      final rows = <WarehouseMasterSeedRow>[];
+      for (final m in maps) {
+        final code = (m['code'] ?? '').toString();
+        final seed = WarehouseMasterSeed.byCode(code);
+        final rawName = (m['name'] ?? seed?.seedName ?? code).toString();
+        rows.add(
+          WarehouseMasterSeedRow(
+            id: (m['id'] ?? seed?.id ?? code).toString(),
+            code: code,
+            type: (m['type'] ?? seed?.type ?? '').toString(),
+            nameKey: seed?.nameKey ?? 'api.store.$code',
+            seedName: rawName,
+          ),
+        );
+      }
+      setState(() {
+        _warehouses = rows;
+        _selectedWarehouse ??= rows.isNotEmpty ? rows.first : null;
+      });
+    } catch (e) {
+      debugPrint('Ambar listesi: $e');
+      if (!mounted) return;
+      setState(() {
+        _warehouses = WarehouseMasterSeed.defaultRows;
+        _selectedWarehouse ??= WarehouseMasterSeed.byCode('ARC');
+      });
+    }
+  }
+
+  Future<void> _loadSavedWarehouse() async {
+    try {
+      final saved = await const ActiveWarehouseStore().load();
+      if (!mounted || saved.isEmpty) return;
+      WarehouseMasterSeedRow? match;
+      for (final w in _warehouses) {
+        if (w.code == saved.code) {
+          match = w;
+          break;
+        }
+      }
+      match ??= WarehouseMasterSeed.byCode(saved.code);
+      if (match != null) {
+        setState(() => _selectedWarehouse = match);
+      }
+    } catch (e) {
+      debugPrint('Kayıtlı ambar: $e');
+    }
+  }
+
   /// Son kiracı kodunu prefs'ten yükler (PostgREST bağlamını restore eder).
+  /// Form her zaman kullanıcı adı/şifre gösterir; kiracı üst chip’te.
   Future<void> _loadSavedTenantCode() async {
     try {
       final ctx = await PostgrestTenantService().restoreActiveContext();
       if (!mounted) return;
+      String code = '';
       if (ctx != null && ctx.tenantCode.isNotEmpty) {
-        setState(() {
-          _tenantCodeController.text = ctx.tenantCode;
-        });
+        code = ctx.tenantCode;
       } else {
         final store = const TenantStore();
         final loaded = await store.load();
         if (!mounted) return;
         if (loaded.tenantCode.isNotEmpty) {
-          setState(() {
-            _tenantCodeController.text = loaded.tenantCode;
-          });
+          code = loaded.tenantCode;
         }
+      }
+      if (!mounted) return;
+      setState(() {
+        _tenantCodeController.text = code;
+        _tenantLocked = false;
+        _tenantGatePassed = false;
+        _tenantLoadDone = true;
+      });
+      _syncTenantChip();
+      // Kayıtlı kiracı → otomatik bağlan (üst satır yok; değiştir = yarım ay yanı)
+      if (code.trim().isNotEmpty) {
+        await _connectTenantAndFetch();
       }
     } catch (e) {
       debugPrint('Kiracı kodu yüklenemedi: $e');
+      if (mounted) {
+        setState(() {
+          _tenantLocked = false;
+          _tenantGatePassed = false;
+          _tenantLoadDone = true;
+        });
+        _syncTenantChip();
+      }
     }
   }
 
-  // Kaydedilen firma bilgisini yükle
+  /// RetailEX parity: kayıtlı kiracıyı bırakıp yeniden girişi açar.
+  Future<void> _onChangeTenant() async {
+    await const TenantStore().clear();
+    PostgresService.instance.clearActiveTenantContext();
+    if (!mounted) return;
+    setState(() {
+      _tenantLocked = false;
+      _tenantGatePassed = false;
+      _tenantCodeController.clear();
+      _companies = [];
+      _selectedCompany = null;
+      _periods = const [];
+      _selectedPeriod = null;
+      _selectedPeriodNo = '01';
+      _selectedPeriodStart = '';
+      _selectedPeriodEnd = '';
+    });
+    _syncTenantChip();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(_openTenantEditDialog());
+    });
+  }
+
+  /// {@template open_tenant_edit_dialog}
+  /// Kompakt kiracı satırından dens dialog: kod gir + Bağlan.
+  /// Büyük form TextField yerine kullanılır.
+  /// {@endtemplate}
+  Future<void> _openTenantEditDialog() async {
+    if (!mounted || _isLoading || _tenantConnecting) return;
+
+    final editController = TextEditingController(
+      text: _tenantCodeController.text,
+    );
+    final editFocus = FocusNode();
+
+    try {
+      final code = await showDialog<String>(
+        context: context,
+        builder: (ctx) {
+          final l10n = AppLocalization.of(ctx);
+          final isDark = Theme.of(ctx).brightness == Brightness.dark;
+          final inputFillColor = isDark ? Colors.grey[850] : Colors.white;
+          final inputTextColor = isDark ? Colors.white : Colors.black87;
+          final inputHintColor = isDark ? Colors.white70 : Colors.grey[600];
+
+          return AlertDialog(
+            backgroundColor: Theme.of(ctx).cardColor,
+            title: Text(
+              l10n.translate('auth.tenant_edit_title'),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : const Color(0xFF054F99),
+              ),
+            ),
+            content: TextField(
+              controller: editController,
+              focusNode: editFocus,
+              autofocus: true,
+              style: TextStyle(color: inputTextColor, fontSize: 14),
+              textCapitalization: TextCapitalization.none,
+              keyboardType: TextInputType.text,
+              textInputAction: TextInputAction.done,
+              autocorrect: false,
+              decoration: InputDecoration(
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                labelText: l10n.translate('auth.tenant_code'),
+                hintText: l10n.translate('auth.enter_tenant_first'),
+                prefixIcon: GestureDetector(
+                  onLongPress: () async {
+                    final ok = await showSaasOriginOverrideDialog(ctx);
+                    if (ok && ctx.mounted) {
+                      ScaffoldMessenger.of(ctx).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            l10n.translate('auth.saas_origin_saved'),
+                          ),
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    }
+                  },
+                  child: Tooltip(
+                    message: l10n.translate(
+                      'auth.saas_origin_long_press_hint',
+                    ),
+                    child: const Icon(Icons.apartment, size: 20),
+                  ),
+                ),
+                filled: true,
+                fillColor: inputFillColor,
+                labelStyle:
+                    TextStyle(color: inputTextColor, fontSize: 13),
+                hintStyle:
+                    TextStyle(color: inputHintColor, fontSize: 13),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              onSubmitted: (v) {
+                final t = v.trim();
+                if (t.isNotEmpty) Navigator.of(ctx).pop(t);
+              },
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: Text(l10n.translate('common.cancel')),
+              ),
+              OutlinedButton(
+                onPressed: () {
+                  final t = editController.text.trim();
+                  if (t.isEmpty) return;
+                  Navigator.of(ctx).pop(t);
+                },
+                style: OutlinedButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                ),
+                child: Text(
+                  l10n.translate('auth.connect'),
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+
+      if (!mounted || code == null || code.trim().isEmpty) return;
+      _tenantCodeController.text = code.trim();
+      await _connectTenantAndFetch();
+    } finally {
+      editController.dispose();
+      editFocus.dispose();
+    }
+  }
+
+  /// Kiracı Bağlan: URL çözümle + firma/dönem/ambar çek → login formu.
+  Future<void> _connectTenantAndFetch() async {
+    final code = _tenantCodeController.text.trim();
+    if (code.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            AppLocalization.of(context).translate('auth.enter_tenant_first'),
+          ),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _tenantConnecting = true;
+      _isLoading = true;
+    });
+    _syncTenantChip();
+
+    try {
+      final tenantResult = await PostgrestTenantService(httpClient: _client)
+          .applyTenantCode(code);
+      if (!mounted) return;
+
+      if (!tenantResult.ok || tenantResult.context == null) {
+        final key = tenantResult.errorKey ?? 'auth.tenant_resolve_failed';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppLocalization.of(context).translate(key))),
+        );
+        setState(() {
+          _tenantConnecting = false;
+          _isLoading = false;
+          _tenantGatePassed = false;
+        });
+        _syncTenantChip();
+        return;
+      }
+
+      if (tenantResult.usedOfflineCache) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalization.of(context)
+                  .translate('auth.tenant_offline_using_last'),
+            ),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+
+      // Web: tarayıcı CORS engeli → gate açmadan net hata
+      final corsBlocked = await _probePostgrestReachable();
+      if (!mounted) return;
+      if (corsBlocked != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalization.of(context).translate(corsBlocked),
+            ),
+            duration: const Duration(seconds: 6),
+          ),
+        );
+        setState(() {
+          _tenantConnecting = false;
+          _isLoading = false;
+          _tenantGatePassed = false;
+        });
+        _syncTenantChip();
+        return;
+      }
+
+      await _loadFirmsFromPostgrest();
+      await _loadWarehouses();
+      await _loadSavedWarehouse();
+      if (!mounted) return;
+
+      setState(() {
+        _tenantCodeController.text = tenantResult.context!.tenantCode;
+        _tenantLocked = true;
+        _tenantGatePassed = true;
+        _tenantConnecting = false;
+        _isLoading = false;
+      });
+      _syncTenantChip();
+    } catch (e) {
+      debugPrint('Kiracı bağlan: $e');
+      if (!mounted) return;
+      final err = e.toString().toLowerCase();
+      final key = (kIsWeb &&
+              (err.contains('failed to fetch') ||
+                  err.contains('xmlhttprequest') ||
+                  err.contains('cors')))
+          ? 'auth.postgrest_web_cors'
+          : 'auth.postgrest_network_error';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalization.of(context).translate(key)),
+          duration: const Duration(seconds: 6),
+        ),
+      );
+      setState(() {
+        _tenantConnecting = false;
+        _isLoading = false;
+        _tenantGatePassed = false;
+      });
+      _syncTenantChip();
+    }
+  }
+
+  /// PostgREST erişim probe. Dönüş: hata l10n anahtarı veya null (OK).
+  Future<String?> _probePostgrestReachable() async {
+    final url = PostgresService.instance.activeRemoteRestUrl.trim();
+    if (url.isEmpty) return 'auth.postgrest_network_error';
+    try {
+      await PostgrestHttpClient(httpClient: _client).getRows(
+        '/firms',
+        query: const {
+          'select': 'id',
+          'limit': '1',
+        },
+      );
+      return null;
+    } catch (e) {
+      debugPrint('PostgREST probe: $e');
+      final err = e.toString().toLowerCase();
+      if (kIsWeb &&
+          (err.contains('failed to fetch') ||
+              err.contains('xmlhttprequest') ||
+              err.contains('clientexception'))) {
+        return 'auth.postgrest_web_cors';
+      }
+      // HTTP 4xx/5xx → sunucu cevap verdi (CORS değil); gate devam
+      if (e is PostgrestHttpException && e.statusCode > 0) {
+        return null;
+      }
+      return 'auth.postgrest_network_error';
+    }
+  }
+
+  /// Kiracı uygulandıktan sonra kilitle (RetailEX kayıtlı görünüm).
+  void _lockTenantAfterApply(String code) {
+    final c = code.trim();
+    if (c.isEmpty) return;
+    setState(() {
+      _tenantCodeController.text = c;
+      _tenantLocked = true;
+    });
+  }
+
+  // Kaydedilen firma bilgisini yükle (form doldurma; auto-login bootstrap'ta)
   Future<void> _loadSavedCredentials() async {
     final dbService = await DatabaseService.getInstance();
     final hasRememberedCredentials = await dbService.hasRememberedCredentials();
@@ -785,16 +1444,6 @@ class _ExfinLoginFormState extends State<ExfinLoginForm> {
             _passwordController.text = password;
           }
           _rememberMe = true;
-        });
-        
-        // Wait a short duration to ensure companies are loaded from stream, then auto-login
-        Future.delayed(const Duration(milliseconds: 500), () {
-          if (mounted &&
-              _tenantCodeController.text.trim().isNotEmpty &&
-              _usernameController.text.isNotEmpty &&
-              _passwordController.text.isNotEmpty) {
-            _handleLogin();
-          }
         });
       }
     }
@@ -820,6 +1469,75 @@ class _ExfinLoginFormState extends State<ExfinLoginForm> {
     }
   }
 
+  /// Dens birincil aksiyon (Bağlan / Giriş) — mevcut gradient stil.
+  Widget _buildPrimaryActionButton({
+    required BuildContext context,
+    required VoidCallback? onPressed,
+    required bool showSpinner,
+    required String labelKey,
+    String? countdownText,
+  }) {
+    return Container(
+      width: double.infinity,
+      height: 54,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [exfinDarkBlue, exfinLightBlue],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.zero,
+        boxShadow: [
+          BoxShadow(
+            color: exfinDarkBlue.withOpacity(0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ElevatedButton(
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          foregroundColor: Colors.white,
+          shadowColor: Colors.transparent,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.zero,
+          ),
+        ),
+        child: showSpinner
+            ? const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
+              )
+            : FittedBox(
+                fit: BoxFit.scaleDown,
+                child: countdownText != null
+                    ? Text(
+                        countdownText,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      )
+                    : DirectionalLocalizedText(
+                        labelKey,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.0,
+                        ),
+                      ),
+              ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     debugLog("ExfinLoginForm build method called");
@@ -841,60 +1559,76 @@ class _ExfinLoginFormState extends State<ExfinLoginForm> {
     final inputTextColor = isDark ? Colors.white : Colors.black87;
     final inputHintColor = isDark ? Colors.white70 : Colors.grey[600];
 
-    // Form tasarımını başlat
+    // Kayıtlı değil: dens kiracı alanı. Kayıtlı: formda satır yok
+    // (üstte bina + T: kod chip).
     return Form(
       key: _formKey,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Kiracı kodu (RetailEX PostgREST / tenant) — dens stil, redesign yok
-          TextFormField(
-            controller: _tenantCodeController,
-            style: TextStyle(color: inputTextColor),
-            textDirection: Directionality.of(context),
-            textCapitalization: TextCapitalization.none,
-            keyboardType: TextInputType.text,
-            textInputAction: TextInputAction.next,
-            decoration: InputDecoration(
-              labelText:
-                  AppLocalization.of(context).translate('auth.tenant_code'),
-              hintText: AppLocalization.of(context)
-                  .translate('auth.enter_tenant_code'),
-              prefixIcon: GestureDetector(
-                onLongPress: () async {
-                  final ok = await showSaasOriginOverrideDialog(context);
-                  if (ok && mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          AppLocalization.of(context)
-                              .translate('auth.saas_origin_saved'),
-                        ),
-                        duration: const Duration(seconds: 2),
-                      ),
-                    );
-                  }
-                },
-                child: Tooltip(
-                  message: AppLocalization.of(context)
-                      .translate('auth.saas_origin_long_press_hint'),
-                  child: const Icon(Icons.apartment),
+          if (!_tenantLoadDone)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2),
                 ),
               ),
-              filled: true,
-              fillColor: inputFillColor,
-              labelStyle: TextStyle(color: inputTextColor),
-              hintStyle: TextStyle(color: inputHintColor),
-              border:
-                  OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+            )
+          else if (!_tenantGatePassed) ...[
+            TextFormField(
+              controller: _tenantCodeController,
+              focusNode: _tenantFocusNode,
+              style: TextStyle(fontSize: 13, color: inputTextColor),
+              textInputAction: TextInputAction.done,
+              textCapitalization: TextCapitalization.none,
+              keyboardType: TextInputType.text,
+              enabled: !_isLoading && !_tenantConnecting,
+              onChanged: (_) => _syncTenantChip(),
+              onFieldSubmitted: (_) {
+                if (!_tenantConnecting) {
+                  unawaited(_connectTenantAndFetch());
+                }
+              },
+              decoration: InputDecoration(
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+                labelText: AppLocalization.of(context)
+                    .translate('auth.tenant_code'),
+                hintText: AppLocalization.of(context)
+                    .translate('auth.enter_tenant_first'),
+                prefixIcon: const Icon(Icons.apartment, size: 20),
+                filled: true,
+                fillColor: inputFillColor,
+                labelStyle: TextStyle(fontSize: 13, color: inputTextColor),
+                hintStyle: TextStyle(fontSize: 12, color: inputHintColor),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return AppLocalization.of(context)
+                      .translate('auth.enter_tenant_first');
+                }
+                return null;
+              },
             ),
-            validator: (value) => (value == null || value.trim().isEmpty)
-                ? AppLocalization.of(context)
-                    .translate('auth.tenant_code_required')
-                : null,
-          ),
-          const SizedBox(height: 16),
-
+            const SizedBox(height: 16),
+            _buildPrimaryActionButton(
+              context: context,
+              onPressed: (_isLoading || _tenantConnecting)
+                  ? null
+                  : () => unawaited(_connectTenantAndFetch()),
+              showSpinner: _tenantConnecting,
+              labelKey: 'auth.connect',
+            ),
+          ] else ...[
           // Kullanıcı adı alanı:
           TextFormField(
             controller: _usernameController,
@@ -911,9 +1645,12 @@ class _ExfinLoginFormState extends State<ExfinLoginForm> {
               border:
                   OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
             ),
-            validator: (value) => (value == null || value.isEmpty)
-                ? AppLocalization.of(context).translate('auth.username_required')
-                : null,
+            validator: (value) {
+              return (value == null || value.isEmpty)
+                  ? AppLocalization.of(context)
+                      .translate('auth.username_required')
+                  : null;
+            },
           ),
           const SizedBox(height: 16),
 
@@ -959,30 +1696,155 @@ class _ExfinLoginFormState extends State<ExfinLoginForm> {
               border:
                   OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
             ),
-            validator: (value) =>
-                (value == null || value.isEmpty) ? AppLocalization.of(context).translate('auth.password_required') : null,
+            validator: (value) {
+              return (value == null || value.isEmpty)
+                  ? AppLocalization.of(context)
+                      .translate('auth.password_required')
+                  : null;
+            },
           ),
           const SizedBox(height: 8),
 
-          // Firma seçim butonu (şifrenin altına taşındı)
+          // Firma + dönem tek dens alan (ortak çerçeve)
+          Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.grey[850] : Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+              ),
+            ),
+            child: IntrinsicHeight(
+              child: Row(
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: InkWell(
+                      onTap: () => _showCompanySelectionDialog(context),
+                      borderRadius: const BorderRadius.horizontal(
+                        left: Radius.circular(8),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 10,
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.business,
+                              size: 16,
+                              color: Colors.blueGrey,
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                _selectedCompany?.name ??
+                                    AppLocalization.of(context)
+                                        .translate('auth.select_company'),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: isDark
+                                      ? Colors.white
+                                      : textColorPrimary,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  VerticalDivider(
+                    width: 1,
+                    thickness: 1,
+                    color: isDark
+                        ? Colors.grey.shade700
+                        : Colors.grey.shade300,
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: InkWell(
+                      onTap: _selectedCompany == null
+                          ? null
+                          : () => _showPeriodSelectionDialog(context),
+                      borderRadius: const BorderRadius.horizontal(
+                        right: Radius.circular(8),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 10,
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.date_range,
+                              size: 16,
+                              color: _selectedCompany == null
+                                  ? Colors.blueGrey.withValues(alpha: 0.4)
+                                  : Colors.blueGrey,
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                _selectedPeriod != null
+                                    ? _periodChoiceLabel(_selectedPeriod!)
+                                    : AppLocalization.of(context)
+                                        .translate('auth.select_period'),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: _selectedCompany == null
+                                      ? (isDark
+                                          ? Colors.white38
+                                          : Colors.black38)
+                                      : (isDark
+                                          ? Colors.white
+                                          : textColorPrimary),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Ambar seçimi
           Container(
             margin: const EdgeInsets.only(bottom: 16),
             width: double.infinity,
             child: OutlinedButton.icon(
-              onPressed: () => _showCompanySelectionDialog(context),
-              icon: Icon(
-                Icons.business,
+              onPressed: () => _showWarehouseSelectionDialog(context),
+              icon: const Icon(
+                Icons.warehouse_outlined,
                 color: Colors.blueGrey,
               ),
               label: Text(
-                _selectedCompany?.name ?? AppLocalization.of(context).translate('auth.select_company'),
+                _selectedWarehouse != null
+                    ? _warehouseChoiceLabel(_selectedWarehouse!)
+                    : AppLocalization.of(context)
+                        .translate('auth.select_warehouse'),
                 style: TextStyle(
                   color: isDark ? Colors.white : textColorPrimary,
                   fontWeight: FontWeight.w500,
                 ),
               ),
               style: OutlinedButton.styleFrom(
-                side: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                side: BorderSide(
+                  color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                ),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: 12,
@@ -1046,66 +1908,20 @@ class _ExfinLoginFormState extends State<ExfinLoginForm> {
           ),
           const SizedBox(height: 24),
 
-          // Bağlan butonu
-          Container(
-            width: double.infinity,
-            height: 54,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [exfinDarkBlue, exfinLightBlue],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.zero,
-              boxShadow: [
-                BoxShadow(
-                  color: exfinDarkBlue.withOpacity(0.3),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: ElevatedButton(
-              onPressed: _isLoading ? null : _handleLogin,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.transparent,
-                foregroundColor: Colors.white,
-                shadowColor: Colors.transparent,
-                shape: const RoundedRectangleBorder(
-                  borderRadius: BorderRadius.zero,
-                ),
-              ),
-              child: (_isLoading && _loginCountdown == 0)
-                  ? const SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
-                      ),
-                    )
-                  : FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: _loginCountdown > 0
-                          ? Text(
-                              AppLocalization.of(context).translate('auth.seconds_left_to_takeover', args: {'seconds': _loginCountdown.toString()}),
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const DirectionalLocalizedText(
-                              'auth.connect',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 1.0,
-                              ),
-                            ),
-                    ),
-            ),
+          // Giriş butonu
+          _buildPrimaryActionButton(
+            context: context,
+            onPressed: _isLoading ? null : _handleLogin,
+            showSpinner: _isLoading && _loginCountdown == 0,
+            labelKey: 'common.login',
+            countdownText: _loginCountdown > 0
+                ? AppLocalization.of(context).translate(
+                    'auth.seconds_left_to_takeover',
+                    args: {'seconds': _loginCountdown.toString()},
+                  )
+                : null,
           ),
+
           if (_cihazKontrolEdildi && !_cihazOnayli)
             Padding(
               padding: const EdgeInsets.only(top: 8.0),
@@ -1242,6 +2058,7 @@ class _ExfinLoginFormState extends State<ExfinLoginForm> {
                 },
               ),
             ),
+          ], // kayıtlı kiracı login formu
         ],
       ),
     );
@@ -1259,6 +2076,80 @@ class _ExfinLoginFormState extends State<ExfinLoginForm> {
     );
   }
 
+  void _showPeriodSelectionDialog(BuildContext context) {
+    final items = _periods.isEmpty
+        ? [
+            _selectedPeriod ??
+                PostgrestPeriodRow.fallback(_selectedCompany?.id ?? ''),
+          ]
+        : _periods;
+    showDialog(
+      context: context,
+      builder: (ctx) => _LoginListChoiceDialog(
+        title: AppLocalization.of(context).translate('auth.period_selection'),
+        items: items
+            .map(
+              (p) => _LoginChoiceItem(
+                id: p.id.isNotEmpty ? p.id : p.nr,
+                label: _periodChoiceLabel(p),
+              ),
+            )
+            .toList(),
+        selectedId: _selectedPeriod?.id.isNotEmpty == true
+            ? _selectedPeriod!.id
+            : _selectedPeriod?.nr,
+        onSelected: (id) {
+          PostgrestPeriodRow? match;
+          for (final p in items) {
+            if (p.id == id || p.nr == id) {
+              match = p;
+              break;
+            }
+          }
+          if (match == null) return;
+          final selected = match;
+          setState(() {
+            _selectedPeriod = selected;
+            _selectedPeriodNo = selected.nr;
+            _selectedPeriodStart = selected.begDate;
+            _selectedPeriodEnd = selected.endDate;
+          });
+          Navigator.of(ctx).pop();
+        },
+      ),
+    );
+  }
+
+  void _showWarehouseSelectionDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => _LoginListChoiceDialog(
+        title: AppLocalization.of(context).translate('auth.warehouse_selection'),
+        items: _warehouses
+            .map(
+              (w) => _LoginChoiceItem(
+                id: w.code,
+                label: _warehouseChoiceLabel(w),
+              ),
+            )
+            .toList(),
+        selectedId: _selectedWarehouse?.code,
+        onSelected: (id) {
+          WarehouseMasterSeedRow? match;
+          for (final w in _warehouses) {
+            if (w.code == id) {
+              match = w;
+              break;
+            }
+          }
+          if (match == null) return;
+          setState(() => _selectedWarehouse = match);
+          Navigator.of(ctx).pop();
+        },
+      ),
+    );
+  }
+
   void _showNumericKeyboard(BuildContext context) {
     setState(() {
       _showKeyboard = true;
@@ -1272,15 +2163,34 @@ class _ExfinLoginFormState extends State<ExfinLoginForm> {
     //   _showDeviceNotAllowedDialog(context);
     //   return;
     // }
+
+    if (!_tenantGatePassed) {
+      await _openTenantEditDialog();
+      return;
+    }
     
     if (_formKey.currentState!.validate()) {
       final tenantCode = _tenantCodeController.text.trim();
       final username = _usernameController.text.trim();
       final password = _passwordController.text.trim();
 
+      if (tenantCode.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalization.of(context)
+                  .translate('auth.enter_tenant_first'),
+            ),
+          ),
+        );
+        unawaited(_openTenantEditDialog());
+        return;
+      }
+
       setState(() => _isLoading = true);
       final tenantResult =
-          await PostgrestTenantService().applyTenantCode(tenantCode);
+          await PostgrestTenantService(httpClient: _client)
+              .applyTenantCode(tenantCode);
       if (!mounted) return;
 
       if (!tenantResult.ok || tenantResult.context == null) {
@@ -1294,6 +2204,8 @@ class _ExfinLoginFormState extends State<ExfinLoginForm> {
         return;
       }
 
+      _lockTenantAfterApply(tenantResult.context!.tenantCode);
+
       if (tenantResult.usedOfflineCache && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1304,6 +2216,12 @@ class _ExfinLoginFormState extends State<ExfinLoginForm> {
             duration: const Duration(seconds: 2),
           ),
         );
+      }
+
+      // Firma listesi henüz yoksa PostgREST'ten çek
+      if (_companies.isEmpty) {
+        await _loadFirmsFromPostgrest();
+        if (!mounted) return;
       }
 
       // DEMO GİRİŞ KONTROLÜ
@@ -1358,10 +2276,33 @@ class _ExfinLoginFormState extends State<ExfinLoginForm> {
         );
         return;
       }
+      if (_selectedPeriod == null && _selectedPeriodNo.trim().isEmpty) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalization.of(context)
+                  .translate('auth.please_select_period'),
+            ),
+          ),
+        );
+        return;
+      }
+      if (_selectedWarehouse == null) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalization.of(context)
+                  .translate('auth.please_select_warehouse'),
+            ),
+          ),
+        );
+        return;
+      }
       try {
         final dbService = await DatabaseService.getInstance();
         if (_rememberMe) {
-          await dbService.saveCredentials(username, password);
           await dbService.saveSelectedCompanyId(_selectedCompany!.id);
         } else {
           await dbService.clearCredentials();
@@ -1385,37 +2326,11 @@ class _ExfinLoginFormState extends State<ExfinLoginForm> {
           setState(() => _isLoading = false);
           if (loginResult == null || loginResult['error'] != null) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                  content: Text(loginResult?['error'] ?? AppLocalization.of(context).translate('auth.login_failed'))),
+              SnackBar(content: Text(_loginErrorText(loginResult))),
             );
             return;
           }
-          await dbService.setUserSession({
-            'id': loginResult['user_id'],
-            'username': loginResult['username'],
-            'role': loginResult['role'],
-            'email': loginResult['email'],
-            'full_name': loginResult['full_name'],
-            'session_id': loginResult['session_id'],
-            'company_no': _selectedCompany!.companyNo,
-          });
-          if (mounted) {
-            MenuFixer.fixMenus(context);
-            final isMobile = !kIsWeb &&
-                (Theme.of(context).platform == TargetPlatform.android ||
-                 Theme.of(context).platform == TargetPlatform.iOS);
-            if (isMobile) {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const MobileDashboard(username: 'Kullanıcı')),
-              );
-            } else {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const DashboardScreen()),
-              );
-            }
-          }
+          await _finishSuccessfulLogin(loginResult);
           return;
         }
         // Sayaç başlat
@@ -1469,38 +2384,11 @@ class _ExfinLoginFormState extends State<ExfinLoginForm> {
                 setState(() => _isLoading = false);
                 if (retryResult == null || retryResult['error'] != null) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                        content:
-                            Text(retryResult?['error'] ?? AppLocalization.of(context).translate('auth.login_failed'))),
+                    SnackBar(content: Text(_loginErrorText(retryResult))),
                   );
                   return;
                 }
-                await dbService.setUserSession({
-                  'id': retryResult['user_id'],
-                  'username': retryResult['username'],
-                  'role': retryResult['role'],
-                  'email': retryResult['email'],
-                  'full_name': retryResult['full_name'],
-                  'session_id': retryResult['session_id'],
-                  'company_no': _selectedCompany!.companyNo,
-                });
-                if (mounted) {
-                        MenuFixer.fixMenus(context);
-                        final isMobile = !kIsWeb &&
-                            (Theme.of(context).platform == TargetPlatform.android ||
-                             Theme.of(context).platform == TargetPlatform.iOS);
-                        if (isMobile) {
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(builder: (context) => MobileDashboard(username: retryResult['username'] ?? 'Kullanıcı')),
-                          );
-                        } else {
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(builder: (context) => const DashboardScreen()),
-                          );
-                        }
-                      }
+                await _finishSuccessfulLogin(retryResult);
               } else {
                 setState(() => _isLoading = false);
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -1524,37 +2412,11 @@ class _ExfinLoginFormState extends State<ExfinLoginForm> {
             setState(() => _isLoading = false);
             if (retryResult == null || retryResult['error'] != null) {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                    content: Text(retryResult?['error'] ?? 'Giriş başarısız')),
+                SnackBar(content: Text(_loginErrorText(retryResult))),
               );
               return;
             }
-            await dbService.setUserSession({
-              'id': retryResult['user_id'],
-              'username': retryResult['username'],
-              'role': retryResult['role'],
-              'email': retryResult['email'],
-              'full_name': retryResult['full_name'],
-              'session_id': retryResult['session_id'],
-              'company_no': _selectedCompany!.companyNo,
-            });
-              if (mounted) {
-                MenuFixer.fixMenus(context);
-                final isMobile = !kIsWeb &&
-                    (Theme.of(context).platform == TargetPlatform.android ||
-                     Theme.of(context).platform == TargetPlatform.iOS);
-                if (isMobile) {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (context) => MobileDashboard(username: retryResult['username'] ?? 'Kullanıcı')),
-                  );
-                } else {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (context) => const DashboardScreen()),
-                  );
-                }
-              }
+            await _finishSuccessfulLogin(retryResult);
           },
           onForceLogoutRejected: () {
             setState(() => _isLoading = false);
@@ -1575,41 +2437,11 @@ class _ExfinLoginFormState extends State<ExfinLoginForm> {
           });
           _loginCountdownTimer?.cancel();
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(loginResult?['error'] ?? AppLocalization.of(context).translate('auth.login_failed'))),
+            SnackBar(content: Text(_loginErrorText(loginResult))),
           );
           return;
         }
-        // Kullanıcı session bilgisini kaydet
-        await dbService.setUserSession({
-          'id': loginResult['user_id'],
-          'username': loginResult['username'],
-          'role': loginResult['role'],
-          'email': loginResult['email'],
-          'full_name': loginResult['full_name'],
-          'session_id': loginResult['session_id'],
-          'company_no': _selectedCompany!.companyNo,
-        });
-          if (mounted) {
-            setState(() {
-              _loginCountdown = 0;
-            });
-            _loginCountdownTimer?.cancel();
-            MenuFixer.fixMenus(context);
-            final isMobile = !kIsWeb &&
-                (Theme.of(context).platform == TargetPlatform.android ||
-                 Theme.of(context).platform == TargetPlatform.iOS);
-            if (isMobile) {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => MobileDashboard(username: loginResult['username'] ?? 'Kullanıcı')),
-              );
-            } else {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const DashboardScreen()),
-              );
-            }
-          }
+        await _finishSuccessfulLogin(loginResult);
       } catch (e) {
         setState(() => _isLoading = false);
         setState(() {
@@ -1662,10 +2494,180 @@ class _ExfinLoginFormState extends State<ExfinLoginForm> {
   @override
   void dispose() {
     _companyStreamSub?.cancel();
+    _httpClient?.close();
+    _tenantFocusNode.dispose();
     _tenantCodeController.dispose();
     _usernameController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  List<String> _parseAllowedFirmNrs(dynamic raw) {
+    if (raw is List) {
+      return raw.map((e) => e.toString()).where((e) => e.isNotEmpty).toList();
+    }
+    return const [];
+  }
+
+  String _loginErrorText(Map<String, dynamic>? loginResult) {
+    final key = (loginResult?['error_key'] ?? loginResult?['error'] ?? '')
+        .toString();
+    if (key.startsWith('auth.')) {
+      return AppLocalization.of(context).translate(key);
+    }
+    if (key.isNotEmpty) return key;
+    return AppLocalization.of(context).translate('auth.login_failed');
+  }
+
+  /// Başarılı giriş: firma/dönem bağlamı + master sync + session + navigate.
+  Future<void> _finishSuccessfulLogin(Map<String, dynamic> loginResult) async {
+    final dbService = await DatabaseService.getInstance();
+    final preferFirm = (loginResult['firm_nr'] ?? '').toString();
+    final allowed = _parseAllowedFirmNrs(loginResult['allowed_firm_nrs']);
+
+    if (preferFirm.isNotEmpty || allowed.isNotEmpty) {
+      await _loadFirmsFromPostgrest(
+        preferFirmNr: preferFirm,
+        allowedFirmNrs: allowed,
+      );
+      final selectedNr = PostgrestTableNames.padFirm(
+        _selectedCompany?.companyNo ?? '',
+      );
+      final allowedSet = <String>{
+        if (preferFirm.isNotEmpty)
+          PostgrestTableNames.padFirm(preferFirm),
+        ...allowed.map(PostgrestTableNames.padFirm),
+      };
+      if (allowedSet.isNotEmpty && !allowedSet.contains(selectedNr)) {
+        Company? match;
+        for (final c in _companies) {
+          final nr = PostgrestTableNames.padFirm(c.companyNo ?? '');
+          if (allowedSet.contains(nr)) {
+            match = c;
+            break;
+          }
+        }
+        if (match != null) {
+          setState(() => _selectedCompany = match);
+          await _loadPeriodForSelectedCompany();
+        }
+      }
+    }
+
+    final company = _selectedCompany;
+    if (company == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalization.of(context)
+                  .translate('auth.please_select_company'),
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
+    final firmNr = PostgrestTableNames.padFirm(company.companyNo ?? '001');
+    final periodNo = (_selectedPeriod?.nr ?? _selectedPeriodNo).trim().isEmpty
+        ? '01'
+        : (_selectedPeriod?.nr ?? _selectedPeriodNo);
+    await const ActiveCompanyStore().save(
+      ActiveCompanySession(
+        companyId: company.id,
+        companyName: company.name,
+        companyNo: firmNr,
+        periodNo: periodNo,
+        startDate: _selectedPeriod?.begDate ?? _selectedPeriodStart,
+        endDate: _selectedPeriod?.endDate ?? _selectedPeriodEnd,
+      ),
+    );
+
+    final wh = _selectedWarehouse;
+    if (wh != null) {
+      final whName = AppLocalization.of(context).translate(wh.nameKey);
+      await const ActiveWarehouseStore().save(
+        ActiveWarehouseSession(
+          code: wh.code,
+          name: whName == wh.nameKey ? wh.seedName : whName,
+          type: wh.type,
+        ),
+      );
+    }
+
+    try {
+      final sync = PostgrestMasterSync(
+        client: PostgrestHttpClient(httpClient: _client),
+      );
+      await sync.syncCustomersAndProducts();
+      await sync.syncPermissionGroupsOptional();
+    } catch (e) {
+      debugPrint('Login master sync: $e');
+    }
+
+    await dbService.setUserSession({
+      'id': loginResult['user_id'],
+      'username': loginResult['username'],
+      'role': loginResult['role'],
+      'email': loginResult['email'],
+      'full_name': loginResult['full_name'],
+      'session_id': loginResult['session_id'],
+      'company_no': firmNr,
+      'period_no': periodNo,
+      'warehouse_code': wh?.code ?? '',
+    });
+
+    final sessionId = (loginResult['session_id'] ?? '').toString();
+    if (sessionId.isNotEmpty) {
+      await dbService.saveAuthToken(sessionId);
+    }
+
+    if (_rememberMe) {
+      final uname =
+          (loginResult['username'] ?? _usernameController.text).toString();
+      final pwd = _passwordController.text;
+      await const RememberMeStore().save(
+        RememberMeSession(
+          sessionToken: sessionId,
+          username: uname,
+          userId: (loginResult['user_id'] ?? '').toString(),
+          role: (loginResult['role'] ?? '').toString(),
+          email: (loginResult['email'] ?? '').toString(),
+          fullName: (loginResult['full_name'] ?? '').toString(),
+          tenantCode: _tenantCodeController.text.trim(),
+        ),
+        plainPassword: pwd,
+      );
+      await dbService.saveCredentials(uname, pwd);
+    } else {
+      await dbService.clearCredentials();
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _isLoading = false;
+      _loginCountdown = 0;
+    });
+    _loginCountdownTimer?.cancel();
+    MenuFixer.fixMenus(context);
+    final isMobile = !kIsWeb &&
+        (Theme.of(context).platform == TargetPlatform.android ||
+            Theme.of(context).platform == TargetPlatform.iOS);
+    final uname = (loginResult['username'] ?? 'Kullanıcı').toString();
+    if (isMobile) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => MobileDashboard(username: uname),
+        ),
+      );
+    } else {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const DashboardScreen()),
+      );
+    }
   }
 
   void _onCompanySelected(Company company) async {
@@ -1676,7 +2678,115 @@ class _ExfinLoginFormState extends State<ExfinLoginForm> {
     debugPrint('[FİRMA SEÇİMİ] Seçilen company_no: $companyNo');
     final dbService = await DatabaseService.getInstance();
     await dbService.updateCompanySelection(company.id);
-    // Gerekirse companyNo ile başka işlemler yapılabilir
+    await _loadPeriodForSelectedCompany();
+    await _loadWarehouses();
+    await _loadSavedWarehouse();
+  }
+}
+/// Login dens liste seçimi (dönem / ambar).
+class _LoginChoiceItem {
+  final String id;
+  final String label;
+
+  const _LoginChoiceItem({required this.id, required this.label});
+}
+
+class _LoginListChoiceDialog extends StatelessWidget {
+  final String title;
+  final List<_LoginChoiceItem> items;
+  final String? selectedId;
+  final void Function(String id) onSelected;
+
+  const _LoginListChoiceDialog({
+    required this.title,
+    required this.items,
+    required this.onSelected,
+    this.selectedId,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      contentPadding: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      content: Container(
+        width: 360,
+        constraints: const BoxConstraints(maxHeight: 420),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 8, 10),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: textColorPrimary,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(
+                      Icons.close,
+                      size: 18,
+                      color: Colors.grey.shade600,
+                    ),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+            ),
+            Divider(height: 1, thickness: 1, color: Colors.grey.shade200),
+            Flexible(
+              child: items.isEmpty
+                  ? Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(
+                        AppLocalization.of(context)
+                            .translate('auth.no_period'),
+                        textAlign: TextAlign.center,
+                      ),
+                    )
+                  : ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: items.length,
+                      separatorBuilder: (_, __) => Divider(
+                        height: 1,
+                        color: Colors.grey.shade200,
+                      ),
+                      itemBuilder: (context, index) {
+                        final item = items[index];
+                        final selected = item.id == selectedId;
+                        return ListTile(
+                          dense: true,
+                          title: Text(
+                            item.label,
+                            style: TextStyle(
+                              fontWeight: selected
+                                  ? FontWeight.w600
+                                  : FontWeight.w400,
+                            ),
+                          ),
+                          trailing: selected
+                              ? const Icon(Icons.check, color: exfinDarkBlue)
+                              : null,
+                          onTap: () => onSelected(item.id),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

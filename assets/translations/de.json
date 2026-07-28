@@ -1424,7 +1424,13 @@
     "welcome_message": "Hallo! Ich bin EXFIN AI Assistant. Wie kann ich dir helfen?",
     "analyzing_data": "Ich verstehe, dass ich Ihre Daten analysiere ...",
     "ai_assistant": "Assistent für künstliche Intelligenz",
-    "type_your_message": "Schreiben Sie Ihre Nachricht..."
+    "type_your_message": "Schreiben Sie Ihre Nachricht...",
+    "model_select": "OpenRouter-Modell",
+    "model_select_hint": "Modell aus der Liste wählen",
+    "model_list_loading": "Modelle werden geladen…",
+    "model_list_refresh": "Liste aktualisieren",
+    "model_list_fallback": "Keine API-Liste — feste Populärmodelle werden angezeigt",
+    "model_selected": "Modell gespeichert"
   },
   "gamification": {
     "title": "Gamification Center",
@@ -1458,6 +1464,29 @@
     "balance_bucket_warehouse": "Lagerbestand",
     "route_ops_stub": "OPS-Stub (Placer)",
     "route_whms_future": "WHMS-Zielroute (Zukunft)",
-    "phase2_shell": "WHMS Phase 2 — Shell bereit; Logo-Bestand + genehmigte Transfer-Warteschlange verbunden; kein Live-WHMS-REST"
+    "phase2_shell": "WHMS Phase 2 — Shell bereit; Logo-Bestand + genehmigte Transfer-Warteschlange verbunden; kein Live-WHMS-REST",
+    "count": {
+      "title": "Zählung",
+      "empty": "Keine Zählaufträge",
+      "search_hint": "Zählung suchen",
+      "create": "Zählauftrag",
+      "warehouse": "Lager",
+      "status": "Status",
+      "enqueue_ok": "Zählung in Warteschlange",
+      "enqueue_skip": "Freigabe erforderlich",
+      "execute_title": "Zählung ausführen",
+      "scan_barcode": "Barcode scannen",
+      "system_qty": "System",
+      "actual_qty": "Ist",
+      "variance": "Differenz",
+      "complete": "Abschließen",
+      "qty_dialog": "Istmenge",
+      "lines_empty": "Barcode scannen oder Zeile hinzufügen",
+      "lines_required": "Mindestens eine Zählzeile erforderlich",
+      "product_not_found": "Artikel nicht gefunden",
+      "load_failed": "Zählauftrag nicht geladen",
+      "complete_failed": "Zählung nicht abgeschlossen",
+      "already_done": "Zählung bereits abgeschlossen"
+    }
   }
 }

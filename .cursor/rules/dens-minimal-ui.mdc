@@ -1,0 +1,132 @@
+---
+description: Dens/minimal AppBar + filtre chip + piksel verimli layout; liste/rapor/master
+globs: lib/**/view/**/*.dart,lib/**/widgets/**/*.dart,lib/view/**/*.dart
+alwaysApply: true
+---
+
+# Dens Minimal UI
+
+**Kural:** Yeni ve güncellenen ekranlar **piksel verimli dens** layout kullanır.
+`ui-no-touch` ile uyumlu: renk/tema/gradient redesign yok — sadece boşluk israfını küçült,
+mevcut dens AppBar’ı yeniden kullan.
+
+Bank / senet / firma / kasa / çek ve diğer master listeler bu kurala uyar.
+
+## Zorunlu AppBar
+
+Kaynak:
+`lib/modules/field_sales/shared/view/field_sales_dens_app_bar.dart`
+
+- `FieldSalesDensAppBar` kullan (veya shared dens AppBar)
+- `toolbarHeight` ≈ **44** (`kToolbarHeightDens`)
+- Başlık ≈ **16sp**, kompakt aksiyonlar (`densIconButton`, ikon 20)
+- Modülde yoksa: import/reuse et; gerekirse core’a taşı — büyük refactor yok
+- Liste / kuyruk ekranlarında **gradient AppBar kopyalama yasak** → dens AppBar
+
+## Filtre chip + AppBar sistemi
+
+Kaynak:
+`lib/modules/field_sales/shared/view/field_sales_dens_filter_bar.dart`
+
+Tip toggle (1-SATIŞ / 2-ALIŞ) ve dönem preset (Bugün / Bu Hafta / Bu Ay / Bu Yıl)
+**aynı aktif/pasif görseli** kullanır — ayrı “inverted” chip dili yok.
+
+| Widget | Kullanım |
+|--------|----------|
+| `FieldSalesDensChip` | Tek chip |
+| `FieldSalesDensChipRow` | Eşit genişlik satır (segment veya dönem) |
+| `FieldSalesDensFilterBar` | AppBar `bottom` veya body üstü dens şerit |
+
+### Aktif / pasif (zorunlu tek tip)
+
+- **Aktif (selected):** primary dolgu (`375A7F`) + beyaz metin + primary kenar
+- **Pasif:** beyaz dolgu + primary kenar + primary metin
+- Yükseklik ≈ **30** (`FieldSalesDensChip.chipHeight`); font ≈ 11–12
+- RTL: `Row` / `EdgeInsetsDirectional` — hardcoded LTR ayna yasak
+
+### Yerleşim
+
+- Filtre şeridi dens AppBar ile **aynı sistemde** (AppBar `bottom` veya hemen altı body)
+- MBT mavi gradient chrome / çakışan seçim stilleri yasak
+- Tarih hücreleri + Ara alanı dens body’de kalır (chip dilinden ayrı, kompakt)
+
+```dart
+// ❌ BAD — tip dolu-aktif, dönem ters (seçili = beyaz / dolu = pasif)
+_SegmentButton(selected: fillPrimary)
+_PeriodChip(selected: whiteOutline) // inverted
+
+// ✅ GOOD — tek tip
+FieldSalesDensChipRow(items: [
+  FieldSalesDensChipItem(label: sales, selected: true, onTap: () {}),
+  FieldSalesDensChipItem(label: purchase, selected: false, onTap: () {}),
+])
+FieldSalesDensChipRow(items: periodItems) // aynı chip
+```
+
+## Dens body
+
+| Alan | Beklenti |
+|------|----------|
+| Arama | `isDense: true`, `contentPadding` dikey ≈ 8, font ≈ 13 |
+| Liste kartları | padding ≈ h10/v8, margin/separator ≈ 4, ikon oversized değil |
+| Dönem/filtre şeridi | `FieldSalesDensChip*` — tek aktif dil; kalın boşluk / çift başlık yok |
+| Alt CTA | yükseklik ≈ 40, düşük kenar boşluk |
+
+## Yasak
+
+- Tall dekoratif AppBar (`toolbarHeight: 56+`, büyük title)
+- Büyük boş padding (`EdgeInsets.all(24)` liste gövdesinde)
+- Çift başlık (AppBar + body’de aynı title bandı)
+- Yeni tema / renk / radius “modernize” (→ `ui-no-touch`)
+- Tip ile dönem için **farklı / ters** selected stilleri
+- Gradient AppBar + rastgele chip chrome (liste/kuyruk)
+
+## Örnekler
+
+```dart
+// ❌ BAD — varsayılan yüksek AppBar + şişkin arama
+appBar: AppBar(title: Text(title)),
+Padding(
+  padding: EdgeInsets.all(16),
+  child: TextField(
+    decoration: InputDecoration(hintText: 'Ara'),
+  ),
+)
+
+// ✅ GOOD — dens AppBar + kompakt arama
+appBar: FieldSalesDensAppBar(title: title),
+Padding(
+  padding: EdgeInsets.fromLTRB(10, 6, 10, 4),
+  child: TextField(
+    style: TextStyle(fontSize: 13),
+    decoration: InputDecoration(
+      isDense: true,
+      contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      // ...
+    ),
+  ),
+)
+```
+
+```dart
+// ❌ BAD — şişkin ListTile / büyük leading ikon
+ListTile(
+  contentPadding: EdgeInsets.all(16),
+  leading: Icon(Icons.account_balance, size: 40),
+)
+
+// ✅ GOOD — sıkı dens satır
+Container(
+  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+  // kod + ünvan; ikon varsa size ≤ 20
+)
+```
+
+## Hızlı kontrol
+
+1. AppBar dens mi?
+2. Filtre chip’ler tek tip mi (aktif = primary dolgu)?
+3. Arama `isDense` + düşük dikey padding mi?
+4. Liste boşlukları sıkı mı (ayırıcı ~4)?
+5. Renk/tema değişmedi mi (`ui-no-touch`)?
+6. RTL’de chip satırı aynalanıyor mu?

@@ -2,7 +2,7 @@
 // Açıklama: Transfer edilmeyen tahsilatlar dens kuyruk (1-SATIŞ / 2-ALIŞ)
 // Oluşturulma Tarihi: 2026-07-26
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-26
+// Son Güncelleme: 2026-07-27
 
 import 'package:flutter/material.dart';
 
@@ -11,6 +11,7 @@ import '../../shared/view/mbt_sales_purchase_queue_body.dart';
 import '../model/collection_untransferred_record.dart';
 import '../model/collection_untransferred_seed.dart';
 import '../widgets/collection_untransferred_dens_tile.dart';
+import '../../shared/view/field_sales_dens_app_bar.dart';
 
 /// {@template collections_untransferred_screen}
 /// MBT "Transfer Edilmeyen Tahsilatlar" dens kuyruk ekranı.
@@ -46,26 +47,8 @@ class CollectionsUntransferredScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FD),
-      appBar: AppBar(
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF375A7F), Color(0xFF00A8E8)],
-            ),
-          ),
-        ),
-        title: Text(
-          title,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-            color: Colors.white,
-          ),
-        ),
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
+      appBar: FieldSalesDensAppBar(
+        title: title,
       ),
       body: MbtSalesPurchaseQueueBody(
         emptyMessageKey: 'field_sales.collections_untransferred_empty',

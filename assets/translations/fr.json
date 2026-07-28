@@ -1332,7 +1332,13 @@
     "welcome_message": "Bonjour! Je suis EXFIN AI Assistant. Comment puis-je t'aider?",
     "analyzing_data": "Je comprends que j'analyse vos données...",
     "ai_assistant": "Assistante Intelligence Artificielle",
-    "type_your_message": "Écrivez votre message..."
+    "type_your_message": "Écrivez votre message...",
+    "model_select": "Modèle OpenRouter",
+    "model_select_hint": "Sélectionnez un modèle dans la liste",
+    "model_list_loading": "Chargement des modèles…",
+    "model_list_refresh": "Actualiser la liste",
+    "model_list_fallback": "Pas de liste API — modèles populaires fixes affichés",
+    "model_selected": "Modèle enregistré"
   },
   "gamification": {
     "title": "Centre de gamification",
@@ -1366,6 +1372,29 @@
     "balance_bucket_warehouse": "Stock entrepôt",
     "route_ops_stub": "Stub OPS (vente terrain)",
     "route_whms_future": "Route cible WHMS (futur)",
-    "phase2_shell": "WHMS Phase 2 — shell prêt ; solde Logo + file de transfert approuvée ; pas de REST WHMS live"
+    "phase2_shell": "WHMS Phase 2 — shell prêt ; solde Logo + file de transfert approuvée ; pas de REST WHMS live",
+    "count": {
+      "title": "Inventaire",
+      "empty": "Aucun ordre",
+      "search_hint": "Rechercher",
+      "create": "Ordre",
+      "warehouse": "Entrepôt",
+      "status": "Statut",
+      "enqueue_ok": "Mis en file",
+      "enqueue_skip": "Approbation requise",
+      "execute_title": "Exécuter l'inventaire",
+      "scan_barcode": "Scanner le code-barres",
+      "system_qty": "Système",
+      "actual_qty": "Réel",
+      "variance": "Écart",
+      "complete": "Terminer",
+      "qty_dialog": "Quantité réelle",
+      "lines_empty": "Scannez un code ou ajoutez une ligne",
+      "lines_required": "Au moins une ligne est requise",
+      "product_not_found": "Produit introuvable",
+      "load_failed": "Impossible de charger l'ordre",
+      "complete_failed": "Impossible de terminer",
+      "already_done": "Inventaire déjà terminé"
+    }
   }
 }

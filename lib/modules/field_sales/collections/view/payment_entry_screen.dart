@@ -7,6 +7,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/localization/app_localization.dart';
+import '../../currency/engine/collection_currency_exchange.dart';
+import '../../currency/viewmodel/currency_rate_store.dart';
+import '../../currency/viewmodel/default_currency_resolver.dart';
 import '../model/finance_movement_type.dart';
 import '../viewmodel/collection_provider.dart';
 import '../widgets/cash_card_code_field.dart';
@@ -60,6 +63,16 @@ class _PaymentEntryScreenState extends ConsumerState<PaymentEntryScreen> {
   /// [_currencyController]: İşlem dövizi (nakit dens)
   final _currencyController = TextEditingController();
 
+  /// [_exchangeRateController]: Kur (seçilen → merkez)
+  final _exchangeRateController = TextEditingController(text: '1');
+
+  /// [_defaultCurrencyCode]: Merkez varsayılan
+  String _defaultCurrencyCode =
+      CollectionCurrencyExchange.fallbackDefaultCode;
+
+  /// [_rateMap]: Kur haritası
+  Map<String, String> _rateMap = const {};
+
   /// [_documentNoController]: Evrak no
   final _documentNoController = TextEditingController();
 
@@ -91,7 +104,10 @@ class _PaymentEntryScreenState extends ConsumerState<PaymentEntryScreen> {
     _selectedType = parsed.kind == FinanceMovementKind.payment
         ? parsed
         : FinanceMovementType.cashOut;
-    Future.microtask(() {
+    _amountController.addListener(_onCurrencyUiChanged);
+    _exchangeRateController.addListener(_onCurrencyUiChanged);
+    Future.microtask(() async {
+      await _prefillDefaultCurrency();
       if (!CollectionNotifier.isValidCustomerId(widget.customerId)) {
         if (!mounted) return;
         setState(() => _missingCustomer = true);
@@ -118,15 +134,67 @@ class _PaymentEntryScreenState extends ConsumerState<PaymentEntryScreen> {
 
   @override
   void dispose() {
+    _amountController.removeListener(_onCurrencyUiChanged);
+    _exchangeRateController.removeListener(_onCurrencyUiChanged);
     _amountController.dispose();
     _notesController.dispose();
     _cashCodeController.dispose();
     _currencyController.dispose();
+    _exchangeRateController.dispose();
     _documentNoController.dispose();
     _descriptionController.dispose();
     _salespersonController.dispose();
     _specialCodeController.dispose();
     super.dispose();
+  }
+
+  /// {@template payment_entry_on_currency_ui}
+  /// Kur / tutar değişince dens özet yenilenir.
+  /// {@endtemplate}
+  void _onCurrencyUiChanged() {
+    if (mounted) setState(() {});
+  }
+
+  /// {@template payment_entry_prefill_currency}
+  /// Merkez varsayılan döviz + kur map.
+  /// {@endtemplate}
+  Future<void> _prefillDefaultCurrency() async {
+    try {
+      final code = await const DefaultCurrencyResolver().resolve();
+      final rates = await const CurrencyRateStore().load();
+      if (!mounted) return;
+      setState(() {
+        _defaultCurrencyCode = code;
+        _rateMap = rates.rates;
+        if (_currencyController.text.trim().isEmpty) {
+          _currencyController.text = code;
+        }
+        _applyRateForCurrency(_currencyController.text);
+      });
+    } catch (_) {
+      if (!mounted) return;
+      if (_currencyController.text.trim().isEmpty) {
+        _currencyController.text =
+            CollectionCurrencyExchange.fallbackDefaultCode;
+      }
+    }
+  }
+
+  /// {@template payment_entry_apply_rate}
+  /// Seçilen döviz için kur doldurur.
+  /// {@endtemplate}
+  void _applyRateForCurrency(String code) {
+    final rate = CollectionCurrencyExchange.resolveRate(
+      currencyCode: code,
+      defaultCurrency: _defaultCurrencyCode,
+      rates: _rateMap,
+    );
+    _exchangeRateController.text = rate > 0
+        ? CollectionCurrencyExchange.formatRate(rate)
+        : (CollectionCurrencyExchange.isDefaultCurrency(
+                code, _defaultCurrencyCode)
+            ? '1'
+            : '');
   }
 
   /// {@template _handleSave}
@@ -158,6 +226,18 @@ class _PaymentEntryScreenState extends ConsumerState<PaymentEntryScreen> {
         ? _descriptionController.text.trim()
         : _notesController.text.trim();
 
+    final exchangeRate = _isCashOut
+        ? CollectionCurrencyExchange.parseRate(_exchangeRateController.text)
+        : null;
+    final baseAmount = (_isCashOut &&
+            exchangeRate != null &&
+            exchangeRate > 0)
+        ? CollectionCurrencyExchange.toBaseAmount(
+            amountInCurrency: amount,
+            exchangeRate: exchangeRate,
+          )
+        : null;
+
     final success = await ref.read(collectionProvider.notifier).saveCollection(
           customerId: widget.customerId,
           amount: amount,
@@ -165,8 +245,14 @@ class _PaymentEntryScreenState extends ConsumerState<PaymentEntryScreen> {
           notes: notes.isEmpty ? null : notes,
           cashCode: _cashCodeController.text.trim(),
           documentNo: _documentNoController.text.trim(),
-          currencyCode:
-              _isCashOut ? _currencyController.text.trim() : null,
+          currencyCode: _isCashOut
+              ? CollectionCurrencyExchange.normalize(
+                  _currencyController.text,
+                )
+              : null,
+          exchangeRate: exchangeRate,
+          baseAmount: (baseAmount != null && baseAmount > 0) ? baseAmount : null,
+          baseCurrencyCode: _isCashOut ? _defaultCurrencyCode : null,
           salespersonCode:
               _isCashOut ? _salespersonController.text.trim() : null,
           specialCode1:
@@ -277,6 +363,8 @@ class _PaymentEntryScreenState extends ConsumerState<PaymentEntryScreen> {
               _card(
                 child: CollectionCashMbtFields(
                   currencyController: _currencyController,
+                  exchangeRateController: _exchangeRateController,
+                  defaultCurrencyCode: _defaultCurrencyCode,
                   documentNoController: _documentNoController,
                   cashCodeController: _cashCodeController,
                   descriptionController: _descriptionController,
@@ -285,6 +373,9 @@ class _PaymentEntryScreenState extends ConsumerState<PaymentEntryScreen> {
                   specialCodeController: _specialCodeController,
                   showAmountField: true,
                   titleL10nKey: 'field_sales.payment_cash_fields_title',
+                  onCurrencyChanged: (code) {
+                    setState(() => _applyRateForCurrency(code));
+                  },
                 ),
               ),
             ],

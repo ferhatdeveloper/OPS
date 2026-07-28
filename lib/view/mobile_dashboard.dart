@@ -2,12 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import '../modules/inventory/view/materials_screen.dart';
+import '../modules/field_sales/products/view/product_catalog_screen.dart';
 import '../service/theme_service.dart';
+import '../modules/field_sales/shared/widgets/company_branding_logo.dart';
+import '../modules/field_sales/reports/view/report_logo_settings_screen.dart';
+import '../modules/field_sales/settings/view/appearance_settings_screen.dart';
 import '../core/utils/color_utils.dart';
+import '../core/auth/app_user_role.dart';
+import '../core/auth/role_home_menu_filter.dart';
+import '../core/auth/session_role_resolver.dart';
 import '../core/constants/menu_constants.dart' hide MenuItemData;
+import '../modules/field_sales/home/view/role_home_hub_body.dart';
+import '../modules/field_sales/ai/view/ai_voice_chat_screen.dart';
 import '../service/language_service.dart';
 import '../core/localization/app_localization.dart';
+import '../core/widgets/app_version_label.dart';
 import '../service/menu_service.dart';
 import '../service/database_service.dart';
 import '../service/auth_service.dart';
@@ -16,6 +25,7 @@ import 'dart:async';
 import '../view/settings/sync_log_screen.dart';
 import '../modules/field_sales/reports/view/dashboard_screen.dart';
 import '../modules/field_sales/routes/view/route_plan_screen.dart';
+import '../modules/field_sales/routes/view/weekly_route_plan_screen.dart';
 import '../modules/field_sales/customers/view/customer_list_screen.dart';
 import '../modules/field_sales/customers/view/customer_form_screen.dart';
 import '../modules/field_sales/reports/view/logo_reports_screen.dart';
@@ -62,6 +72,8 @@ import '../modules/field_sales/other/view/day_status_screen.dart';
 import '../modules/field_sales/other/viewmodel/day_sales_gate.dart';
 import '../modules/field_sales/other/viewmodel/day_status_store.dart';
 import '../modules/field_sales/other/widgets/day_status_dens_chip.dart';
+import '../modules/field_sales/companies/widgets/active_company_dens_chip.dart';
+import '../modules/field_sales/stock/widgets/active_warehouse_dens_chip.dart';
 import '../core/tenant/widgets/tenant_dens_chip.dart';
 import '../modules/field_sales/eod/view/day_open_screen.dart';
 import '../modules/field_sales/stock/view/warehouse_receipt_screen.dart';
@@ -93,8 +105,22 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
   String _selectedPeriod = 'daily'; // daily, weekly, monthly
   late PageController _pageController;
 
+  /// Oturumdan çözülen rol
+  AppUserRole _sessionRole = AppUserRole.unknown;
+
   // Define locale variable
   late Locale locale;
+
+  /// Efektif rol (oturum)
+  AppUserRole get _effectiveRole => _sessionRole;
+
+  /// Alt bar seçili indeks (0–4; AI=3 sayfa değil push)
+  static const int _navAiIndex = 3;
+
+  int get _bottomNavSelectedIndex {
+    if (_currentIndex >= _navAiIndex) return _currentIndex + 1;
+    return _currentIndex;
+  }
 
   @override
   void initState() {
@@ -115,6 +141,7 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
         await db.syncVisitsToPostgres();
         await db.syncOrdersToPostgres();
         await AnnouncementsScreen.refreshDensCache();
+        await _loadSessionRole();
 
         if (mounted) {
            setState(() {}); // Refresh UI after seeding
@@ -130,6 +157,29 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
   void dispose() {
     _pageController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadSessionRole() async {
+    final role = await const SessionRoleResolver().resolve();
+    if (!mounted) return;
+    setState(() {
+      _sessionRole = role;
+    });
+  }
+
+  /// Alt bar sekmesi; AI → sohbet route.
+  void _onBottomNavTap(int index) {
+    if (index == _navAiIndex) {
+      Navigator.pushNamed(
+        context,
+        AiVoiceChatScreen.routeName,
+        arguments: widget.username,
+      );
+      return;
+    }
+    final page = index > _navAiIndex ? index - 1 : index;
+    _pageController.jumpToPage(page);
+    setState(() => _currentIndex = page);
   }
 
   Future<void> _syncMenuPermissions() async {
@@ -171,6 +221,156 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
         locale = newLocale;
       });
     }
+  }
+
+  /// {@template mobile_dashboard_show_language_picker}
+  /// Dens dil seçici (login LanguageService listesi).
+  /// {@endtemplate}
+  void _showLanguagePickerDens(BuildContext context) {
+    final l10n = AppLocalization.of(context);
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          contentPadding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+          titlePadding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+          title: Text(
+            l10n.translate('mobile_dashboard.language'),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: isDarkMode ? Colors.white : colorScheme.primary,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          content: SizedBox(
+            width: 280,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 360),
+              child: ListView(
+                shrinkWrap: true,
+                children: LanguageService.supportedLanguages.map((lang) {
+                  final isSelected =
+                      ref.watch(localeProvider).languageCode == lang.code;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Material(
+                      color: isSelected
+                          ? colorScheme.primary.withValues(alpha: 0.1)
+                          : (isDarkMode
+                              ? Colors.grey[800]
+                              : Colors.grey[100]),
+                      borderRadius: BorderRadius.circular(8),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(8),
+                        onTap: () async {
+                          if (isSelected) {
+                            Navigator.pop(dialogContext);
+                            return;
+                          }
+                          ref
+                              .read(localeProvider.notifier)
+                              .setLocale(Locale(lang.code));
+                          await LanguageService.setLanguagePreference(
+                            lang.code,
+                          );
+                          if (dialogContext.mounted) {
+                            Navigator.pop(dialogContext);
+                          }
+                        },
+                        child: ListTile(
+                          dense: true,
+                          visualDensity: VisualDensity.compact,
+                          leading: _dashboardLanguageFlag(lang.code),
+                          title: Text(
+                            lang.localName,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: isSelected
+                                  ? colorScheme.primary
+                                  : (isDarkMode
+                                      ? Colors.white
+                                      : Colors.black87),
+                              fontWeight: isSelected
+                                  ? FontWeight.w600
+                                  : FontWeight.w400,
+                            ),
+                          ),
+                          trailing: isSelected
+                              ? Icon(
+                                  Icons.check_circle,
+                                  size: 18,
+                                  color: colorScheme.primary,
+                                )
+                              : null,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// {@template mobile_dashboard_language_flag}
+  /// Dil koduna göre küçük bayrak / globe.
+  /// {@endtemplate}
+  Widget _dashboardLanguageFlag(String code) {
+    const size = 22.0;
+    String? asset;
+    switch (code) {
+      case 'tr':
+        asset = 'assets/flags/tr.png';
+        break;
+      case 'en':
+        asset = 'assets/flags/gb.png';
+        break;
+      case 'ar':
+        asset = 'assets/flags/sa.png';
+        break;
+      case 'ku':
+      case 'ckb':
+        asset = 'assets/flags/iq.png';
+        break;
+      case 'de':
+        asset = 'assets/flags/de.png';
+        break;
+      case 'fa':
+        asset = 'assets/flags/ir.png';
+        break;
+      case 'ru':
+        asset = 'assets/flags/ru.png';
+        break;
+      case 'fr':
+        asset = 'assets/flags/fr.png';
+        break;
+      case 'es':
+        asset = 'assets/flags/es.png';
+        break;
+      case 'zh':
+        asset = 'assets/flags/cn.png';
+        break;
+    }
+    if (asset == null) {
+      return Icon(Icons.language, size: size, color: Colors.blueGrey);
+    }
+    return Image.asset(
+      asset,
+      width: size,
+      height: size,
+      errorBuilder: (_, __, ___) =>
+          Icon(Icons.language, size: size, color: Colors.blueGrey),
+    );
   }
 
   Future<void> _startForceLogoutListener() async {
@@ -254,7 +454,6 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final colorScheme = Theme.of(context).colorScheme;
 
-    // TabBar için sayfaları tanımlayalım
     final pages = [
       _buildHomeScreen(context),
       _buildMenuScreen(context),
@@ -269,32 +468,28 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
         statusBarBrightness: isDarkMode ? Brightness.dark : Brightness.light,
       ),
       child: Scaffold(
-        body: _isSyncing 
-          ? const Center(child: CircularProgressIndicator())
-          : PageView(
-              physics: const NeverScrollableScrollPhysics(),
-              controller: _pageController,
-              onPageChanged: (index) {
-                setState(() {
-                  _currentIndex = index;
-                });
-              },
-              children: pages,
-            ),
+        body: _isSyncing
+            ? const Center(child: CircularProgressIndicator())
+            : PageView(
+                physics: const NeverScrollableScrollPhysics(),
+                controller: _pageController,
+                onPageChanged: (index) {
+                  setState(() {
+                    _currentIndex = index;
+                  });
+                },
+                children: pages,
+              ),
         bottomNavigationBar: _buildBottomBar(isDarkMode, colorScheme),
       ),
     );
   }
 
+  /// Ana / Menü / Rapor / AI / Ayarlar — AI push, diğerleri PageView.
   Widget _buildBottomBar(bool isDarkMode, ColorScheme colorScheme) {
     return BottomNavigationBar(
-      currentIndex: _currentIndex,
-      onTap: (index) {
-        _pageController.jumpToPage(index);
-        setState(() {
-          _currentIndex = index;
-        });
-      },
+      currentIndex: _bottomNavSelectedIndex,
+      onTap: _onBottomNavTap,
       backgroundColor: isDarkMode ? const Color(0xFF1F1B24) : Colors.white,
       selectedItemColor: colorScheme.primary,
       unselectedItemColor: isDarkMode ? Colors.grey[400] : Colors.grey[600],
@@ -312,15 +507,18 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
         ),
         BottomNavigationBarItem(
           icon: const Icon(Icons.bar_chart_rounded),
-          label: AppLocalization.of(
-            context,
-          ).translate('mobile_dashboard.report'),
+          label: AppLocalization.of(context)
+              .translate('mobile_dashboard.report'),
+        ),
+        BottomNavigationBarItem(
+          icon: const Icon(Icons.auto_awesome_rounded),
+          label: AppLocalization.of(context)
+              .translate('mobile_dashboard.ai_chat'),
         ),
         BottomNavigationBarItem(
           icon: const Icon(Icons.settings),
-          label: AppLocalization.of(
-            context,
-          ).translate('mobile_dashboard.settings'),
+          label: AppLocalization.of(context)
+              .translate('mobile_dashboard.settings'),
         ),
       ],
     );
@@ -329,12 +527,30 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
   Widget _buildHomeScreen(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final colorScheme = Theme.of(context).colorScheme;
+    final role = _effectiveRole;
 
     // Yönlendirme (switch-case) eşleşmelerinin doğru çalışması için her zaman
     // 'tr' (orijinal) dil kodundaki modülleri yükle. Arayüz katmanında çevrilir.
-    return FutureBuilder<List<ModuleCardData>>(
-      future: MenuService.getMobileModuleCards(languageCode: 'tr'),
-      builder: (context, snapshot) {
+    // Permission ∩ rol: oturum userId/companyNo ile can_view filtresi.
+    return FutureBuilder<Map<String, dynamic>?>(
+      future: DatabaseService.getInstance().then((db) => db.getUserSession()),
+      builder: (context, sessionSnapshot) {
+        if (sessionSnapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final session = sessionSnapshot.data;
+        final userId = session?['id'] as String?;
+        final companyNo = session == null
+            ? null
+            : int.tryParse(session['company_no']?.toString() ?? '') ?? 1;
+
+        return FutureBuilder<List<ModuleCardData>>(
+          future: MenuService.getMobileModuleCards(
+            languageCode: 'tr',
+            userId: userId,
+            companyNo: companyNo,
+          ),
+          builder: (context, snapshot) {
         // Yükleniyor durumunda
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -354,8 +570,11 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
           );
         }
 
-        // Veriler yüklendiyse
-        final moduleCards = snapshot.data!;
+        // Veriler yüklendiyse — rol filtresi ∩ permission (zaten MenuService’de)
+        final moduleCards = _filterModuleCardsForRole(
+          snapshot.data!,
+          role,
+        );
 
         return CustomScrollView(
           physics: const BouncingScrollPhysics(),
@@ -368,15 +587,29 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
                             Image.asset(
                               'assets/images/OPS_cropped.png',
                               height: 26, // Reduced size for better balance
                               fit: BoxFit.contain,
+                              errorBuilder: (context, _, __) {
+                                return Text(
+                                  AppLocalization.of(context).translate(
+                                    'branding.app_logo_missing',
+                                  ),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: isDarkMode
+                                        ? Colors.grey[400]
+                                        : Colors.grey[700],
+                                  ),
+                                );
+                              },
                             ),
                             const SizedBox(height: 8),
                             Text(
@@ -400,217 +633,286 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
                                 color: isDarkMode ? Colors.white : Colors.black,
                               ),
                             ),
-                            const SizedBox(height: 12),
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 6,
-                              crossAxisAlignment: WrapCrossAlignment.center,
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: isDarkMode
-                                        ? ColorUtils.withAlpha(
-                                            colorScheme.surface,
-                                            0.5,
-                                          )
-                                        : Colors.grey[200],
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                  child: Text(
-                                    currentDate,
-                                    style: TextStyle(
-                                      fontSize: 12,
+                            const SizedBox(height: 8),
+                            SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              clipBehavior: Clip.none,
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 7,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
                                       color: isDarkMode
-                                          ? Colors.grey[400]
-                                          : Colors.grey[700],
+                                          ? ColorUtils.withAlpha(
+                                              colorScheme.surface,
+                                              0.5,
+                                            )
+                                          : Colors.grey[200],
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      currentDate,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: isDarkMode
+                                            ? Colors.grey[400]
+                                            : Colors.grey[700],
+                                      ),
                                     ),
                                   ),
-                                ),
-                                const DayStatusDensChip(),
-                                const TenantDensChip(),
-                              ],
+                                  const SizedBox(width: 5),
+                                  const DayStatusDensChip(),
+                                  const SizedBox(width: 5),
+                                  const TenantDensChip(),
+                                  const SizedBox(width: 5),
+                                  const ActiveCompanyDensChip(),
+                                  const SizedBox(width: 5),
+                                  const ActiveWarehouseDensChip(),
+                                ],
+                              ),
                             ),
                           ],
                         ),
-                        Row(
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            // Tema değiştirme butonu
-                            Container(
-                              margin: const EdgeInsets.only(right: 6),
-                              decoration: BoxDecoration(
-                                color: isDarkMode
-                                    ? colorScheme.surface
-                                    : Colors.white,
-                                borderRadius: BorderRadius.circular(10),
-                                boxShadow: _getShadow(
-                                  isDarkMode,
-                                  blurRadius: 8,
-                                ),
-                              ),
-                              child: Material(
-                                color: Colors.transparent,
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(10),
-                                  onTap: () {
-                                    // Tema modunu değiştir ve kaydet
-                                    ref
-                                        .read(themeModeProvider.notifier)
-                                        .toggleThemeMode();
-                                  },
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(6.0),
-                                    child: Icon(
-                                      isDarkMode
-                                          ? Icons.light_mode
-                                          : Icons.dark_mode,
-                                      color: colorScheme.primary,
-                                      size: 20,
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Tema değiştirme butonu
+                                Container(
+                                  margin: const EdgeInsetsDirectional.only(
+                                    end: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isDarkMode
+                                        ? colorScheme.surface
+                                        : Colors.white,
+                                    borderRadius: BorderRadius.circular(10),
+                                    boxShadow: _getShadow(
+                                      isDarkMode,
+                                      blurRadius: 8,
                                     ),
                                   ),
-                                ),
-                              ),
-                            ),
-                            // Sık kullanılanlar butonu
-                            Container(
-                              margin: const EdgeInsets.only(right: 6),
-                              decoration: BoxDecoration(
-                                color: isDarkMode
-                                    ? colorScheme.surface
-                                    : Colors.white,
-                                borderRadius: BorderRadius.circular(10),
-                                boxShadow: _getShadow(
-                                  isDarkMode,
-                                  blurRadius: 8,
-                                ),
-                              ),
-                              child: Material(
-                                color: Colors.transparent,
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(10),
-                                  onTap: () => _showFavoritesSheet(context),
-                                  onLongPress: () =>
-                                      _showFavoriteMenuDialog(context),
-                                  child: const Padding(
-                                    padding: EdgeInsets.all(6.0),
-                                    child: Icon(
-                                      Icons.star,
-                                      color: Colors.amber,
-                                      size: 20,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            // Oyunlaştırma (Trophy) butonu
-                            Container(
-                              margin: const EdgeInsets.only(right: 6),
-                              decoration: BoxDecoration(
-                                color: isDarkMode
-                                    ? colorScheme.surface
-                                    : Colors.white,
-                                borderRadius: BorderRadius.circular(10),
-                                boxShadow: _getShadow(
-                                  isDarkMode,
-                                  blurRadius: 8,
-                                ),
-                              ),
-                              child: Material(
-                                color: Colors.transparent,
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(10),
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                            const GamificationDashboardScreen(),
+                                  child: Material(
+                                    color: Colors.transparent,
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.circular(10),
+                                      onTap: () {
+                                        ref
+                                            .read(themeModeProvider.notifier)
+                                            .toggleThemeMode();
+                                      },
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(6.0),
+                                        child: Icon(
+                                          isDarkMode
+                                              ? Icons.light_mode
+                                              : Icons.dark_mode,
+                                          color: colorScheme.primary,
+                                          size: 20,
+                                        ),
                                       ),
-                                    );
-                                  },
-                                  child: const Padding(
-                                    padding: EdgeInsets.all(6.0),
-                                    child: Icon(
-                                      Icons.emoji_events_outlined,
-                                      color: Colors.amber,
-                                      size: 20,
                                     ),
                                   ),
                                 ),
-                              ),
-                            ),
-                            // Bildirimler butonu
-                            Container(
-                              margin: const EdgeInsets.only(right: 6),
-                              decoration: BoxDecoration(
-                                color: isDarkMode
-                                    ? colorScheme.surface
-                                    : Colors.white,
-                                borderRadius: BorderRadius.circular(10),
-                                boxShadow: _getShadow(
-                                  isDarkMode,
-                                  blurRadius: 8,
-                                ),
-                              ),
-                              child: Material(
-                                color: Colors.transparent,
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(10),
-                                  onTap: () {
-                                    // Bildirimler için gelecekte işlevsellik eklenebilir
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          AppLocalization.of(context).translate(
-                                            'mobile_dashboard.notifications_coming_soon',
+                                // Dil seçici
+                                Container(
+                                  margin: const EdgeInsetsDirectional.only(
+                                    end: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isDarkMode
+                                        ? colorScheme.surface
+                                        : Colors.white,
+                                    borderRadius: BorderRadius.circular(10),
+                                    boxShadow: _getShadow(
+                                      isDarkMode,
+                                      blurRadius: 8,
+                                    ),
+                                  ),
+                                  child: Material(
+                                    color: Colors.transparent,
+                                    child: Tooltip(
+                                      message: AppLocalization.of(context)
+                                          .translate(
+                                        'mobile_dashboard.language',
+                                      ),
+                                      child: InkWell(
+                                        borderRadius:
+                                            BorderRadius.circular(10),
+                                        onTap: () =>
+                                            _showLanguagePickerDens(context),
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(6.0),
+                                          child: Icon(
+                                            Icons.language,
+                                            color: colorScheme.primary,
+                                            size: 20,
                                           ),
                                         ),
-                                        behavior: SnackBarBehavior.floating,
-                                        backgroundColor: colorScheme.primary,
                                       ),
-                                    );
-                                  },
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(6.0),
-                                    child: Icon(
-                                      Icons.notifications_outlined,
-                                      color: colorScheme.primary,
-                                      size: 20,
                                     ),
                                   ),
                                 ),
-                              ),
+                                // Sık kullanılanlar butonu
+                                Container(
+                                  margin: const EdgeInsetsDirectional.only(
+                                    end: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isDarkMode
+                                        ? colorScheme.surface
+                                        : Colors.white,
+                                    borderRadius: BorderRadius.circular(10),
+                                    boxShadow: _getShadow(
+                                      isDarkMode,
+                                      blurRadius: 8,
+                                    ),
+                                  ),
+                                  child: Material(
+                                    color: Colors.transparent,
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.circular(10),
+                                      onTap: () =>
+                                          _showFavoritesSheet(context),
+                                      onLongPress: () =>
+                                          _showFavoriteMenuDialog(context),
+                                      child: const Padding(
+                                        padding: EdgeInsets.all(6.0),
+                                        child: Icon(
+                                          Icons.star,
+                                          color: Colors.amber,
+                                          size: 20,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                // Oyunlaştırma (Trophy) butonu
+                                Container(
+                                  margin: const EdgeInsetsDirectional.only(
+                                    end: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isDarkMode
+                                        ? colorScheme.surface
+                                        : Colors.white,
+                                    borderRadius: BorderRadius.circular(10),
+                                    boxShadow: _getShadow(
+                                      isDarkMode,
+                                      blurRadius: 8,
+                                    ),
+                                  ),
+                                  child: Material(
+                                    color: Colors.transparent,
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.circular(10),
+                                      onTap: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                const GamificationDashboardScreen(),
+                                          ),
+                                        );
+                                      },
+                                      child: const Padding(
+                                        padding: EdgeInsets.all(6.0),
+                                        child: Icon(
+                                          Icons.emoji_events_outlined,
+                                          color: Colors.amber,
+                                          size: 20,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                // Bildirimler butonu
+                                Container(
+                                  margin: const EdgeInsetsDirectional.only(
+                                    end: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isDarkMode
+                                        ? colorScheme.surface
+                                        : Colors.white,
+                                    borderRadius: BorderRadius.circular(10),
+                                    boxShadow: _getShadow(
+                                      isDarkMode,
+                                      blurRadius: 8,
+                                    ),
+                                  ),
+                                  child: Material(
+                                    color: Colors.transparent,
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.circular(10),
+                                      onTap: () {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              AppLocalization.of(context)
+                                                  .translate(
+                                                'mobile_dashboard.notifications_coming_soon',
+                                              ),
+                                            ),
+                                            behavior:
+                                                SnackBarBehavior.floating,
+                                            backgroundColor:
+                                                colorScheme.primary,
+                                          ),
+                                        );
+                                      },
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(6.0),
+                                        child: Icon(
+                                          Icons.notifications_outlined,
+                                          color: colorScheme.primary,
+                                          size: 20,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                // Çıkış butonu
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: isDarkMode
+                                        ? colorScheme.surface
+                                        : Colors.white,
+                                    borderRadius: BorderRadius.circular(10),
+                                    boxShadow: _getShadow(
+                                      isDarkMode,
+                                      blurRadius: 8,
+                                    ),
+                                  ),
+                                  child: Material(
+                                    color: Colors.transparent,
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.circular(10),
+                                      onTap: () => _handleLogout(context),
+                                      child: const Padding(
+                                        padding: EdgeInsets.all(6.0),
+                                        child: Icon(
+                                          Icons.logout,
+                                          color: Colors.red,
+                                          size: 20,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                            // Çıkış butonu
-                            Container(
-                              decoration: BoxDecoration(
-                                color: isDarkMode
-                                    ? colorScheme.surface
-                                    : Colors.white,
-                                borderRadius: BorderRadius.circular(10),
-                                boxShadow: _getShadow(
-                                  isDarkMode,
-                                  blurRadius: 8,
-                                ),
-                              ),
-                              child: Material(
-                                color: Colors.transparent,
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(10),
-                                  onTap: () => _handleLogout(context),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(6.0),
-                                    child: Icon(
-                                      Icons.logout,
-                                      color: Colors.red,
-                                      size: 20,
-                                    ),
-                                  ),
-                                ),
-                              ),
+                            const SizedBox(height: 6),
+                            const CompanyBrandingLogo(
+                              height: 22,
+                              showFallback: false,
                             ),
                           ],
                         ),
@@ -695,6 +997,11 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
               ),
             ),
 
+            if (role.usesRoleHomeHub)
+              SliverToBoxAdapter(
+                child: RoleHomeHubBody(role: role),
+              ),
+
             // Main modules
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
@@ -730,11 +1037,31 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
                         moduleCard.title,
                         favorilerTitle,
                       );
-                      final isDuyurular =
-                          moduleCard.title == duyurularTitle ||
-                              moduleCard.title == 'Duyurular';
-                      final isDoviz = moduleCard.title == 'Döviz';
-                      final isSirketler = moduleCard.title == 'Şirketler';
+                      final isDuyurular = _isModuleTitleMatch(
+                        moduleCard.title,
+                        localized: duyurularTitle,
+                        legacyTr: const ['Duyurular'],
+                        uuids: const [
+                          'fs_announcements',
+                          'field_sales.menu.fs_announcements',
+                        ],
+                      );
+                      final isDoviz = _isModuleTitleMatch(
+                        moduleCard.title,
+                        legacyTr: const ['Döviz'],
+                        uuids: const [
+                          'fs_currency',
+                          'field_sales.menu.fs_currency',
+                        ],
+                      );
+                      final isSirketler = _isModuleTitleMatch(
+                        moduleCard.title,
+                        legacyTr: const ['Şirketler'],
+                        uuids: const [
+                          'fs_companies',
+                          'field_sales.menu.fs_companies',
+                        ],
+                      );
                       return _buildModuleCard(
                         context,
                         moduleCard.title,
@@ -780,6 +1107,8 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
             ),
           ],
         );
+          },
+        );
       },
     );
   }
@@ -824,7 +1153,10 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
                 ),
               );
             }
-            final menuItems = snapshot.data!;
+            final menuItems = _filterMenuItemsForRole(
+              snapshot.data!,
+              _effectiveRole,
+            );
             return CustomScrollView(
               physics: const BouncingScrollPhysics(),
               slivers: [
@@ -999,7 +1331,11 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
                                   return const Center(
                                       child: CircularProgressIndicator());
                                 }
-                                final subMenus = subSnapshot.data ?? [];
+                                final subMenus = _filterSubMenusForRole(
+                                  subSnapshot.data ?? [],
+                                  parentUuid: item.uuid,
+                                  role: _effectiveRole,
+                                );
                                 return _buildSubMenus(
                                   context,
                                   subMenus,
@@ -1457,8 +1793,8 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
         .replaceAll('ö', 'o')
         .replaceAll('ç', 'c')
         .replaceAll(RegExp(r'[\u0307]'), '') // combining dot (İ→i̇)
-        .replaceAll(' ', '_')
-        .replaceAll('/', '_');
+        .replaceAll(RegExp(r'[\s/_]+'), '_')
+        .replaceAll(RegExp(r'^_+|_+$'), '');
 
     return key;
   }
@@ -1592,6 +1928,24 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
       case 'Rota Haritası':
       case 'Rota Optimizasyonu':
         return Icons.directions_car;
+      case 'Haftalık Rota Planı':
+      case 'field_sales.stubs.weekly_route_plan':
+        return Icons.calendar_view_week;
+      case 'Canlı Konum':
+      case 'submodules.canli_konum':
+        return Icons.my_location;
+      case 'Araç Kamera İzleme':
+      case 'submodules.arac_kamera_izleme':
+        return Icons.videocam;
+      case 'Araç Kamera Ayarları':
+      case 'field_sales.stubs.vehicle_camera_settings':
+        return Icons.video_settings;
+      case 'Offline Harita İndir':
+      case 'field_sales.stubs.offline_map_download':
+        return Icons.download_for_offline;
+      case 'Uygulama İçi Yol Tarifi':
+      case 'field_sales.stubs.in_app_route_map':
+        return Icons.route;
       case 'Yapay Zeka Asistanı':
         return Icons.smart_toy;
       case 'Yakındaki Müşteriler':
@@ -1631,6 +1985,8 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
       case 'Duyurular':
         return Icons.campaign;
       case 'Diğer':
+      case 'dashboard.diger':
+      case 'submodules.diger':
         return Icons.more_horiz;
 
       default:
@@ -1747,17 +2103,17 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
 
     // Handle based on main categories and their submenus - same as side_menu.dart
     switch (moduleName) {
-      // STOK/MALZEME related pages
+      // STOK/MALZEME related pages — MBT Detay = ürün katalogu
       case 'Malzeme Tanımları':
       case 'Malzeme Kartı Ekle':
       case 'Malzemeler':
-        content = const MaterialsScreen();
+        content = const ProductCatalogScreen();
         break;
       case 'Stok Durumu':
       case 'Stok Hareketleri':
       case 'Stok Değerleme Raporları':
       case 'Envanter Raporları':
-        content = const MaterialsScreen();
+        content = const ProductCatalogScreen();
         break;
       case 'Depo Yönetimi':
       case 'Depolar Arası Transfer':
@@ -1792,6 +2148,9 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
         break;
       case 'Bugünkü Rotam':
         content = const RoutePlanScreen();
+        break;
+      case 'Haftalık Rota Planı':
+        content = const WeeklyRoutePlanScreen();
         break;
       case 'Müşteri Listesi':
         content = const CustomerListScreen();
@@ -1933,8 +2292,8 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
       case 'Yönetici Raporları':
         content = const ManagerReportsDashboard();
         break;
-      case 'Detay': // Stock detail
-        content = const MaterialsScreen();
+      case 'Detay': // Stock detail — MBT ürün katalogu
+        content = const ProductCatalogScreen();
         break;
       case 'Döviz Kuru':
       case 'Döviz Kurları':
@@ -2304,7 +2663,7 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
                     gridDelegate:
                         const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 4,
-                      childAspectRatio: 0.90,
+                      childAspectRatio: 0.82,
                       crossAxisSpacing: 6,
                       mainAxisSpacing: 6,
                     ),
@@ -2343,63 +2702,75 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
                               ),
                               child: Stack(
                                 children: [
-                                  Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.all(6),
-                                        decoration: BoxDecoration(
-                                          color: ColorUtils.withAlpha(
-                                            baseColor,
-                                            0.2,
+                                  Padding(
+                                    padding: const EdgeInsets.fromLTRB(
+                                      4,
+                                      14,
+                                      4,
+                                      4,
+                                    ),
+                                    child: Column(
+                                      children: [
+                                        Container(
+                                          width: 30,
+                                          height: 30,
+                                          alignment: Alignment.center,
+                                          decoration: BoxDecoration(
+                                            color: ColorUtils.withAlpha(
+                                              baseColor,
+                                              0.2,
+                                            ),
+                                            shape: BoxShape.circle,
                                           ),
-                                          shape: BoxShape.circle,
+                                          child: Icon(
+                                            submenuIcon,
+                                            color: baseColor,
+                                            size: 16,
+                                          ),
                                         ),
-                                        child: Icon(
-                                          submenuIcon,
-                                          color: baseColor,
-                                          size: 18,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 2,
-                                        ),
-                                        child: Builder(
-                                          builder: (context) {
-                                            final translationKey =
-                                                'submodules.' +
-                                                    _getTranslationKeyForSubmenu(
-                                                      submenuTitle,
-                                                    );
-                                            String translatedTitle =
-                                                AppLocalization.of(
-                                              context,
-                                            ).translate(translationKey);
+                                        const SizedBox(height: 4),
+                                        Expanded(
+                                          child: Align(
+                                            alignment: Alignment.topCenter,
+                                            child: Builder(
+                                              builder: (context) {
+                                                final translationKey =
+                                                    'submodules.' +
+                                                        _getTranslationKeyForSubmenu(
+                                                          submenuTitle,
+                                                        );
+                                                String translatedTitle =
+                                                    AppLocalization.of(
+                                                  context,
+                                                ).translate(translationKey);
 
-                                            if (translatedTitle ==
-                                                translationKey) {
-                                              translatedTitle = submenuTitle;
-                                            }
+                                                if (translatedTitle ==
+                                                    translationKey) {
+                                                  translatedTitle =
+                                                      submenuTitle;
+                                                }
 
-                                            return Text(
-                                              translatedTitle,
-                                              textAlign: TextAlign.center,
-                                              style: TextStyle(
-                                                fontSize: 10,
-                                                fontWeight: FontWeight.w500,
-                                                color: isDarkMode
-                                                    ? Colors.white
-                                                    : Colors.grey[800],
-                                              ),
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
-                                            );
-                                          },
+                                                return Text(
+                                                  translatedTitle,
+                                                  textAlign: TextAlign.center,
+                                                  style: TextStyle(
+                                                    fontSize: 10,
+                                                    height: 1.15,
+                                                    fontWeight: FontWeight.w500,
+                                                    color: isDarkMode
+                                                        ? Colors.white
+                                                        : Colors.grey[800],
+                                                  ),
+                                                  maxLines: 2,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                );
+                                              },
+                                            ),
+                                          ),
                                         ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
                                   Positioned(
                                     top: 0,
@@ -2467,15 +2838,22 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
     final int? displayBadge =
         badgeCount ?? (hasSubmenus ? submenus!.length : null);
 
-    // Use dashboard namespace for titles
-    String dashboardKey = 'dashboard.' + _getTranslationKeyForSubmenu(title);
-    String translatedTitle = AppLocalization.of(context).translate(dashboardKey);
-    String translatedSubtitle = AppLocalization.of(context).translate(subtitle);
-
-    // Fallbacks
-    if (translatedTitle == dashboardKey) {
-      translatedTitle = title;
+    // Önce SQLite key / fs_* çözümle; sonra legacy dashboard.* fallback
+    final l10n = AppLocalization.of(context);
+    String translatedTitle =
+        MenuService.resolveStoredMenuTitle(title, l10n: l10n);
+    final stillRawKey = translatedTitle.contains('.') ||
+        translatedTitle.startsWith('fs_') ||
+        translatedTitle.startsWith('sub_');
+    if (stillRawKey) {
+      final dashboardKey =
+          'dashboard.' + _getTranslationKeyForSubmenu(title);
+      final viaDash = l10n.translate(dashboardKey);
+      if (viaDash != dashboardKey) {
+        translatedTitle = viaDash;
+      }
     }
+    String translatedSubtitle = l10n.translate(subtitle);
     if (translatedSubtitle == subtitle) {
       translatedSubtitle = subtitle;
     }
@@ -2610,7 +2988,7 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
           ),
           const SizedBox(height: 20),
 
-          // Tema değiştirme
+          // Tema değiştirme (açık / koyu)
           Container(
             margin: const EdgeInsets.only(bottom: 15),
             decoration: BoxDecoration(
@@ -2663,6 +3041,158 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
                               isDarkMode 
                                 ? AppLocalization.of(context).translate('settings.dark_theme') 
                                 : AppLocalization.of(context).translate('settings.light_theme'),
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: isDarkMode
+                                    ? Colors.grey[400]
+                                    : Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Icon(
+                        Icons.arrow_forward_ios,
+                        size: 16,
+                        color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // Font büyüklüğü + tema rengi
+          Container(
+            margin: const EdgeInsets.only(bottom: 15),
+            decoration: BoxDecoration(
+              color: isDarkMode ? colorScheme.surface : Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: _getShadow(isDarkMode),
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () {
+                  Navigator.pushNamed(
+                    context,
+                    AppearanceSettingsScreen.routeName,
+                  );
+                },
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: ColorUtils.withAlpha(
+                            colorScheme.primary,
+                            0.15,
+                          ),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(
+                          Icons.text_fields,
+                          color: colorScheme.primary,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              AppLocalization.of(context)
+                                  .translate('settings.appearance'),
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color:
+                                    isDarkMode ? Colors.white : Colors.black87,
+                              ),
+                            ),
+                            Text(
+                              AppLocalization.of(context)
+                                  .translate('settings.appearance_desc'),
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: isDarkMode
+                                    ? Colors.grey[400]
+                                    : Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Icon(
+                        Icons.arrow_forward_ios,
+                        size: 16,
+                        color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // Rapor PDF logosu
+          Container(
+            margin: const EdgeInsets.only(bottom: 15),
+            decoration: BoxDecoration(
+              color: isDarkMode ? colorScheme.surface : Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: _getShadow(isDarkMode),
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () {
+                  Navigator.pushNamed(
+                    context,
+                    ReportLogoSettingsScreen.routeName,
+                  );
+                },
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: ColorUtils.withAlpha(
+                            colorScheme.primary,
+                            0.15,
+                          ),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(
+                          Icons.image_outlined,
+                          color: colorScheme.primary,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              AppLocalization.of(context)
+                                  .translate('settings.report_logo'),
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color:
+                                    isDarkMode ? Colors.white : Colors.black87,
+                              ),
+                            ),
+                            Text(
+                              AppLocalization.of(context)
+                                  .translate('settings.report_logo_desc'),
                               style: TextStyle(
                                 fontSize: 14,
                                 color: isDarkMode
@@ -2757,6 +3287,8 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
           ),
 
           const Spacer(),
+          const AppVersionLabel(),
+          const SizedBox(height: 8),
 
           // Logout butonu
           SizedBox(
@@ -2809,12 +3341,100 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
   }
 
   /// Favoriler kartı mı? (kalp yok; sheet açar)
+  /// Rol → ana sayfa modül kartları.
+  List<ModuleCardData> _filterModuleCardsForRole(
+    List<ModuleCardData> cards,
+    AppUserRole role,
+  ) {
+    final filtered = RoleHomeMenuFilter.filterByMainUuid(
+      role: role,
+      items: cards,
+      uuidOf: (c) => c.uuid,
+    );
+    return filtered
+        .map(
+          (c) => ModuleCardData(
+            id: c.id,
+            uuid: c.uuid,
+            title: c.title,
+            subtitle: c.subtitle,
+            icon: c.icon,
+            isFavorite: c.isFavorite,
+            submenus: c.submenus
+                .where(
+                  (s) => RoleHomeMenuFilter.allowsSubMenuUuid(
+                    role: role,
+                    parentUuid: c.uuid,
+                    subUuid: s.uuid,
+                  ),
+                )
+                .toList(),
+          ),
+        )
+        .toList();
+  }
+
+  /// Rol → menü sekmesi ana öğeleri.
+  List<MenuItemData> _filterMenuItemsForRole(
+    List<MenuItemData> items,
+    AppUserRole role,
+  ) {
+    return RoleHomeMenuFilter.filterByMainUuid(
+      role: role,
+      items: items,
+      uuidOf: (m) => m.uuid,
+    );
+  }
+
+  /// Rol → alt menü listesi.
+  List<SubMenuItemData> _filterSubMenusForRole(
+    List<SubMenuItemData> items, {
+    required String parentUuid,
+    required AppUserRole role,
+  }) {
+    if (role.seesFullMenu) return items;
+    return items
+        .where(
+          (s) => RoleHomeMenuFilter.allowsSubMenuUuid(
+            role: role,
+            parentUuid: parentUuid,
+            subUuid: s.uuid,
+          ),
+        )
+        .toList();
+  }
+
   bool _isFavoritesModuleTitle(String title, [String? localizedFavoriler]) {
-    final t = title.trim().toLowerCase();
+    final raw = title.trim();
+    final t = raw.toLowerCase();
     if (t == 'favoriler' || t == 'favorites') return true;
+    if (t == 'fs_favorites' || t.endsWith('.fs_favorites')) return true;
     if (localizedFavoriler != null &&
-        title.trim() == localizedFavoriler.trim()) {
+        raw == localizedFavoriler.trim()) {
       return true;
+    }
+    return false;
+  }
+
+  /// {@template mobile_dashboard_is_module_title_match}
+  /// Çözülmüş / legacy TR / uuid-as-title eşlemesi.
+  /// {@endtemplate}
+  bool _isModuleTitleMatch(
+    String title, {
+    String? localized,
+    List<String> legacyTr = const [],
+    List<String> uuids = const [],
+  }) {
+    final raw = title.trim();
+    if (localized != null && raw == localized.trim()) return true;
+    for (final t in legacyTr) {
+      if (raw == t) return true;
+    }
+    final lower = raw.toLowerCase();
+    for (final u in uuids) {
+      if (lower == u.toLowerCase() || lower.endsWith('.${u.toLowerCase()}')) {
+        return true;
+      }
     }
     return false;
   }
@@ -2983,16 +3603,33 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
                             final item = items[index];
                             final baseColor =
                                 ColorUtils.getColorForIcon(item.icon);
-                            String dashKey = 'dashboard.' +
-                                _getTranslationKeyForSubmenu(item.title);
-                            String label = AppLocalization.of(context)
-                                .translate(dashKey);
-                            if (label == dashKey) {
-                              final subKey = 'submodules.' +
-                                  _getTranslationKeyForSubmenu(item.title);
-                              label = AppLocalization.of(context)
-                                  .translate(subKey);
-                              if (label == subKey) label = item.title;
+                            String label = MenuService.resolveStoredMenuTitle(
+                              item.title,
+                              l10n: AppLocalization.of(context),
+                            );
+                            final stillRaw = label.contains('.') ||
+                                label.startsWith('fs_') ||
+                                label.startsWith('sub_');
+                            if (stillRaw) {
+                              if (item.title.contains('.')) {
+                                label = AppLocalization.of(context)
+                                    .translate(item.title);
+                                if (label == item.title) {
+                                  label = item.title.split('.').last;
+                                }
+                              } else {
+                                String dashKey = 'dashboard.' +
+                                    _getTranslationKeyForSubmenu(item.title);
+                                label = AppLocalization.of(context)
+                                    .translate(dashKey);
+                                if (label == dashKey) {
+                                  final subKey = 'submodules.' +
+                                      _getTranslationKeyForSubmenu(item.title);
+                                  label = AppLocalization.of(context)
+                                      .translate(subKey);
+                                  if (label == subKey) label = item.title;
+                                }
+                              }
                             }
                             return InkWell(
                               onTap: () async {

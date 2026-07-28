@@ -1346,7 +1346,13 @@
     "welcome_message": "Merhaba! Ben EXFIN AI Asistanı. Size nasıl yardımcı olabilirim?",
     "analyzing_data": "Anladım. Verileriniz üzerinde analiz yapıyorum...",
     "ai_assistant": "Yapay Zeka Asistanı",
-    "type_your_message": "Mesajınızı yazın..."
+    "type_your_message": "Mesajınızı yazın...",
+    "model_select": "OpenRouter 模型",
+    "model_select_hint": "从列表中选择模型",
+    "model_list_loading": "正在加载模型…",
+    "model_list_refresh": "刷新列表",
+    "model_list_fallback": "无 API 列表 — 显示固定热门模型",
+    "model_selected": "模型已保存"
   },
   "gamification": {
     "title": "Oyunlaştırma Merkezi",
@@ -1402,6 +1408,29 @@
     "balance_bucket_warehouse": "仓库库存",
     "route_ops_stub": "OPS 占位（外勤）",
     "route_whms_future": "WHMS 目标路由（未来）",
-    "phase2_shell": "WHMS 第2阶段 — 外壳就绪；Logo余额与已批准调拨队列已接通；暂无实时WHMS REST"
+    "phase2_shell": "WHMS 第2阶段 — 外壳就绪；Logo余额与已批准调拨队列已接通；暂无实时WHMS REST",
+    "count": {
+      "title": "Count",
+      "empty": "No count orders",
+      "search_hint": "Search counts",
+      "create": "Count order",
+      "warehouse": "Warehouse",
+      "status": "Status",
+      "enqueue_ok": "Count queued",
+      "enqueue_skip": "Approval required",
+      "execute_title": "Run count",
+      "scan_barcode": "Scan barcode",
+      "system_qty": "System",
+      "actual_qty": "Actual",
+      "variance": "Variance",
+      "complete": "Complete",
+      "qty_dialog": "Actual quantity",
+      "lines_empty": "Scan a barcode or add a line",
+      "lines_required": "At least one count line is required",
+      "product_not_found": "Product not found",
+      "load_failed": "Could not load count order",
+      "complete_failed": "Could not complete count",
+      "already_done": "Count already completed"
+    }
   }
 }

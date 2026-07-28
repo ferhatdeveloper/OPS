@@ -12,7 +12,7 @@ OPS / saha satış **anlamlı işlerinde** zorunlu panel (bu 6 rol olmadan iş t
 3. **Dil çevirmeni** — `assets/translations/tr.json` + tüm diller; key yapısı eksiksiz; hardcoded UI metin yasak
 4. **Tester** — unit/widget; l10n parse; regresyon
 5. **Yazılım ve mobil uzmanı** — Flutter/Riverpod/SQLite/Android–iOS; mevcut mimariyi koru
-6. **UI uzmanı** — **UI’ya mümkün olduğunca dokunma**; görsel dil korunur; yalnızca dil bağlama / erişilebilirlik / kırık layout fix
+6. **UI uzmanı** — **UI’ya mümkün olduğunca dokunma**; görsel dil korunur; yalnızca dil bağlama / erişilebilirlik / kırık layout fix; yeni liste/master ekranlarda dens (`dens-minimal-ui.mdc`)
 
 ## Kaynak ve öncelik
 

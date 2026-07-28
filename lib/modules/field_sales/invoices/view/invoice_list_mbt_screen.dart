@@ -2,7 +2,7 @@
 // Açıklama: MBT Fatura Listesi dens — SQLite invoices
 // Oluşturulma Tarihi: 2026-07-26
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-26
+// Son Güncelleme: 2026-07-27
 
 import 'package:flutter/material.dart';
 
@@ -11,6 +11,7 @@ import '../../shared/view/mbt_sales_purchase_queue_body.dart';
 import '../model/invoice_list_dens_record.dart';
 import '../viewmodel/invoice_list_dens_store.dart';
 import '../widgets/invoice_list_dens_tile.dart';
+import '../../shared/view/field_sales_dens_app_bar.dart';
 
 /// {@template invoice_list_mbt_screen}
 /// MBT menü eşlemesi: FATURA → Fatura Listesi dens (SQLite `invoices`).
@@ -78,26 +79,8 @@ class _InvoiceListMbtScreenState extends State<InvoiceListMbtScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FD),
-      appBar: AppBar(
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF375A7F), Color(0xFF00A8E8)],
-            ),
-          ),
-        ),
-        title: Text(
-          l10n.translate('field_sales.stubs.invoice_list'),
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-            color: Colors.white,
-          ),
-        ),
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
+      appBar: FieldSalesDensAppBar(
+        title: l10n.translate('field_sales.stubs.invoice_list'),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())

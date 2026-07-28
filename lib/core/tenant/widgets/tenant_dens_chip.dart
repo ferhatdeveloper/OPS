@@ -2,7 +2,7 @@
 // Açıklama: Dashboard aktif kiracı dens chip’i (TenantStore)
 // Oluşturulma Tarihi: 2026-07-26
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-26
+// Son Güncelleme: 2026-07-27
 
 import 'package:flutter/material.dart';
 
@@ -100,17 +100,20 @@ class _TenantDensChipState extends State<TenantDensChip> {
     );
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      constraints: const BoxConstraints(maxWidth: 88),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: isDarkMode
             ? ColorUtils.withAlpha(colorScheme.surface, 0.5)
             : Colors.grey[200],
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
         text,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: TextStyle(
-          fontSize: 12,
+          fontSize: 11,
           color: isDarkMode ? Colors.grey[400] : Colors.grey[700],
         ),
       ),

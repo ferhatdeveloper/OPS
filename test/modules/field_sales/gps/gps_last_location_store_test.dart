@@ -9,6 +9,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'package:exfin_ops/modules/field_sales/gps/model/gps_last_location_record.dart';
 import 'package:exfin_ops/modules/field_sales/gps/model/gps_last_location_seed.dart';
+import 'package:exfin_ops/modules/field_sales/gps/model/personnel_live_location.dart';
 import 'package:exfin_ops/modules/field_sales/gps/view/gps_tracking_screen.dart';
 import 'package:exfin_ops/modules/field_sales/gps/viewmodel/gps_last_location_store.dart';
 
@@ -99,15 +100,29 @@ void main() {
   });
 
   testWidgets('GpsTrackingScreen dens seed satırları gösterir', (tester) async {
+    final rows = GpsLastLocationSeed.defaultRows
+        .map(
+          (r) => PersonnelLiveLocation(
+            userId: r.salespersonCode,
+            salespersonCode: r.salespersonCode,
+            displayName: r.label,
+            latitude: r.latitude,
+            longitude: r.longitude,
+            updatedAt: r.recordedAt,
+            accuracy: r.accuracy,
+            isSynced: r.isSynced == 1,
+          ),
+        )
+        .toList(growable: false);
     await pumpStubWithL10n(
       tester,
-      GpsTrackingScreen(records: GpsLastLocationSeed.defaultRows),
+      GpsTrackingScreen(records: rows),
     );
     await tester.pump();
 
     expectStubL10nSmoke(tester, 'field_sales.stubs.gps_tracking');
     expect(find.textContaining('PLS01'), findsWidgets);
     expect(find.textContaining('Eminönü'), findsOneWidget);
-    expectStubL10nSmoke(tester, 'field_sales.gps_synced');
+    expectStubL10nSmoke(tester, 'field_sales.gps_live_stale');
   });
 }

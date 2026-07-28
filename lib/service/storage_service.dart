@@ -691,6 +691,9 @@ class StorageService {
     await db.execute(SqlQuerys.createFactoriesTable);
     await db.execute(SqlQuerys.createDeviceTable);
     await db.execute(SqlQuerys.createMenuPermissionsTable);
+    await db.execute(SqlQuerys.createPermissionGroupsTable);
+    await db.execute(SqlQuerys.createPermissionGroupMenusTable);
+    await db.execute(SqlQuerys.createPermissionGroupMembersTable);
     await db.execute(SqlQuerys.createUserCompanyVisibilityTable);
     await db.execute(SqlQuerys.createUserRolesTable);
     await db.execute(SqlQuerys.createCompanyPeriodTable);

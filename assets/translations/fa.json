@@ -828,7 +828,13 @@
     "welcome_message": "سلام! من دستیار EXFIN AI هستم. چگونه می توانم به شما کمک کنم؟",
     "analyzing_data": "می فهمم که داده های شما را تحلیل می کنم...",
     "ai_assistant": "دستیار هوش مصنوعی",
-    "type_your_message": "پیام خود را بنویسید..."
+    "type_your_message": "پیام خود را بنویسید...",
+    "model_select": "مدل OpenRouter",
+    "model_select_hint": "یک مدل از فهرست انتخاب کنید",
+    "model_list_loading": "در حال بارگذاری مدل‌ها…",
+    "model_list_refresh": "تازه‌سازی فهرست",
+    "model_list_fallback": "فهرست API نیست — مدل‌های محبوب ثابت نمایش داده می‌شود",
+    "model_selected": "مدل ذخیره شد"
   },
   "whms": {
     "module_name": "مدیریت انبار (WHMS)",
@@ -839,6 +845,29 @@
     "balance_bucket_warehouse": "موجودی انبار",
     "route_ops_stub": "استاب OPS (فروش میدانی)",
     "route_whms_future": "مسیر هدف WHMS (آینده)",
-    "phase2_shell": "WHMS فاز ۲ — پوسته آماده؛ موجودی Logo + صف انتقال تأییدشده؛ REST زنده WHMS نیست"
+    "phase2_shell": "WHMS فاز ۲ — پوسته آماده؛ موجودی Logo + صف انتقال تأییدشده؛ REST زنده WHMS نیست",
+    "count": {
+      "title": "شمارش",
+      "empty": "دستور شمارش نیست",
+      "search_hint": "جستجوی شمارش",
+      "create": "دستور شمارش",
+      "warehouse": "انبار",
+      "status": "وضعیت",
+      "enqueue_ok": "شمارش به صف اضافه شد",
+      "enqueue_skip": "تأیید لازم است",
+      "execute_title": "اجرای شمارش",
+      "scan_barcode": "اسکن بارکد",
+      "system_qty": "سیستم",
+      "actual_qty": "واقعی",
+      "variance": "اختلاف",
+      "complete": "تکمیل",
+      "qty_dialog": "مقدار واقعی",
+      "lines_empty": "بارکد اسکن کنید یا ردیف اضافه کنید",
+      "lines_required": "حداقل یک ردیف شمارش لازم است",
+      "product_not_found": "محصول یافت نشد",
+      "load_failed": "دستور شمارش بارگذاری نشد",
+      "complete_failed": "شمارش تکمیل نشد",
+      "already_done": "شمارش قبلاً تکمیل شده"
+    }
   }
 }

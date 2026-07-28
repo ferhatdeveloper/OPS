@@ -6,7 +6,9 @@
 
 import 'package:flutter/material.dart';
 import '../../core/services/supabase_service.dart';
+import '../../core/localization/app_localization.dart';
 import 'menu_permission_screen.dart';
+import 'permission_groups_screen.dart';
 import 'package:uuid/uuid.dart';
 import '../../service/auth_service.dart';
 
@@ -128,13 +130,27 @@ class _UserAuthorizationState extends State<UserAuthorization> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalization.of(context);
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text('Kullanıcı İşlemleri'),
+        title: Text(l10n.translate('permission_groups.user_auth_title')),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.security),
+            tooltip: l10n.translate('permission_groups.title'),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const PermissionGroupsScreen(),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())

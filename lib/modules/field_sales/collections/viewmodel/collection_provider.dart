@@ -55,6 +55,9 @@ class CollectionNotifier extends StateNotifier<CollectionState> {
   /// - [cashCode]: Kasa kodu (Logo safe_code)
   /// - [documentNo]: Evrak no
   /// - [currencyCode]: İşlem dövizi
+  /// - [exchangeRate]: 1 işlem dövizi = kaç merkez
+  /// - [baseAmount]: Merkez döviz tutarı
+  /// - [baseCurrencyCode]: Merkez varsayılan para birimi
   /// - [salespersonCode]: Plasiyer
   /// - [specialCode1]: Özelkod 1
   /// - [endorsement]: Ciro (çek)
@@ -78,6 +81,9 @@ class CollectionNotifier extends StateNotifier<CollectionState> {
     String? safeCode,
     String? documentNo,
     String? currencyCode,
+    double? exchangeRate,
+    double? baseAmount,
+    String? baseCurrencyCode,
     String? salespersonCode,
     String? specialCode1,
     String? endorsement,
@@ -117,6 +123,9 @@ class CollectionNotifier extends StateNotifier<CollectionState> {
         cashCode: resolvedCash,
         documentNo: _trimOrNull(documentNo),
         currencyCode: _trimOrNull(currencyCode),
+        exchangeRate: exchangeRate,
+        baseAmount: baseAmount,
+        baseCurrencyCode: _trimOrNull(baseCurrencyCode),
         salespersonCode: _trimOrNull(salespersonCode),
         specialCode1: _trimOrNull(specialCode1),
         endorsement: _trimOrNull(endorsement),
@@ -132,11 +141,15 @@ class CollectionNotifier extends StateNotifier<CollectionState> {
       collectionMap['created_at'] = now;
       collectionMap['updated_at'] = now;
 
+      // Cari ekstre merkez döviz tutarıyla (yoksa işlem tutarı)
+      final ledgerAmount =
+          (baseAmount != null && baseAmount > 0) ? baseAmount : amount;
+
       final movement = CustomerExtractStore.movementFromCollection(
         collectionId: collection.id,
         customerId: trimmedCustomerId,
         collectionDate: collection.collectionDate,
-        amount: amount,
+        amount: ledgerAmount,
         paymentType: normalizedType,
         documentNo: collection.documentNo,
         notes: notes,
@@ -178,6 +191,9 @@ class CollectionNotifier extends StateNotifier<CollectionState> {
           customerName: customerName,
           documentNo: documentNo,
           currencyCode: currencyCode,
+          exchangeRate: exchangeRate,
+          baseAmount: baseAmount,
+          baseCurrencyCode: baseCurrencyCode,
           salesmanCode: salespersonCode,
           specialCode1: specialCode1,
           bankName: bankName,

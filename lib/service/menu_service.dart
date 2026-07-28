@@ -2,6 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
 import '../core/constants/menu_constants.dart';
 import '../core/localization/app_localization.dart';
+import '../core/auth/permission_resolver.dart';
+import '../modules/admin_panel/viewmodel/permission_group_store.dart';
+import '../modules/field_sales/shared/model/field_sales_menu_l10n.dart';
 import 'database_service.dart';
 
 /// Menu service to provide consistent menus across the app
@@ -15,6 +18,103 @@ class MenuService {
   // İstek sayısını azaltmak için kullanılan bayrak
   static bool _isPreloading = false;
   static bool _preloadCompleted = false;
+
+  /// SQLite menü başlığını UI metnine çevirir (key veya legacy TR).
+  ///
+  /// Desteklenen biçimler:
+  /// - `field_sales.menu.fs_*` / `dashboard.*` (dotted key)
+  /// - çıplak `fs_*` / `sub_*` (yanlış migrate sonrası uuid-as-title)
+  /// - legacy Türkçe insan başlığı (değiştirilmez)
+  ///
+  /// [l10n] yoksa yüklü [AppLocalization.instance] kullanılır.
+  /// Çözülemezse **asla** dotted key’in son segmentini (`fs_invoice`)
+  /// ham UI metni olarak döndürmez — önce menü key’i dener.
+  static String resolveStoredMenuTitle(
+    String stored, {
+    AppLocalization? l10n,
+  }) {
+    final title = stored.trim();
+    if (title.isEmpty) return title;
+
+    final loc = _resolveL10n(l10n);
+    final translated = _translateMenuKey(title, loc);
+    if (translated != null) return translated;
+
+    // Çıplak uuid / son segment (fs_*, sub_*)
+    if (_looksLikeMenuUuid(title)) {
+      final override = FieldSalesMenuL10n.overrides[title];
+      if (override != null) {
+        final viaOverride = _translateMenuKey(override, loc);
+        if (viaOverride != null) return viaOverride;
+      }
+      final viaMenu = _translateMenuKey(
+        FieldSalesMenuL10n.titleKey(title),
+        loc,
+      );
+      if (viaMenu != null) return viaMenu;
+    }
+
+    // Dotted ama çevrilemedi: son segment menü uuid ise tekrar dene
+    if (title.contains('.')) {
+      final last = title.split('.').last.trim();
+      if (_looksLikeMenuUuid(last)) {
+        final viaLast = _translateMenuKey(
+          FieldSalesMenuL10n.titleKey(last),
+          loc,
+        );
+        if (viaLast != null) return viaLast;
+        final override = FieldSalesMenuL10n.overrides[last];
+        if (override != null) {
+          final viaOverride = _translateMenuKey(override, loc);
+          if (viaOverride != null) return viaOverride;
+        }
+      }
+      // Bilinmeyen key — ham key gösterme; son etiket yalnızca fallback
+      return last;
+    }
+
+    return title;
+  }
+
+  /// {@template menu_service_resolve_l10n}
+  /// Verilen veya yüklü singleton l10n.
+  /// {@endtemplate}
+  static AppLocalization? _resolveL10n(AppLocalization? l10n) {
+    if (l10n != null && l10n.isLoaded) return l10n;
+    final instance = AppLocalization.instance;
+    if (instance.isLoaded) return instance;
+    return l10n ?? instance;
+  }
+
+  /// {@template menu_service_translate_menu_key}
+  /// Key çevrildiyse metin; aynı key döndüyse null.
+  /// {@endtemplate}
+  static String? _translateMenuKey(String key, AppLocalization? loc) {
+    if (loc == null || !loc.isLoaded) return null;
+    final t = loc.translate(key);
+    if (t != key) return t;
+    return null;
+  }
+
+  /// {@template menu_service_looks_like_menu_uuid}
+  /// FieldSales menü uuid kalıbı (`fs_*` / `sub_*`).
+  /// {@endtemplate}
+  static bool _looksLikeMenuUuid(String value) {
+    return value.startsWith('fs_') || value.startsWith('sub_');
+  }
+
+  /// {@template menu_service_resolve_context}
+  /// [BuildContext] ile menü başlığı çözümü.
+  /// {@endtemplate}
+  static String resolveStoredMenuTitleForContext(
+    BuildContext context,
+    String stored,
+  ) {
+    return resolveStoredMenuTitle(
+      stored,
+      l10n: AppLocalization.of(context),
+    );
+  }
 
   /// Servis başlatma - tüm verileri tek seferde yükler
   static Future<void> initialize() async {
@@ -333,6 +433,24 @@ class MenuService {
         return Icons.add_card;
       case 'sync_disabled':
         return Icons.sync_disabled;
+      case 'calendar_view_week':
+        return Icons.calendar_view_week;
+      case 'download_for_offline':
+        return Icons.download_for_offline;
+      case 'route':
+        return Icons.route;
+      case 'map':
+        return Icons.map;
+      case 'send':
+        return Icons.send;
+      case 'image':
+        return Icons.image;
+      case 'my_location':
+        return Icons.my_location;
+      case 'videocam':
+        return Icons.videocam;
+      case 'video_settings':
+        return Icons.video_settings;
       default:
         return Icons.circle;
     }
@@ -528,6 +646,7 @@ class MenuService {
             description: description ?? '',
             route: route ?? '',
             icon: getIconFromString(iconName),
+            uuid: (submenu['uuid'] as String?) ?? '',
           ),
         );
       }
@@ -576,6 +695,7 @@ class MenuService {
           (sub) => ModuleSubmenuItem(
             title: sub['title'] as String? ?? '',
             route: (sub['route'] as String?) ?? '',
+            uuid: (sub['uuid'] as String?) ?? '',
           ),
         )
         .where((item) => item.title.isNotEmpty)
@@ -585,11 +705,15 @@ class MenuService {
   // Veritabanından tüm modül kartlarını al
   static Future<List<ModuleCardData>> getMobileModuleCards({
     String? languageCode,
+    String? userId,
+    int? companyNo,
   }) async {
     await initialize();
+    final l10n = await AppLocalization.resolve();
 
-    // Önbellekten döndür eğer mevcutsa
-    final cacheKey = 'mobileModuleCards_${languageCode ?? 'tr'}';
+    // Önbellekten döndür eğer mevcutsa (oturum scoped)
+    final cacheKey =
+        'mobileModuleCards_${languageCode ?? 'tr'}_${userId ?? 'all'}_${companyNo ?? 0}';
     if (_cache.containsKey(cacheKey)) {
       return _cache[cacheKey] as List<ModuleCardData>;
     }
@@ -602,7 +726,33 @@ class MenuService {
         languageCode: languageCode,
       );
 
+      Set<String>? viewable;
+      if (userId != null && companyNo != null) {
+        try {
+          final db = await _databaseService!.getDatabase();
+          final store = PermissionGroupStore(db);
+          final hasData = await store.hasAnyPermissionData(
+            userId: userId,
+            companyNo: companyNo,
+          );
+          if (hasData) {
+            final effective = await store.resolveEffective(
+              userId: userId,
+              companyNo: companyNo,
+            );
+            viewable = PermissionResolver.viewableUuids(effective);
+          }
+        } catch (_) {
+          viewable = null;
+        }
+      }
+
       for (final menu in mainMenus) {
+        final menuUuid = (menu['uuid'] as String?) ?? '';
+        if (viewable != null && !viewable.contains(menuUuid)) {
+          continue;
+        }
+
         final menuId = menu['id'] as int;
         final title = menu['title'] as String;
         final iconName = menu['icon'] as String? ?? 'circle';
@@ -615,12 +765,26 @@ class MenuService {
           menuId,
           languageCode: languageCode,
         );
-        final submenus = mapModuleSubmenuItems(submenuData);
+        final submenus = mapModuleSubmenuItems(submenuData)
+            .where(
+              (sub) =>
+                  viewable == null ||
+                  sub.uuid.isEmpty ||
+                  viewable.contains(sub.uuid),
+            )
+            .map((sub) {
+          return ModuleSubmenuItem(
+            title: resolveStoredMenuTitle(sub.title, l10n: l10n),
+            route: sub.route,
+            uuid: sub.uuid,
+          );
+        }).toList();
 
         result.add(
           ModuleCardData(
             id: menuId,
-            title: title,
+            uuid: menuUuid,
+            title: resolveStoredMenuTitle(title, l10n: l10n),
             subtitle: description,
             icon: getIconFromString(iconName),
             submenus: submenus,
@@ -654,6 +818,7 @@ class MenuService {
       // Sık kullanılan menüleri al (is_favorite = 1 olanlar)
       final favoriteItems = await _databaseService!.getFavoriteMenuItems();
 
+      final l10n = await AppLocalization.resolve();
       for (final item in favoriteItems) {
         final title = item['title'] as String;
         final iconName = item['icon'] as String? ?? 'circle';
@@ -661,7 +826,7 @@ class MenuService {
 
         result.add(
           FavoriteItemData(
-            title: title,
+            title: resolveStoredMenuTitle(title, l10n: l10n),
             icon: getIconFromString(iconName),
             route: route,
           ),
@@ -694,6 +859,7 @@ class MenuService {
             (submenu) => ModuleSubmenuItem(
               title: AppLocalization.of(context).translate(submenu.title),
               route: submenu.route,
+              uuid: submenu.uuid,
             ),
           )
           .toList();
@@ -732,6 +898,7 @@ class MenuService {
       // Alt menüler (bu fonksiyonda boş bırakılır, alt menü fonksiyonu ile doldurulacak)
       return MenuItemData(
         id: menuId,
+        uuid: (menu['uuid'] as String?) ?? '',
         title: title,
         icon: getIconFromString(iconName),
         submenus: [],
@@ -765,6 +932,7 @@ class MenuService {
         description: description ?? '',
         route: route ?? '',
         icon: getIconFromString(iconName),
+        uuid: (menu['uuid'] as String?) ?? '',
       );
     }).toList();
   }
@@ -811,6 +979,9 @@ final expandedMenuIndexProvider = StateProvider<int?>((ref) => null);
 /// Ana menü öğesi veri modeli
 class MenuItemData {
   final int id;
+
+  /// [uuid]: SQLite menu.uuid (`fs_*`) — rol filtresi
+  final String uuid;
   final String title;
   final IconData icon;
   final List<String> submenus;
@@ -818,6 +989,7 @@ class MenuItemData {
 
   MenuItemData({
     required this.id,
+    this.uuid = '',
     required this.title,
     required this.icon,
     required this.submenus,
@@ -832,11 +1004,15 @@ class SubMenuItemData {
   final String route;
   final IconData icon;
 
+  /// [uuid]: SQLite menu.uuid (`sub_*`)
+  final String uuid;
+
   SubMenuItemData({
     required this.title,
     required this.description,
     required this.route,
     required this.icon,
+    this.uuid = '',
   });
 }
 

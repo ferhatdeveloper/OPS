@@ -5,8 +5,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'view/login_screen.dart';
+import 'view/auto_login_bootstrap.dart';
 import 'service/theme_service.dart';
+import 'modules/field_sales/settings/viewmodel/appearance_settings_provider.dart';
 import 'service/language_service.dart';
 import 'service/database_service.dart';
 import 'core/localization/app_localization.dart';
@@ -21,9 +22,11 @@ import 'core/services/logo_api_service.dart';
 import 'core/providers/loading_provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'core/init/navigation/routes.dart';
+import 'core/navigation/app_navigator.dart';
 import 'core/database/migrations/SqlQuerys.dart';
 import 'core/services/postgre_service.dart';
 import 'service/location_service.dart';
+import 'service/notification_service.dart';
 
 // EXFIN Splash Renkleri
 const Color _splashDarkBlue = Color.fromARGB(255, 5, 79, 153);
@@ -235,6 +238,9 @@ Future<void> main() async {
   await LocationService.initializeBackgroundService();
   debugLog('Background location service initialized');
 
+  await NotificationService().initialize();
+  debugLog('Notification service initialized');
+
   // Web dışı platformlarda FFI başlat
   if (!kIsWeb && (Platform.isWindows || Platform.isLinux)) {
     sqfliteFfiInit();
@@ -398,9 +404,11 @@ class MyApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     debugLog("MyApp build method called");
 
-    // Provider'dan tema ve dil tercihlerini al
+    // Provider'dan tema, görünüm ve dil tercihlerini al
     final themeMode = ref.watch(themeModeProvider);
+    final appearance = ref.watch(appearanceSettingsProvider);
     final locale = ref.watch(localeProvider);
+    final primaryAccent = appearance.primaryColor;
 
     debugLog("Current theme mode: $themeMode");
     debugLog("Current locale from provider: ${locale.toString()}");
@@ -455,18 +463,28 @@ class MyApp extends ConsumerWidget {
         return locale;
       },
 
-      // Tema ayarları
+      // Tema ayarları (primary = kullanıcı tema rengi)
       theme: ThemeData(
         useMaterial3: false,
         brightness: Brightness.light,
         colorScheme: ColorScheme.light(
-          primary: const Color(0xFF375A7F),
+          primary: primaryAccent,
           secondary: const Color(0xFF00A8E8),
           background: const Color(0xFFF2F3F5),
           surface: Colors.white,
+          onSurface: const Color(0xFF1A1A1A),
+          onSurfaceVariant: const Color(0xFF5C5C5C),
           error: const Color(0xFFe74c3c),
         ),
         scaffoldBackgroundColor: const Color(0xFFF2F3F5),
+        inputDecorationTheme: const InputDecorationTheme(
+          labelStyle: TextStyle(color: Color(0xFF5C5C5C)),
+          hintStyle: TextStyle(color: Color(0xFF757575)),
+        ),
+        listTileTheme: const ListTileThemeData(
+          textColor: Color(0xFF1A1A1A),
+          iconColor: Color(0xFF5C5C5C),
+        ),
       ),
 
       // Koyu tema
@@ -474,33 +492,50 @@ class MyApp extends ConsumerWidget {
         useMaterial3: false,
         brightness: Brightness.dark,
         colorScheme: ColorScheme.dark(
-          primary: const Color(0xFFBB86FC),
+          primary: primaryAccent,
           secondary: const Color(0xFF03DAC6),
           background: const Color(0xFF121212),
           surface: const Color(0xFF1E1E1E),
+          onSurface: Colors.white,
+          onSurfaceVariant: const Color(0xFFB3B3B3),
           error: const Color(0xFFCF6679),
         ),
         scaffoldBackgroundColor: const Color(0xFF121212),
+        inputDecorationTheme: const InputDecorationTheme(
+          labelStyle: TextStyle(color: Color(0xFFB3B3B3)),
+          hintStyle: TextStyle(color: Color(0xFF9E9E9E)),
+          fillColor: Color(0xFF1E1E1E),
+        ),
+        listTileTheme: const ListTileThemeData(
+          textColor: Colors.white,
+          iconColor: Color(0xFFB3B3B3),
+        ),
       ),
 
       // Tema modu
       themeMode: themeMode,
 
-      // UI yapılandırıcı
+      // UI yapılandırıcı — font ölçeği + RTL
       builder: (context, child) {
         debugLog("MaterialApp builder called");
-        // Directionality ile sar (RTL desteği için)
-        return Directionality(
-          textDirection: textDirection,
-          child: child ?? const SizedBox.shrink(),
+        final media = MediaQuery.of(context);
+        return MediaQuery(
+          data: media.copyWith(
+            textScaler: TextScaler.linear(appearance.textScaleFactor),
+          ),
+          child: Directionality(
+            textDirection: textDirection,
+            child: child ?? const SizedBox.shrink(),
+          ),
         );
       },
 
       // Tek rota kaynağı: AppRoutes.generateRoute (menü seed path'leri ile hizalı)
+      navigatorKey: AppNavigator.key,
       onGenerateRoute: AppRoutes.generateRoute,
 
-      // Başlangıç ekranı
-      home: const LoginScreen(),
+      // Başlangıç: beni hatırla → dashboard, değilse login
+      home: const AutoLoginBootstrap(),
     );
   }
 }

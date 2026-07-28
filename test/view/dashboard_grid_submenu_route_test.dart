@@ -123,6 +123,87 @@ void main() {
       expect(items.first.route, '/field-sales/announcements');
     });
 
+    test('fs_other seed — offline harita + yol tarifi', () {
+      const seedRows = <Map<String, dynamic>>[
+        {
+          'title': 'Bilgi Gönderme',
+          'route': '/field-sales/send-info',
+        },
+        {
+          'title': 'Güne Başlama Bitirme',
+          'route': '/field-sales/day-status',
+        },
+        {
+          'title': 'Haftalık Rota Planı',
+          'route': '/field-sales/weekly-route-plan',
+        },
+        {
+          'title': 'Offline Harita İndir',
+          'route': '/field-sales/offline-map-download',
+        },
+        {
+          'title': 'Uygulama İçi Yol Tarifi',
+          'route': '/field-sales/in-app-route-map',
+        },
+        {
+          'title': 'Resimler',
+          'route': '/field-sales/image-settings',
+        },
+      ];
+      final items = MenuService.mapModuleSubmenuItems(seedRows);
+      expect(items, hasLength(6));
+      expect(
+        items.any((i) => i.route == '/field-sales/offline-map-download'),
+        isTrue,
+      );
+      expect(
+        items.any((i) => i.route == '/field-sales/in-app-route-map'),
+        isTrue,
+      );
+      expect(
+        MenuService.getIconFromString('download_for_offline'),
+        Icons.download_for_offline,
+      );
+    });
+
+    test('fs_other seed — Haftalık Rota Planı weekly-route-plan', () {
+      const seedRows = <Map<String, dynamic>>[
+        {
+          'title': 'Bilgi Gönderme',
+          'route': '/field-sales/send-info',
+        },
+        {
+          'title': 'Güne Başlama Bitirme',
+          'route': '/field-sales/day-status',
+        },
+        {
+          'title': 'Haftalık Rota Planı',
+          'route': '/field-sales/weekly-route-plan',
+        },
+        {
+          'title': 'Resimler',
+          'route': '/field-sales/image-settings',
+        },
+      ];
+      final items = MenuService.mapModuleSubmenuItems(seedRows);
+      expect(items, hasLength(4));
+      expect(
+        items.any((i) => i.route == '/field-sales/weekly-route-plan'),
+        isTrue,
+      );
+      expect(
+        items
+            .where((i) => i.title == 'Haftalık Rota Planı')
+            .single
+            .route,
+        '/field-sales/weekly-route-plan',
+      );
+      expect(
+        MenuService.getIconFromString('calendar_view_week'),
+        Icons.calendar_view_week,
+      );
+    });
+
     test('fs_invoice / fs_waybill seed — Fiş Ön Değerleri voucher-defaults', () {
       // database_service seedFieldSalesMockData fs_invoice / fs_waybill
       const invoiceSeed = <Map<String, dynamic>>[

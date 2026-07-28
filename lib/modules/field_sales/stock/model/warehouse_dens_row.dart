@@ -102,6 +102,13 @@ class WarehouseDensRow {
     List<Map<String, dynamic>> maps,
   ) {
     final active = maps.where((m) {
+      final deleted = m['is_deleted'];
+      if (deleted != null) {
+        final d = deleted is int
+            ? deleted
+            : int.tryParse(deleted.toString()) ?? 0;
+        if (d == 1) return false;
+      }
       final flag = m['is_active'];
       if (flag == null) return true;
       if (flag is int) return flag == 1;

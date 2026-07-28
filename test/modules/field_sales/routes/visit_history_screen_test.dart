@@ -2,7 +2,7 @@
 // Açıklama: Geçmiş ziyaret dens ekranı enjekte kayıt smoke testi
 // Oluşturulma Tarihi: 2026-07-26
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-26
+// Son Güncelleme: 2026-07-28
 
 import 'package:flutter_test/flutter_test.dart';
 
@@ -37,6 +37,16 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Alpha Market'), findsOneWidget);
-    expect(find.text('24.07.2026'), findsOneWidget);
+    expect(find.textContaining('24.07.2026'), findsOneWidget);
+  });
+
+  test('parseCustomerId String ve Map args çözülür', () {
+    expect(VisitHistoryScreen.parseCustomerId('c1'), 'c1');
+    expect(
+      VisitHistoryScreen.parseCustomerId({'customerId': 'c2'}),
+      'c2',
+    );
+    expect(VisitHistoryScreen.parseCustomerId(null), isNull);
+    expect(VisitHistoryScreen.parseCustomerId('  '), isNull);
   });
 }

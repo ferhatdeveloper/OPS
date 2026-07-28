@@ -2,13 +2,15 @@
 // Açıklama: Kasa kart listesi dens master seçici (MBT FİNANS → Kasa Kart Listesi)
 // Oluşturulma Tarihi: 2026-07-26
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-26
+// Son Güncelleme: 2026-07-27
 
 import 'package:flutter/material.dart';
 
 import '../../../../core/localization/app_localization.dart';
+import '../../shared/view/field_sales_dens_app_bar.dart';
 import '../model/cash_card_master.dart';
 import '../viewmodel/cash_card_store.dart';
+import 'cash_card_detail_screen.dart';
 
 /// {@template cash_card_list_screen}
 /// Kasa kart listesi dens ekranı — ara · satır · Seç.
@@ -158,7 +160,7 @@ class _CashCardListScreenState extends State<CashCardListScreen> {
   }
 
   /// {@template _on_select}
-  /// Seçili kasayı döndürür (selectionMode) veya ekranı kapatır.
+  /// Seçili kasayı döndürür (selectionMode) veya detay ekranına gider.
   /// {@endtemplate}
   void _onSelect() {
     final l10n = AppLocalization.of(context);
@@ -178,7 +180,10 @@ class _CashCardListScreenState extends State<CashCardListScreen> {
     if (widget.selectionMode) {
       Navigator.of(context).pop<CashCardOption>(selected);
     } else {
-      Navigator.of(context).maybePop();
+      Navigator.of(context).pushNamed(
+        CashCardDetailScreen.routeName,
+        arguments: {'code': selected.code},
+      );
     }
   }
 
@@ -190,40 +195,32 @@ class _CashCardListScreenState extends State<CashCardListScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FD),
-      appBar: AppBar(
-        title: Text(
-          title,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
+      appBar: FieldSalesDensAppBar(
+        title: title,
         backgroundColor: primary,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            padding: const EdgeInsets.fromLTRB(10, 6, 10, 4),
             child: TextField(
               controller: _searchController,
               textCapitalization: TextCapitalization.none,
               keyboardType: TextInputType.text,
               textInputAction: TextInputAction.search,
-              style: const TextStyle(fontSize: 14),
+              style: const TextStyle(fontSize: 13),
               decoration: InputDecoration(
                 isDense: true,
                 hintText: l10n.translate('common.search'),
                 hintStyle: TextStyle(
                   color: Colors.grey.shade400,
-                  fontSize: 14,
+                  fontSize: 13,
                 ),
                 filled: true,
                 fillColor: Colors.white,
                 contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 10,
+                  horizontal: 10,
+                  vertical: 8,
                 ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
@@ -246,9 +243,9 @@ class _CashCardListScreenState extends State<CashCardListScreen> {
                     ),
                   )
                 : ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                    padding: const EdgeInsets.fromLTRB(10, 4, 10, 16),
                     itemCount: _filtered.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    separatorBuilder: (_, __) => const SizedBox(height: 4),
                     itemBuilder: (context, index) {
                       final row = _filtered[index];
                       final selected = _selectedIndex == index;
@@ -256,8 +253,15 @@ class _CashCardListScreenState extends State<CashCardListScreen> {
                         option: row,
                         label: row.label(l10n),
                         selected: selected,
-                        onTap: () =>
-                            setState(() => _selectedIndex = index),
+                        onTap: () {
+                          setState(() => _selectedIndex = index);
+                          if (!widget.selectionMode) {
+                            Navigator.of(context).pushNamed(
+                              CashCardDetailScreen.routeName,
+                              arguments: {'code': row.code},
+                            );
+                          }
+                        },
                       );
                     },
                   ),
@@ -265,10 +269,10 @@ class _CashCardListScreenState extends State<CashCardListScreen> {
           SafeArea(
             top: false,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
               child: SizedBox(
                 width: double.infinity,
-                height: 48,
+                height: 40,
                 child: ElevatedButton(
                   onPressed: _onSelect,
                   style: ElevatedButton.styleFrom(
@@ -283,7 +287,7 @@ class _CashCardListScreenState extends State<CashCardListScreen> {
                     l10n.translate('common.select'),
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
-                      fontSize: 16,
+                      fontSize: 14,
                     ),
                   ),
                 ),
@@ -328,7 +332,7 @@ class _CashCardDensTile extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(8),
@@ -349,15 +353,15 @@ class _CashCardDensTile extends StatelessWidget {
                       option.code,
                       style: const TextStyle(
                         fontWeight: FontWeight.w600,
-                        fontSize: 14,
+                        fontSize: 13,
                         color: Color(0xFF2C3E50),
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 1),
                     Text(
                       label,
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: 12,
                         color: Colors.grey.shade700,
                       ),
                     ),
@@ -368,7 +372,7 @@ class _CashCardDensTile extends StatelessWidget {
                 const Icon(
                   Icons.check_circle,
                   color: Color(0xFF375A7F),
-                  size: 22,
+                  size: 18,
                 ),
             ],
           ),

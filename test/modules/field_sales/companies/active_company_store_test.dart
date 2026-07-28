@@ -26,6 +26,7 @@ void main() {
         periodNo: '01',
       );
       expect(session.appBarLabel, 'MBT ( 001_01 )');
+      expect(session.densChipLabel, '001_01');
       expect(session.isNotEmpty, isTrue);
     });
 

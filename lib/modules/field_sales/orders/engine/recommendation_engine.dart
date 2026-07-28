@@ -1,4 +1,5 @@
 import 'package:uuid/uuid.dart';
+import '../../../../core/ai/features/order_ai_recommendation_bridge.dart';
 import '../../../../service/database_service.dart';
 import '../model/ai_suggestion_model.dart';
 
@@ -8,6 +9,14 @@ class RecommendationEngine {
   RecommendationEngine._internal();
 
   final _uuid = const Uuid();
+
+  /// Opsiyonel AI gateway köprüsü (key yoksa yerel reason kalır)
+  OrderAiRecommendationBridge? _bridge;
+
+  /// Test / DI
+  void bindAiBridge(OrderAiRecommendationBridge bridge) {
+    _bridge = bridge;
+  }
 
   Future<AISuggestionModel?> getSuggestion(String customerId, String productId) async {
     final dbService = await DatabaseService.getInstance();
@@ -24,6 +33,34 @@ class RecommendationEngine {
       return AISuggestionModel.fromMap(result.first);
     }
     return null;
+  }
+
+  /// Yerel suggestion + opsiyonel gateway reason enrich (offline-safe)
+  Future<AISuggestionModel?> getSuggestionEnriched({
+    required String customerId,
+    required String productId,
+    String customerLabel = '',
+    String productLabel = '',
+  }) async {
+    final local = await getSuggestion(customerId, productId);
+    if (local == null) return null;
+    final bridge = _bridge ?? OrderAiRecommendationBridge();
+    final enriched = await bridge.enrichReason(
+      customerLabel: customerLabel.isEmpty ? customerId : customerLabel,
+      productLabel: productLabel.isEmpty ? productId : productLabel,
+      suggestedQty: local.suggestedQty,
+      localReason: local.reason,
+    );
+    if (enriched == null || enriched == local.reason) return local;
+    return AISuggestionModel(
+      id: local.id,
+      customerId: local.customerId,
+      productId: local.productId,
+      suggestedQty: local.suggestedQty,
+      reason: enriched,
+      confidence: local.confidence,
+      updatedAt: local.updatedAt,
+    );
   }
 
   /// Seeds mock suggestions for testing

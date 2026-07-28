@@ -825,7 +825,13 @@
     "welcome_message": "¡Hola! Soy el asistente de EXFIN AI. ¿Le puedo ayudar en algo?",
     "analyzing_data": "Entiendo que analizo tus datos...",
     "ai_assistant": "Asistente de Inteligencia Artificial",
-    "type_your_message": "Escribe tu mensaje..."
+    "type_your_message": "Escribe tu mensaje...",
+    "model_select": "Modelo OpenRouter",
+    "model_select_hint": "Seleccione un modelo de la lista",
+    "model_list_loading": "Cargando modelos…",
+    "model_list_refresh": "Actualizar lista",
+    "model_list_fallback": "Sin lista API — se muestran modelos populares fijos",
+    "model_selected": "Modelo guardado"
   },
   "whms": {
     "module_name": "Gestión de almacén (WHMS)",
@@ -836,6 +842,29 @@
     "balance_bucket_warehouse": "Stock de almacén",
     "route_ops_stub": "Stub OPS (ventas de campo)",
     "route_whms_future": "Ruta objetivo WHMS (futuro)",
-    "phase2_shell": "WHMS Fase 2 — shell listo; saldo Logo + cola de transferencia aprobada; sin REST WHMS en vivo"
+    "phase2_shell": "WHMS Fase 2 — shell listo; saldo Logo + cola de transferencia aprobada; sin REST WHMS en vivo",
+    "count": {
+      "title": "Conteo",
+      "empty": "Sin órdenes",
+      "search_hint": "Buscar",
+      "create": "Orden de conteo",
+      "warehouse": "Almacén",
+      "status": "Estado",
+      "enqueue_ok": "En cola",
+      "enqueue_skip": "Aprobación requerida",
+      "execute_title": "Ejecutar conteo",
+      "scan_barcode": "Escanear código",
+      "system_qty": "Sistema",
+      "actual_qty": "Real",
+      "variance": "Diferencia",
+      "complete": "Completar",
+      "qty_dialog": "Cantidad real",
+      "lines_empty": "Escanee un código o agregue una línea",
+      "lines_required": "Se requiere al menos una línea",
+      "product_not_found": "Producto no encontrado",
+      "load_failed": "No se pudo cargar la orden",
+      "complete_failed": "No se pudo completar",
+      "already_done": "Conteo ya completado"
+    }
   }
 }

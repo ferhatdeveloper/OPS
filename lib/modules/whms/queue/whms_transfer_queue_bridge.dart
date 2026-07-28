@@ -1,13 +1,15 @@
 // Dosya Adı: whms_transfer_queue_bridge.dart
-// Açıklama: Onaylı ambar fişi → WhmsPayloadMapper + JobQueue (WHMS Faz 2.2)
+// Açıklama: Onaylı ambar fişi → emir store + JobQueue (WHMS Faz 2.2 / P0 E)
 // Oluşturulma Tarihi: 2026-07-26
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-26
+// Son Güncelleme: 2026-07-28
 
 import '../../../core/services/logo_payload_mapper.dart';
 import '../../../service/job_queue_service.dart';
+import '../bridge/whms_transfer_order_bridge.dart';
 import '../contract/whms_bridge_dto.dart';
 import '../mapper/whms_payload_mapper.dart';
+import '../viewmodel/whms_order_store.dart';
 
 /// {@template whms_transfer_enqueue_result}
 /// Kuyruk sonucu: enqueued / skipped / failed.
@@ -61,6 +63,12 @@ class WhmsTransferQueueBridge {
     int priority,
   }) enqueueFn;
 
+  /// [orderStore]: Emir omurgası (A API); null → varsayılan store
+  final WhmsOrderStore orderStore;
+
+  /// [mirrorOrder]: false ise yalnız JobQueue (regresyon / test)
+  final bool mirrorOrder;
+
   /// {@macro whms_transfer_queue_bridge}
   WhmsTransferQueueBridge({
     Future<void> Function({
@@ -69,7 +77,10 @@ class WhmsTransferQueueBridge {
       required Map<String, dynamic> payload,
       int priority,
     })? enqueueFn,
-  }) : enqueueFn = enqueueFn ??
+    WhmsOrderStore? orderStore,
+    this.mirrorOrder = true,
+  })  : orderStore = orderStore ?? const WhmsOrderStore(),
+        enqueueFn = enqueueFn ??
             (({
               required entityType,
               required entityId,
@@ -105,6 +116,13 @@ class WhmsTransferQueueBridge {
     }
 
     try {
+      // P0 E: önce emir omurgası (type=transfer), sonra Logo kuyruk
+      if (mirrorOrder) {
+        await WhmsTransferOrderBridge.mirrorApproved(
+          dto: dto,
+          store: orderStore,
+        );
+      }
       final payload = WhmsPayloadMapper.warehouseTransferToPayload(dto);
       // Logo mapper entity sabiti ile uyum
       payload['entity'] = LogoPayloadMapper.stockTransferEntityType;

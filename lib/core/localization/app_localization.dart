@@ -122,7 +122,33 @@ class AppLocalization {
     }
   }
 
-  Future<bool> load() async {
+  /// {@template app_localization_load_for_language_code}
+  /// Rapor PDF vb. için izole dil yükler; singleton [_instance] değişmez.
+  ///
+  /// Parametreler:
+  /// - [languageCode]: Dil kodu (tr, en, ar, …)
+  ///
+  /// Dönüş değeri:
+  /// - [AppLocalization]: Yüklenmiş örnek
+  /// {@endtemplate}
+  static Future<AppLocalization> loadForLanguageCode(
+    String languageCode,
+  ) async {
+    final loc = AppLocalization(Locale(languageCode));
+    await loc.load(registerAsInstance: false);
+    return loc;
+  }
+
+  /// {@template app_localization_load}
+  /// Çeviri JSON’larını yükler.
+  ///
+  /// Parametreler:
+  /// - [registerAsInstance]: true ise global singleton güncellenir
+  ///
+  /// Dönüş değeri:
+  /// - [bool]: Başarı
+  /// {@endtemplate}
+  Future<bool> load({bool registerAsInstance = true}) async {
     try {
       // 1. Her zaman Türkçe (varsayılan) dosyasını yükle
       String fallbackPath = 'assets/translations/$_fallbackLanguage.json';
@@ -145,7 +171,7 @@ class AppLocalization {
       if (fileName == null || fileName == _fallbackLanguage) {
         _localizedValues = _turkishValues;
         _isLoaded = true;
-        _instance = this;
+        if (registerAsInstance) _instance = this;
         return true;
       }
 
@@ -157,13 +183,13 @@ class AppLocalization {
         debugLog('Başarılı: $filePath');
         _localizedValues = json.decode(jsonString);
         _isLoaded = true;
-        _instance = this;
+        if (registerAsInstance) _instance = this;
         return true;
       } catch (e) {
         debugLog('Hata: $filePath - $e. Sadece Türkçe kullanılıyor.');
         _localizedValues = _turkishValues;
         _isLoaded = true;
-        _instance = this;
+        if (registerAsInstance) _instance = this;
         return true;
       }
     } catch (e) {

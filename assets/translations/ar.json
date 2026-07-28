@@ -835,7 +835,13 @@
     "welcome_message": "مرحبًا! أنا مساعد EXFIN AI. كيف يمكنني مساعدك؟",
     "analyzing_data": "أفهم أنني أقوم بتحليل بياناتك...",
     "ai_assistant": "مساعد الذكاء الاصطناعي",
-    "type_your_message": "أكتب رسالتك..."
+    "type_your_message": "أكتب رسالتك...",
+    "model_select": "نموذج OpenRouter",
+    "model_select_hint": "اختر نموذجاً من القائمة",
+    "model_list_loading": "جاري تحميل النماذج…",
+    "model_list_refresh": "تحديث القائمة",
+    "model_list_fallback": "لا توجد قائمة API — تُعرض النماذج الشائعة الثابتة",
+    "model_selected": "تم حفظ النموذج"
   },
   "whms": {
     "module_name": "إدارة المستودع (WHMS)",
@@ -846,6 +852,29 @@
     "balance_bucket_warehouse": "مخزون المستودع",
     "route_ops_stub": "واجهة OPS مؤقتة (مندوب)",
     "route_whms_future": "مسار WHMS المستهدف (مستقبلاً)",
-    "phase2_shell": "WHMS المرحلة 2 — الغلاف جاهز؛ رصيد Logo + طابور التحويل المعتمد؛ لا يوجد REST مباشر لـ WHMS"
+    "phase2_shell": "WHMS المرحلة 2 — الغلاف جاهز؛ رصيد Logo + طابور التحويل المعتمد؛ لا يوجد REST مباشر لـ WHMS",
+    "count": {
+      "title": "جرد",
+      "empty": "لا توجد أوامر جرد",
+      "search_hint": "بحث الجرد",
+      "create": "أمر جرد",
+      "warehouse": "مستودع",
+      "status": "الحالة",
+      "enqueue_ok": "أُضيف الجرد للطابور",
+      "enqueue_skip": "الموافقة مطلوبة",
+      "execute_title": "تنفيذ الجرد",
+      "scan_barcode": "مسح الباركود",
+      "system_qty": "النظام",
+      "actual_qty": "فعلي",
+      "variance": "الفرق",
+      "complete": "إكمال",
+      "qty_dialog": "الكمية الفعلية",
+      "lines_empty": "امسح باركود أو أضف سطراً",
+      "lines_required": "يلزم سطر جرد واحد على الأقل",
+      "product_not_found": "المنتج غير موجود",
+      "load_failed": "تعذر تحميل أمر الجرد",
+      "complete_failed": "تعذر إكمال الجرد",
+      "already_done": "الجرد مكتمل مسبقاً"
+    }
   }
 }

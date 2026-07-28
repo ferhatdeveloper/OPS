@@ -7,6 +7,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:exfin_ops/modules/field_sales/products/model/product_catalog_row.dart';
+import 'package:exfin_ops/modules/field_sales/products/model/product_catalog_seed.dart';
 import 'package:exfin_ops/modules/field_sales/products/view/product_catalog_screen.dart';
 
 import '../../../field_sales/stub_modules/stub_l10n_harness.dart';
@@ -34,7 +35,7 @@ void main() {
     );
 
     expect(find.text('Demo Stok Kartı A'), findsOneWidget);
-    expect(find.byType(ListTile), findsOneWidget);
+    expect(find.byType(InkWell), findsWidgets);
   });
 
   testWidgets('boş enjekte liste empty state gösterir', (tester) async {
@@ -47,5 +48,25 @@ void main() {
       find.text('Görüntülenecek ürün bulunamadı.'),
       findsOneWidget,
     );
+  });
+
+  testWidgets('MBT toolbar Hizmet Kartı stok satırını gizler', (tester) async {
+    await pumpStubWithL10n(
+      tester,
+      ProductCatalogScreen(
+        products: List<ProductCatalogRow>.from(
+          ProductCatalogSeed.defaultRows,
+        ),
+      ),
+    );
+
+    expect(find.text('Demo Stok Kartı A'), findsOneWidget);
+    expect(find.text('Demo Hizmet Kartı'), findsOneWidget);
+
+    await tester.tap(find.text('Hizmet Kartı'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Demo Stok Kartı A'), findsNothing);
+    expect(find.text('Demo Hizmet Kartı'), findsOneWidget);
   });
 }

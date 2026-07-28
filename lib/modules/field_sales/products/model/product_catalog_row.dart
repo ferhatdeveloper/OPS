@@ -41,6 +41,20 @@ class ProductCatalogRow {
   /// [category]: Grup / kategori
   final String category;
 
+  /// [imageUrl]: Opsiyonel ürün görseli URL
+  final String imageUrl;
+
+  /// {@template product_catalog_row_is_service_card}
+  /// Hizmet kartı mı (kategori veya kod öneki).
+  ///
+  /// Dönüş değeri:
+  /// - [bool]: Hizmet kartı ise true
+  /// {@endtemplate}
+  bool get isServiceCard {
+    if (category.trim().toUpperCase() == 'HIZMET') return true;
+    return code.trim().toUpperCase().startsWith('HIZ-');
+  }
+
   /// {@macro product_catalog_row}
   const ProductCatalogRow({
     required this.id,
@@ -52,6 +66,7 @@ class ProductCatalogRow {
     this.vatRate = 20,
     this.stockQuantity = 0,
     this.category = '',
+    this.imageUrl = '',
   });
 
   /// {@template product_catalog_row_from_map}
@@ -74,6 +89,7 @@ class ProductCatalogRow {
       vatRate: (map['vat_rate'] as num?)?.toInt() ?? 20,
       stockQuantity: (map['stock_quantity'] as num?)?.toDouble() ?? 0,
       category: (map['category'] ?? '').toString(),
+      imageUrl: (map['image_url'] ?? map['photo_url'] ?? '').toString(),
     );
   }
 

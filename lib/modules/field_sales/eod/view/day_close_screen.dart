@@ -10,6 +10,7 @@ import '../../../../core/localization/app_localization.dart';
 import '../../other/model/day_status_record.dart';
 import '../../other/viewmodel/day_status_store.dart';
 import '../../other/widgets/day_status_mbt_fields.dart';
+import '../../gps/viewmodel/live_location_session.dart';
 import '../viewmodel/day_close_sync_defaults.dart';
 import '../viewmodel/day_close_sync_service.dart';
 
@@ -119,6 +120,7 @@ class _DayCloseScreenState extends State<DayCloseScreen> {
       );
       final previous = _record;
       await _store.save(next);
+      LiveLocationSession().stop();
       try {
         await _syncService.recordClose(
           record: next,

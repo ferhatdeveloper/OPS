@@ -35,6 +35,7 @@ import 'package:exfin_ops/modules/field_sales/eod/view/day_open_screen.dart';
 import 'package:exfin_ops/modules/field_sales/expenses/view/expense_entry_screen.dart';
 import 'package:exfin_ops/modules/field_sales/favorites/view/favorites_screen.dart';
 import 'package:exfin_ops/modules/field_sales/gps/model/gps_last_location_seed.dart';
+import 'package:exfin_ops/modules/field_sales/gps/model/personnel_live_location.dart';
 import 'package:exfin_ops/modules/field_sales/gps/view/geofence_settings_screen.dart';
 import 'package:exfin_ops/modules/field_sales/gps/view/gps_tracking_screen.dart';
 import 'package:exfin_ops/modules/field_sales/gps/view/route_map_screen.dart';
@@ -308,7 +309,20 @@ void main() {
       name: 'GpsTrackingScreen',
       titleKey: 'field_sales.stubs.gps_tracking',
       builder: () => GpsTrackingScreen(
-        records: GpsLastLocationSeed.defaultRows,
+        records: GpsLastLocationSeed.defaultRows
+            .map(
+              (r) => PersonnelLiveLocation(
+                userId: r.salespersonCode,
+                salespersonCode: r.salespersonCode,
+                displayName: r.label,
+                latitude: r.latitude,
+                longitude: r.longitude,
+                updatedAt: r.recordedAt,
+                accuracy: r.accuracy,
+                isSynced: r.isSynced == 1,
+              ),
+            )
+            .toList(growable: false),
       ),
     ),
     _StubCase(

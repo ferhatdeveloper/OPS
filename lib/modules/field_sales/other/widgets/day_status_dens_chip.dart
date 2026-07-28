@@ -2,7 +2,7 @@
 // Açıklama: Dashboard mesai açık/kapalı dens durum chip’i (DayStatusStore)
 // Oluşturulma Tarihi: 2026-07-26
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-26
+// Son Güncelleme: 2026-07-27
 
 import 'package:flutter/material.dart';
 
@@ -97,19 +97,21 @@ class _DayStatusDensChipState extends State<DayStatusDensChip> {
       color: Colors.transparent,
       child: InkWell(
         onTap: _openDayStatus,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
           decoration: BoxDecoration(
             color: isDarkMode
                 ? ColorUtils.withAlpha(colorScheme.surface, 0.5)
                 : Colors.grey[200],
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(12),
           ),
           child: Text(
             label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              fontSize: 12,
+              fontSize: 11,
               color: isDarkMode ? Colors.grey[400] : Colors.grey[700],
             ),
           ),

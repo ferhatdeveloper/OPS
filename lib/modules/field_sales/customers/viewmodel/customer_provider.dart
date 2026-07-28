@@ -1,7 +1,15 @@
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqflite/sqflite.dart' as sqflite;
-import '../../../../service/database_service.dart';
+import 'package:uuid/uuid.dart';
+
+import '../../../../core/database/migrations/SqlQuerys.dart';
+import '../../../../core/tenant/postgrest_master_sync.dart';
 import '../../../../service/data_cache_service.dart';
+import '../../../../service/database_service.dart';
+import '../../../../service/job_queue_service.dart';
+import '../../../../service/postgres_service.dart';
 import '../model/customer_model.dart';
 
 class CustomerState {
@@ -145,16 +153,16 @@ class CustomerNotifier extends StateNotifier<CustomerState> {
   }
 
   Future<void> fetchCustomers() async {
-    // Phase 7: Check Cache first (Redis-like)
-    // Geçici olarak mock verileri anında görebilmek için cache devre dışı bırakıldı
-    // final cached = DataCacheService().get<List<CustomerModel>>('all_customers');
-    // if (cached != null) {
-    //   state = state.copyWith(customers: cached, isLoading: false);
-    //   return;
-    // }
-
     state = state.copyWith(isLoading: true);
     try {
+      // Kiracı PostgREST aktifse önce uzak → SQLite senkron
+      final rest = PostgresService.instance.activeRemoteRestUrl.trim();
+      if (rest.isNotEmpty) {
+        try {
+          await PostgrestMasterSync().syncCustomersAndProducts();
+        } catch (_) {}
+      }
+
       final db = await DatabaseService.getInstance();
       final sqliteDb = await db.getDatabase();
       await _repairNullTimestamps(sqliteDb);
@@ -162,7 +170,6 @@ class CustomerNotifier extends StateNotifier<CustomerState> {
       final result = await _queryCustomers(sqliteDb);
       final customers = _mapRows(result);
 
-      // Store in Cache
       DataCacheService().set('all_customers', customers);
 
       state = state.copyWith(customers: customers, isLoading: false);
@@ -196,25 +203,110 @@ class CustomerNotifier extends StateNotifier<CustomerState> {
     }
   }
 
-  Future<void> saveCustomer(CustomerModel customer) async {
-    state = state.copyWith(isLoading: true);
+  /// {@template saveCustomer}
+  /// Cari kartı SQLite'a yazar, sync_queue'ya ekler; REST varsa PostgREST.
+  ///
+  /// Parametreler:
+  /// - [customer]: Kaydedilecek cari
+  ///
+  /// Dönüş değeri:
+  /// - [bool]: Başarı
+  /// {@endtemplate}
+  Future<bool> saveCustomer(CustomerModel customer) async {
+    state = state.copyWith(isLoading: true, error: null);
     try {
       final db = await DatabaseService.getInstance();
       final sqliteDb = await db.getDatabase();
-      
-      // Determine if insert or update (we'll just use insert with replace strategy)
-      await sqliteDb.insert(
-        'customers',
-        customer.toMap(),
-        conflictAlgorithm: sqflite.ConflictAlgorithm.replace,
-      );
-      
-      // Clear cache and refetch
+      await sqliteDb.execute(SqlQuerys.createCustomersTable);
+      await sqliteDb.execute(SqlQuerys.createSyncQueueTable);
+
+      final map = customer.toMap();
+      await sqliteDb.transaction((txn) async {
+        await txn.insert(
+          'customers',
+          map,
+          conflictAlgorithm: sqflite.ConflictAlgorithm.replace,
+        );
+        await txn.insert('sync_queue', {
+          'id': const Uuid().v4(),
+          'entity_type': 'customer',
+          'entity_id': customer.id,
+          'payload': jsonEncode({
+            ...map,
+            'op': 'upsert',
+          }),
+          'priority': 0,
+          'retry_count': 0,
+          'created_at': DateTime.now().toIso8601String(),
+        });
+      });
+
+      final rest = PostgresService.instance.activeRemoteRestUrl.trim();
+      if (rest.isNotEmpty) {
+        await PostgrestMasterSync().postCustomer(map);
+      } else {
+        // Logo kuyruk işleyici bilinmeyen tipi atlar; tetikle
+        JobQueueService().processQueue();
+      }
+
       DataCacheService().invalidate('all_customers');
       await fetchCustomers();
-      
+      return true;
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
+      return false;
+    }
+  }
+
+  /// {@template deactivateCustomer}
+  /// Cariyi soft-delete (`is_active=0`) + sync_queue.
+  ///
+  /// Parametreler:
+  /// - [customerId]: Cari kimliği
+  ///
+  /// Dönüş değeri:
+  /// - [bool]: Başarı
+  /// {@endtemplate}
+  Future<bool> deactivateCustomer(String customerId) async {
+    final id = customerId.trim();
+    if (id.isEmpty) return false;
+
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final db = await DatabaseService.getInstance();
+      final sqliteDb = await db.getDatabase();
+      await sqliteDb.execute(SqlQuerys.createSyncQueueTable);
+      final now = DateTime.now().toIso8601String();
+
+      await sqliteDb.transaction((txn) async {
+        await txn.update(
+          'customers',
+          {'is_active': 0, 'updated_at': now},
+          where: 'id = ?',
+          whereArgs: [id],
+        );
+        await txn.insert('sync_queue', {
+          'id': const Uuid().v4(),
+          'entity_type': 'customer',
+          'entity_id': id,
+          'payload': jsonEncode({
+            'id': id,
+            'op': 'deactivate',
+            'is_active': 0,
+            'updated_at': now,
+          }),
+          'priority': 0,
+          'retry_count': 0,
+          'created_at': now,
+        });
+      });
+
+      DataCacheService().invalidate('all_customers');
+      await fetchCustomers();
+      return true;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+      return false;
     }
   }
 }

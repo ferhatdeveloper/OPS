@@ -1454,6 +1454,29 @@
     "balance_bucket_warehouse": "stock warehouse",
     "route_ops_stub": "OPS stû (cihvan)",
     "route_whms_future": "Riya armanca WHMS (pêşeroj)",
-    "phase2_shell": "WHMS Qonax 2 — shell amade ye; balansa Logo + rêza veguhestina pejirandî; REST WHMS ya zindî tune"
+    "phase2_shell": "WHMS Qonax 2 — shell amade ye; balansa Logo + rêza veguhestina pejirandî; REST WHMS ya zindî tune",
+    "count": {
+      "title": "ژماردن",
+      "empty": "فەرمانی ژماردن نییە",
+      "search_hint": "ژماردن بگەڕێ",
+      "create": "فەرمانی ژماردن",
+      "warehouse": "کۆگا",
+      "status": "دۆخ",
+      "enqueue_ok": "ژماردن خرایە سەر ڕیز",
+      "enqueue_skip": "پەسەندکردن پێویستە",
+      "execute_title": "ژماردن جێبەجێ بکە",
+      "scan_barcode": "بارکۆد سکان",
+      "system_qty": "سیستەم",
+      "actual_qty": "ڕاستەقینە",
+      "variance": "جیاوازی",
+      "complete": "تەواوکردن",
+      "qty_dialog": "بڕی ڕاستەقینە",
+      "lines_empty": "بارکۆد سکان بکە یان هێڵ زیاد بکە",
+      "lines_required": "لانیکەم یەک هێڵی ژماردن پێویستە",
+      "product_not_found": "بەرهەم نەدۆزرایەوە",
+      "load_failed": "فەرمانی ژماردن بارنەبوو",
+      "complete_failed": "ژماردن تەواونەبوو",
+      "already_done": "ژماردن پێشتر تەواوبووە"
+    }
   }
 }

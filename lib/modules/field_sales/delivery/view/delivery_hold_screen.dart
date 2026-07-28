@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/localization/app_localization.dart';
+import '../../shared/view/field_sales_dens_app_bar.dart';
 import '../../shared/view/mbt_sales_purchase_queue_body.dart';
 import '../model/delivery_hold_record.dart';
 import '../viewmodel/delivery_hold_store.dart';
@@ -143,32 +144,13 @@ class _DeliveryHoldScreenState extends State<DeliveryHoldScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FD),
-      appBar: AppBar(
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF375A7F), Color(0xFF00A8E8)],
-            ),
-          ),
-        ),
-        title: Text(
-          title,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-            color: Colors.white,
-          ),
-        ),
-        foregroundColor: Colors.white,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
+      appBar: FieldSalesDensAppBar(
+        title: title,
         actions: [
-          IconButton(
-            tooltip: l10n.translate('field_sales.delivery_hold.add_hold'),
-            icon: const Icon(Icons.pause_circle_outline),
+          FieldSalesDensAppBar.densIconButton(
+            icon: Icons.pause_circle_outline,
             onPressed: () => _addSampleHold(l10n),
+            tooltip: l10n.translate('field_sales.delivery_hold.add_hold'),
           ),
         ],
       ),

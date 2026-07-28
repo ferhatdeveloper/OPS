@@ -1,17 +1,23 @@
 // Dosya Adı: order_dens_store.dart
-// Açıklama: Sipariş dens listeleri için SQLite sorgu katmanı
+// Açıklama: Sipariş dens listeleri — SQLite sorgu + soft-delete/cancel
 // Oluşturulma Tarihi: 2026-07-26
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-26
+// Son Güncelleme: 2026-07-28
+
+import 'dart:convert';
 
 import 'package:sqflite/sqflite.dart';
+import 'package:uuid/uuid.dart';
 
+import '../../../../core/database/migrations/SqlQuerys.dart';
 import '../../../../service/database_service.dart';
+import '../../../../service/job_queue_service.dart';
 import '../model/order_dens_row.dart';
 import '../model/order_dens_scope.dart';
 
 /// {@template order_dens_store}
-/// `orders` tablosundan dens kapsamına göre satır okur (cari join).
+/// `orders` tablosundan dens kapsamına göre satır okur (cari join);
+/// aktarılmamış sipariş soft-delete / iptal + sync_queue stub.
 ///
 /// Kullanım örneği:
 /// ```dart
@@ -37,15 +43,6 @@ class OrderDensStore {
 
   /// {@template order_dens_store_query}
   /// Kapsama göre sipariş dens satırlarını yükler.
-  ///
-  /// Parametreler:
-  /// - [scope]: Takip / transfer edilen / edilmeyen / bekleyen
-  ///
-  /// Dönüş değeri:
-  /// - [List<OrderDensRow>]: Tarih azalan dens satırlar
-  ///
-  /// Fırlatılan hatalar:
-  /// - [DatabaseException]: SQLite okuma hatası
   /// {@endtemplate}
   Future<List<OrderDensRow>> query(OrderDensScope scope) async {
     final db = await _db();
@@ -81,16 +78,133 @@ class OrderDensStore {
   /// Kapsam → SQL WHERE parçası.
   /// {@endtemplate}
   String _whereFor(OrderDensScope scope) {
+    const notDeleted = 'COALESCE(o.is_deleted, 0) = 0';
     switch (scope) {
       case OrderDensScope.tracking:
-        return '1 = 1';
+        return notDeleted;
       case OrderDensScope.transferred:
-        return 'COALESCE(o.is_synced, 0) = 1';
+        return '$notDeleted AND COALESCE(o.is_synced, 0) = 1';
       case OrderDensScope.untransferred:
-        return 'COALESCE(o.is_synced, 0) = 0';
+        return '$notDeleted AND COALESCE(o.is_synced, 0) = 0';
       case OrderDensScope.pending:
-        return "LOWER(COALESCE(o.status, '')) IN "
+        return "$notDeleted AND LOWER(COALESCE(o.status, '')) IN "
             "('pending', 'proposal')";
     }
+  }
+
+  /// {@template order_dens_store_soft_delete_local}
+  /// Aktarılmamış yerel siparişi soft-delete + sync_queue.
+  /// {@endtemplate}
+  Future<bool> softDeleteLocal(String orderId) async {
+    final id = orderId.trim();
+    if (id.isEmpty) return false;
+    final db = await _db();
+    await db.execute(SqlQuerys.createSyncQueueTable);
+    final now = DateTime.now().toIso8601String();
+    var updated = 0;
+    await db.transaction((txn) async {
+      updated = await txn.update(
+        'orders',
+        {
+          'is_deleted': 1,
+          'is_synced': 0,
+          'updated_at': now,
+        },
+        where: 'id = ? AND COALESCE(is_synced, 0) = 0 '
+            'AND COALESCE(is_deleted, 0) = 0',
+        whereArgs: [id],
+      );
+      if (updated > 0) {
+        await txn.insert('sync_queue', {
+          'id': const Uuid().v4(),
+          'entity_type': 'order',
+          'entity_id': id,
+          'payload': jsonEncode({
+            'id': id,
+            'op': 'delete',
+            'updated_at': now,
+          }),
+          'priority': 0,
+          'retry_count': 0,
+          'created_at': now,
+        });
+      }
+    });
+    if (updated > 0 && openDb == null) {
+      JobQueueService().processQueue();
+    }
+    return updated > 0;
+  }
+
+  /// {@template order_dens_store_cancel_local}
+  /// Aktarılmamış siparişi Cancelled yapar + sync_queue.
+  /// {@endtemplate}
+  Future<bool> cancelLocal(String orderId) async {
+    final id = orderId.trim();
+    if (id.isEmpty) return false;
+    final db = await _db();
+    await db.execute(SqlQuerys.createSyncQueueTable);
+    final now = DateTime.now().toIso8601String();
+    var updated = 0;
+    await db.transaction((txn) async {
+      updated = await txn.update(
+        'orders',
+        {
+          'status': 'Cancelled',
+          'is_synced': 0,
+          'updated_at': now,
+        },
+        where: 'id = ? AND COALESCE(is_synced, 0) = 0 '
+            'AND COALESCE(is_deleted, 0) = 0',
+        whereArgs: [id],
+      );
+      if (updated > 0) {
+        await txn.insert('sync_queue', {
+          'id': const Uuid().v4(),
+          'entity_type': 'order',
+          'entity_id': id,
+          'payload': jsonEncode({
+            'id': id,
+            'op': 'cancel',
+            'status': 'Cancelled',
+            'updated_at': now,
+          }),
+          'priority': 0,
+          'retry_count': 0,
+          'created_at': now,
+        });
+      }
+    });
+    if (updated > 0 && openDb == null) {
+      JobQueueService().processQueue();
+    }
+    return updated > 0;
+  }
+
+  /// {@template order_dens_store_fetch_header}
+  /// Sipariş üst bilgisi (silinmemiş).
+  /// {@endtemplate}
+  Future<Map<String, dynamic>?> fetchOrderHeader(String orderId) async {
+    final db = await _db();
+    final rows = await db.query(
+      'orders',
+      where: 'id = ? AND COALESCE(is_deleted, 0) = 0',
+      whereArgs: [orderId],
+      limit: 1,
+    );
+    if (rows.isEmpty) return null;
+    return rows.first;
+  }
+
+  /// {@template order_dens_store_fetch_items}
+  /// Sipariş kalemleri.
+  /// {@endtemplate}
+  Future<List<Map<String, dynamic>>> fetchOrderItems(String orderId) async {
+    final db = await _db();
+    return db.query(
+      'order_items',
+      where: 'order_id = ?',
+      whereArgs: [orderId],
+    );
   }
 }

@@ -38,6 +38,9 @@ class OrderDensQueueBody extends StatefulWidget {
   /// [preloadRows]: Test için SQLite atla (null → store.query)
   final List<OrderDensRow>? preloadRows;
 
+  /// [onRowTap]: Satır aksiyonu (düzenle / sil)
+  final ValueChanged<MbtQueueRow>? onRowTap;
+
   /// {@macro order_dens_queue_body}
   const OrderDensQueueBody({
     Key? key,
@@ -45,6 +48,7 @@ class OrderDensQueueBody extends StatefulWidget {
     required this.emptyMessageKey,
     this.store,
     this.preloadRows,
+    this.onRowTap,
   }) : super(key: key);
 
   @override
@@ -180,6 +184,7 @@ class _OrderDensQueueBodyState extends State<OrderDensQueueBody> {
     return MbtSalesPurchaseQueueBody(
       emptyMessageKey: widget.emptyMessageKey,
       rows: _toQueueRows(l10n),
+      onRowTap: widget.onRowTap,
     );
   }
 }

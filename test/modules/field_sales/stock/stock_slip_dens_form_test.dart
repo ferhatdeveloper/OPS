@@ -90,13 +90,23 @@ void main() {
         tester,
         const StockTransferListScreen(
           mode: StockTransferListMode.transferred,
+          initialGroups: [
+            StockTransferDensGroup(
+              id: 'g1',
+              warehouse: 'MRK → ARC',
+              date: '28.07.2026',
+              lineCount: 2,
+              synced: true,
+            ),
+          ],
         ),
       );
       expect(find.text('Transfer Edilenler'), findsOneWidget);
       expect(find.text('Depo'), findsOneWidget);
       expect(find.text('Tarih'), findsOneWidget);
       expect(find.text('Satırlar'), findsOneWidget);
-      expect(find.textContaining('STK-T-'), findsWidgets);
+      expect(find.textContaining('MRK → ARC'), findsOneWidget);
+      expect(find.textContaining('2 satır'), findsOneWidget);
     });
 
     testWidgets('Araç yükleme: Kaynak→Hedef dens alanlar görünür',

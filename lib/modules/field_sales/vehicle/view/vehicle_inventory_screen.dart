@@ -1,16 +1,15 @@
 // Dosya Adı: vehicle_inventory_screen.dart
-// Açıklama: Araç stok / envanter stub ekranı
-//   (MBT → Araç Stoğu)
+// Açıklama: Araç stok stub → vehicles dens özet ekranına yönlendirir
 // Oluşturulma Tarihi: 2026-07-26
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-26
+// Son Güncelleme: 2026-07-28
 
 import 'package:flutter/material.dart';
 
-import '../../../../core/localization/app_localization.dart';
+import '../../vehicles/view/vehicle_stock_screen.dart';
 
 /// {@template vehicle_inventory_screen}
-/// Araç stok / envanter için stub ekran.
+/// MBT “Araç Stoğu” stub route — canlı [VehicleStockSummaryScreen].
 /// Route: `/field-sales/vehicle-inventory`
 ///
 /// Kullanım örneği:
@@ -25,33 +24,11 @@ class VehicleInventoryScreen extends StatelessWidget {
   /// [routeName]: Named route — `/field-sales/vehicle-inventory`
   static const String routeName = '/field-sales/vehicle-inventory';
 
+  /// {@macro vehicle_inventory_screen}
   const VehicleInventoryScreen({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalization.of(context);
-    final title = l10n.translate('field_sales.stubs.vehicle_inventory');
-
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
-      appBar: AppBar(
-        title: Text(
-          title,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-        backgroundColor: const Color(0xFF375A7F),
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
-      body: Center(
-        child: Text(
-          title,
-          style: const TextStyle(fontSize: 16, color: Colors.black54),
-        ),
-      ),
-    );
+    return const VehicleStockSummaryScreen();
   }
 }

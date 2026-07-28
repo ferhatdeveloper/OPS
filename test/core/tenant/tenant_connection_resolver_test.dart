@@ -18,6 +18,19 @@ void main() {
       expect(r.source, 'saas_slug');
     });
 
+    test('rewriteRestUrlForSaasOrigin proxy’ye taşır', () {
+      final rewritten = TenantConnectionResolver.rewriteRestUrlForSaasOrigin(
+        'https://api.retailex.app/lovan',
+        saasOrigin: 'http://127.0.0.1:8799',
+      );
+      expect(rewritten, 'http://127.0.0.1:8799/lovan');
+      final same = TenantConnectionResolver.rewriteRestUrlForSaasOrigin(
+        'https://api.retailex.app/lovan',
+        saasOrigin: 'https://api.retailex.app',
+      );
+      expect(same, 'https://api.retailex.app/lovan');
+    });
+
     test('doğrudan URL path slug kod olur', () {
       final r = TenantConnectionResolver.resolveFromInput(
         'https://api.retailex.app/aqua/',

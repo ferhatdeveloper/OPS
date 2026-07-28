@@ -77,7 +77,7 @@ void main() {
       await pumpStubWithL10n(tester, const TenantDensChip());
       await tester.pumpAndSettle();
 
-      expect(find.text('Kiracı: Lovan'), findsOneWidget);
+      expect(find.text('T: Lovan'), findsOneWidget);
     });
   });
 }

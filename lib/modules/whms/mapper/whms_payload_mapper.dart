@@ -2,10 +2,11 @@
 // Açıklama: WHMS köprü DTO → Logo / queue payload sözleşmesi
 // Oluşturulma Tarihi: 2026-07-26
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-26
+// Son Güncelleme: 2026-07-28
 
 import '../../field_sales/stock/model/warehouse_master_seed.dart';
 import '../contract/whms_bridge_dto.dart';
+import '../model/whms_order_type.dart';
 
 /// {@template whms_payload_mapper}
 /// Ambar kodu normalizasyonu + transfer/yükleme emri map.
@@ -150,6 +151,63 @@ class WhmsPayloadMapper {
       'SOURCE_WH': from,
       'to_vehicle_id': dto.toVehicleId,
       'date': _formatDate(dto.date),
+      'ONAY': approvalToInt(dto.approval),
+      'is_synced': dto.isSynced ? 1 : 0,
+      'lines': lines,
+      'items': lines,
+    };
+  }
+
+  /// JobQueue entity — merkez sayım sonucu
+  static const String countResultEntityType = 'stock_count';
+
+  /// JobQueue entity öneki — tip bazlı genel emirler
+  static const String orderEntityPrefix = 'whms_order_';
+
+  /// {@template whms_payload_mapper_entity_type_for_order}
+  /// Emir tipi → JobQueue `entity_type`.
+  ///
+  /// transfer → stock_transfer, sayim → stock_count,
+  /// load → whms_load_order, diğerleri → whms_order_{wire}.
+  /// {@endtemplate}
+  static String entityTypeForOrder(WhmsOrderType type) {
+    switch (type) {
+      case WhmsOrderType.transfer:
+        return stockTransferEntityType;
+      case WhmsOrderType.sayim:
+        return countResultEntityType;
+      case WhmsOrderType.load:
+        return loadOrderEntityType;
+      case WhmsOrderType.malKabul:
+      case WhmsOrderType.putaway:
+      case WhmsOrderType.pick:
+      case WhmsOrderType.sevk:
+        return '$orderEntityPrefix${type.wireName}';
+    }
+  }
+
+  /// {@template whms_payload_mapper_count_result}
+  /// Merkez sayım sonucu → queue / Logo stub gövdesi.
+  ///
+  /// Dönüş değeri:
+  /// - [Map]: `warehouse_code` + `lines` + `ONAY`
+  /// {@endtemplate}
+  static Map<String, dynamic> countResultToPayload(WhmsCountResultDto dto) {
+    final wh = normalizeWarehouseCode(dto.warehouseCode);
+    final lines = dto.lines.map((l) => l.toMap()).toList(growable: false);
+
+    return {
+      'id': dto.id,
+      'entity': countResultEntityType,
+      'type': countResultEntityType,
+      'slip_type': countResultEntityType,
+      if (dto.orderId != null) 'order_id': dto.orderId,
+      'warehouse': wh,
+      'warehouse_code': wh,
+      'SOURCE_WH': wh,
+      if (dto.locationCode != null) 'location_code': dto.locationCode,
+      'date': _formatDate(dto.date),
+      'slip_date': dto.date.toIso8601String(),
       'ONAY': approvalToInt(dto.approval),
       'is_synced': dto.isSynced ? 1 : 0,
       'lines': lines,

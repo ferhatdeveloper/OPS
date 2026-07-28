@@ -1,8 +1,8 @@
 // Dosya Adı: barcode_scan_screen.dart
-// Açıklama: Barkod → ürün katalog dens lookup (ara · satır · Seç / pop)
+// Açıklama: Barkod → ürün katalog dens lookup (kamera · ara · Seç / detay)
 // Oluşturulma Tarihi: 2026-07-26
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-26
+// Son Güncelleme: 2026-07-28
 
 import 'package:barcode_scan2/barcode_scan2.dart';
 import 'package:flutter/material.dart';
@@ -10,7 +10,9 @@ import 'package:flutter/material.dart';
 import '../../../../core/localization/app_localization.dart';
 import '../../products/model/product_catalog_row.dart';
 import '../../products/model/product_catalog_seed.dart';
+import '../../products/view/product_detail_screen.dart';
 import '../../products/viewmodel/product_catalog_store.dart';
+import '../../shared/view/field_sales_dens_app_bar.dart';
 
 /// {@template barcode_scan_screen}
 /// Barkod / kod / ad ile ürün dens lookup ekranı.
@@ -18,6 +20,7 @@ import '../../products/viewmodel/product_catalog_store.dart';
 ///
 /// [selectionMode] true iken Seç, seçili ürün haritası ile pop eder
 /// (sipariş/fatura/irsaliye katalog barkod araç çubuğu).
+/// false iken Seç / tek barkod eşleşmesi ürün detayına gider.
 ///
 /// Kullanım örneği:
 /// ```dart
@@ -30,6 +33,9 @@ import '../../products/viewmodel/product_catalog_store.dart';
 class BarcodeScanScreen extends StatefulWidget {
   /// [selectionMode]: true → Seç pop sonucu döner
   final bool selectionMode;
+
+  /// [autoScanOnOpen]: Açılışta kamera barkod tarayıcıyı bir kez dene
+  final bool autoScanOnOpen;
 
   /// [store]: Ürün kaynağı (test enjeksiyonu)
   final ProductCatalogStore? store;
@@ -44,6 +50,7 @@ class BarcodeScanScreen extends StatefulWidget {
   const BarcodeScanScreen({
     Key? key,
     this.selectionMode = true,
+    this.autoScanOnOpen = false,
     this.store,
     this.products,
     this.initialQuery,
@@ -84,6 +91,9 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
 
   /// [_loading]: İlk yükleme
   bool _loading = true;
+
+  /// [_autoScanStarted]: Açılış kamera denemesi yapıldı mı
+  bool _autoScanStarted = false;
 
   @override
   void initState() {
@@ -131,6 +141,19 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
       _loading = false;
       _applyFilter(_searchController.text, notify: false);
     });
+    _maybeAutoScan();
+  }
+
+  /// {@template barcode_scan_screen_maybe_auto_scan}
+  /// [autoScanOnOpen] true ise yükleme sonrası kamerayı bir kez açar.
+  /// {@endtemplate}
+  void _maybeAutoScan() {
+    if (_autoScanStarted || !widget.autoScanOnOpen) return;
+    if (widget.products != null) return;
+    _autoScanStarted = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _scanCamera();
+    });
   }
 
   /// {@template barcode_scan_screen_apply_filter}
@@ -167,8 +190,18 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
     }
   }
 
+  /// {@template barcode_scan_screen_open_detail}
+  /// Browse modunda ürün detay dens ekranını açar.
+  /// {@endtemplate}
+  Future<void> _openProductDetail(ProductCatalogRow row) async {
+    await Navigator.of(context).pushNamed(
+      ProductDetailScreen.routeName,
+      arguments: row.toMap(),
+    );
+  }
+
   /// {@template barcode_scan_screen_camera}
-  /// Kamera ile barkod okur; dens süzgeç + tek eşleşmede auto-pop.
+  /// Kamera ile barkod okur; dens süzgeç + tek eşleşmede auto-pop / detay.
   /// {@endtemplate}
   Future<void> _scanCamera() async {
     final l10n = AppLocalization.of(context);
@@ -182,8 +215,12 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
       _searchController.text = raw;
       _applyFilter(raw);
       final exact = BarcodeScanScreen.findExactBarcode(_all, raw);
-      if (exact != null && widget.selectionMode && mounted) {
-        Navigator.of(context).pop<Map<String, dynamic>>(exact.toMap());
+      if (exact != null && mounted) {
+        if (widget.selectionMode) {
+          Navigator.of(context).pop<Map<String, dynamic>>(exact.toMap());
+          return;
+        }
+        await _openProductDetail(exact);
         return;
       }
       if (_filtered.isEmpty && mounted) {
@@ -210,9 +247,9 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
   }
 
   /// {@template barcode_scan_screen_on_select}
-  /// Seçili ürünü döndürür (selectionMode) veya ekranı kapatır.
+  /// Seçili ürünü döndürür (selectionMode) veya detay açar.
   /// {@endtemplate}
-  void _onSelect() {
+  Future<void> _onSelect() async {
     final l10n = AppLocalization.of(context);
     final idx = _selectedIndex;
     if (idx == null || idx < 0 || idx >= _filtered.length) {
@@ -229,38 +266,30 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
     final selected = _filtered[idx];
     if (widget.selectionMode) {
       Navigator.of(context).pop<Map<String, dynamic>>(selected.toMap());
-    } else {
-      Navigator.of(context).maybePop();
+      return;
     }
+    await _openProductDetail(selected);
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalization.of(context);
     final title = l10n.translate('field_sales.stubs.barcode_scan');
-    const Color primary = Color(0xFF375A7F);
+    const Color primary = FieldSalesDensAppBar.primaryColor;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FD),
-      appBar: AppBar(
-        title: Text(
-          title,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
+      appBar: FieldSalesDensAppBar(
+        title: title,
         backgroundColor: primary,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.qr_code_scanner),
+          FieldSalesDensAppBar.densIconButton(
+            icon: Icons.qr_code_scanner,
             tooltip: l10n.translate('field_sales.barcode_scan'),
             onPressed: _scanCamera,
           ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
+          FieldSalesDensAppBar.densIconButton(
+            icon: Icons.refresh,
             onPressed: _load,
           ),
         ],
@@ -268,23 +297,23 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            padding: const EdgeInsets.fromLTRB(10, 6, 10, 2),
             child: Text(
               l10n.translate('field_sales.barcode_lookup_hint'),
               style: TextStyle(
                 color: Colors.grey.shade700,
-                fontSize: 13,
+                fontSize: 12,
               ),
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            padding: const EdgeInsets.fromLTRB(10, 4, 10, 4),
             child: TextField(
               controller: _searchController,
               textCapitalization: TextCapitalization.none,
               keyboardType: TextInputType.text,
               textInputAction: TextInputAction.search,
-              style: const TextStyle(fontSize: 14),
+              style: const TextStyle(fontSize: 13),
               decoration: InputDecoration(
                 isDense: true,
                 hintText: l10n.translate(
@@ -292,13 +321,13 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
                 ),
                 hintStyle: TextStyle(
                   color: Colors.grey.shade400,
-                  fontSize: 14,
+                  fontSize: 13,
                 ),
                 filled: true,
                 fillColor: Colors.white,
                 contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 10,
+                  horizontal: 10,
+                  vertical: 8,
                 ),
                 prefixIcon: const Icon(Icons.search, size: 20),
                 suffixIcon: _searchController.text.isNotEmpty
@@ -343,10 +372,10 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
                         ),
                       )
                     : ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                        padding: const EdgeInsets.fromLTRB(10, 4, 10, 16),
                         itemCount: _filtered.length,
                         separatorBuilder: (_, __) =>
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 4),
                         itemBuilder: (context, index) {
                           final row = _filtered[index];
                           final selected = _selectedIndex == index;
@@ -362,10 +391,10 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
           SafeArea(
             top: false,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
               child: SizedBox(
                 width: double.infinity,
-                height: 48,
+                height: 40,
                 child: ElevatedButton(
                   onPressed: _onSelect,
                   style: ElevatedButton.styleFrom(
@@ -377,10 +406,14 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
                     ),
                   ),
                   child: Text(
-                    l10n.translate('common.select'),
+                    l10n.translate(
+                      widget.selectionMode
+                          ? 'common.select'
+                          : 'field_sales.product_open_detail',
+                    ),
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
-                      fontSize: 16,
+                      fontSize: 14,
                     ),
                   ),
                 ),
@@ -422,7 +455,7 @@ class _ProductLookupDensTile extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(8),
@@ -443,7 +476,7 @@ class _ProductLookupDensTile extends StatelessWidget {
                       row.code,
                       style: const TextStyle(
                         fontWeight: FontWeight.w600,
-                        fontSize: 14,
+                        fontSize: 13,
                         color: Color(0xFF2C3E50),
                       ),
                     ),
@@ -451,7 +484,7 @@ class _ProductLookupDensTile extends StatelessWidget {
                     Text(
                       row.name,
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: 12,
                         color: Colors.grey.shade700,
                       ),
                     ),
@@ -472,7 +505,7 @@ class _ProductLookupDensTile extends StatelessWidget {
                 const Icon(
                   Icons.check_circle,
                   color: Color(0xFF375A7F),
-                  size: 22,
+                  size: 20,
                 ),
             ],
           ),

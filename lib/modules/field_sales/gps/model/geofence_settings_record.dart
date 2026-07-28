@@ -1,11 +1,11 @@
 // Dosya Adı: geofence_settings_record.dart
-// Açıklama: Geofence ayarları (yarıçap, aktif, fail-closed) veri modeli
+// Açıklama: Geofence ayarları (yarıçap, sipariş, proximity) veri modeli
 // Oluşturulma Tarihi: 2026-07-26
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-26
+// Son Güncelleme: 2026-07-28
 
 /// {@template geofence_settings_record}
-/// SharedPreferences'taki geofence / check-in yarıçap ayarları.
+/// SharedPreferences'taki geofence / check-in / proximity ayarları.
 ///
 /// Kullanım örneği:
 /// ```dart
@@ -29,17 +29,29 @@ class GeofenceSettingsRecord {
   /// [enabled]: Check-in geofence kontrolü açık mı
   final bool enabled;
 
-  /// [radiusMeters]: İzin verilen mesafe (metre)
+  /// [radiusMeters]: Check-in / sipariş yarıçapı (metre)
   final int radiusMeters;
 
-  /// [failClosed]: GPS yoksa check-in engellensin mi
+  /// [failClosed]: GPS yoksa check-in / sipariş engellensin mi
   final bool failClosed;
+
+  /// [orderRequireGeofence]: Siparişte müşteri GPS yarıçapı zorunlu mu
+  final bool orderRequireGeofence;
+
+  /// [proximityAlertsEnabled]: Yakın müşteri bildirim / diyalog
+  final bool proximityAlertsEnabled;
+
+  /// [proximityRadiusMeters]: Proximity yarıçapı; 0 → [radiusMeters]
+  final int proximityRadiusMeters;
 
   /// {@macro geofence_settings_record}
   const GeofenceSettingsRecord({
     this.enabled = true,
     this.radiusMeters = defaultRadiusMeters,
     this.failClosed = true,
+    this.orderRequireGeofence = false,
+    this.proximityAlertsEnabled = true,
+    this.proximityRadiusMeters = 0,
   });
 
   /// {@template geofence_settings_record_defaults}
@@ -49,14 +61,14 @@ class GeofenceSettingsRecord {
     return const GeofenceSettingsRecord();
   }
 
+  /// Proximity için etkili yarıçap (0 ise check-in yarıçapı).
+  int get effectiveProximityRadiusMeters {
+    if (proximityRadiusMeters > 0) return proximityRadiusMeters;
+    return radiusMeters;
+  }
+
   /// {@template geofence_settings_record_validate_radius}
   /// Yarıçap aralık dışındaysa l10n hata anahtarı döner.
-  ///
-  /// Parametreler:
-  /// - [radiusMeters]: Kontrol edilecek yarıçap
-  ///
-  /// Dönüş değeri:
-  /// - [String?]: Hata anahtarı veya null
   /// {@endtemplate}
   static String? validateRadius(int? radiusMeters) {
     if (radiusMeters == null) {
@@ -76,11 +88,20 @@ class GeofenceSettingsRecord {
     bool? enabled,
     int? radiusMeters,
     bool? failClosed,
+    bool? orderRequireGeofence,
+    bool? proximityAlertsEnabled,
+    int? proximityRadiusMeters,
   }) {
     return GeofenceSettingsRecord(
       enabled: enabled ?? this.enabled,
       radiusMeters: radiusMeters ?? this.radiusMeters,
       failClosed: failClosed ?? this.failClosed,
+      orderRequireGeofence:
+          orderRequireGeofence ?? this.orderRequireGeofence,
+      proximityAlertsEnabled:
+          proximityAlertsEnabled ?? this.proximityAlertsEnabled,
+      proximityRadiusMeters:
+          proximityRadiusMeters ?? this.proximityRadiusMeters,
     );
   }
 }

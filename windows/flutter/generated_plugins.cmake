@@ -4,15 +4,20 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   app_links
+  audioplayers_windows
   connectivity_plus
   file_selector_windows
+  flutter_tts
+  flutter_webrtc
   geolocator_windows
   isar_flutter_libs
   local_auth_windows
   permission_handler_windows
   printing
+  record_windows
   screen_retriever
   share_plus
+  speech_to_text_windows
   url_launcher_windows
   window_manager
   window_size

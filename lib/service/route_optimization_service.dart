@@ -1,32 +1,46 @@
-import 'dart:math';
+// Dosya Adı: route_optimization_service.dart
+// Açıklama: Rota nearest-neighbor optimizasyonu (paylaşılan haversine)
+// Oluşturulma Tarihi: 2024-03-20
+// Geliştirici: Ferhat NAS
+// Son Güncelleme: 2026-07-27
+
+import '../core/geo/haversine.dart';
 import '../modules/field_sales/routes/model/route_model.dart';
 
 class RouteOptimizationService {
-  static final RouteOptimizationService _instance = RouteOptimizationService._internal();
+  static final RouteOptimizationService _instance =
+      RouteOptimizationService._internal();
   factory RouteOptimizationService() => _instance;
   RouteOptimizationService._internal();
 
-  /// Optimizes a list of route customers using a Nearest Neighbor algorithm (Simple TSP)
-  List<RouteCustomerModel> optimizeRoute(List<RouteCustomerModel> originalSteps, double startLat, double startLng) {
+  /// Optimizes a list of route customers using a Nearest Neighbor algorithm
+  List<RouteCustomerModel> optimizeRoute(
+    List<RouteCustomerModel> originalSteps,
+    double startLat,
+    double startLng,
+  ) {
     if (originalSteps.isEmpty) return originalSteps;
 
-    List<RouteCustomerModel> unvisited = List.from(originalSteps);
-    List<RouteCustomerModel> optimized = [];
+    final unvisited = List<RouteCustomerModel>.from(originalSteps);
+    final optimized = <RouteCustomerModel>[];
 
-    double currentLat = startLat;
-    double currentLng = startLng;
+    var currentLat = startLat;
+    var currentLng = startLng;
 
     while (unvisited.isNotEmpty) {
-      RouteCustomerModel nearest = unvisited.first;
-      double minDistance = double.maxFinite;
-      int nearestIndex = 0;
+      var nearest = unvisited.first;
+      var minDistance = double.maxFinite;
+      var nearestIndex = 0;
 
-      for (int i = 0; i < unvisited.length; i++) {
-        // Use real lat/lng from customer model
-        double destLat = unvisited[i].latitude ?? currentLat;
-        double destLng = unvisited[i].longitude ?? currentLng;
-        
-        double dist = _calculateDistance(currentLat, currentLng, destLat, destLng);
+      for (var i = 0; i < unvisited.length; i++) {
+        final destLat = unvisited[i].latitude ?? currentLat;
+        final destLng = unvisited[i].longitude ?? currentLng;
+        final dist = haversineKm(
+          currentLat,
+          currentLng,
+          destLat,
+          destLng,
+        );
         if (dist < minDistance) {
           minDistance = dist;
           nearest = unvisited[i];
@@ -36,21 +50,10 @@ class RouteOptimizationService {
 
       optimized.add(nearest);
       unvisited.removeAt(nearestIndex);
-      
-      // Update current location to the visited customer
       currentLat = nearest.latitude ?? currentLat;
       currentLng = nearest.longitude ?? currentLng;
     }
 
     return optimized;
-  }
-
-  double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
-    var p = 0.017453292519943295;
-    var c = cos;
-    var a = 0.5 - c((lat2 - lat1) * p) / 2 +
-        c(lat1 * p) * c(lat2 * p) *
-            (1 - c((lon2 - lon1) * p)) / 2;
-    return 12742 * asin(sqrt(a)); // 2 * R; R = 6371 km
   }
 }

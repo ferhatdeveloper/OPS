@@ -1,8 +1,8 @@
 // Dosya Adı: collection_model.dart
-// Açıklama: Tahsilat kaydı modeli (nakit MBT alanları dahil)
+// Açıklama: Tahsilat kaydı modeli (nakit MBT alanları + döviz kuru)
 // Oluşturulma Tarihi: 2024-01-01
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-26
+// Son Güncelleme: 2026-07-28
 
 /// {@template collection_model}
 /// Yerel tahsilat kaydı (Cash / CreditCard / Check / Note).
@@ -16,6 +16,10 @@
 ///   paymentType: 'Cash',
 ///   collectionDate: DateTime.now(),
 ///   cashCode: '01',
+///   currencyCode: 'USD',
+///   exchangeRate: 47.25,
+///   baseAmount: 4725,
+///   baseCurrencyCode: 'TRY',
 /// );
 /// ```
 /// {@endtemplate}
@@ -26,7 +30,7 @@ class CollectionModel {
   /// [customerId]: Cari kimliği
   final String customerId;
 
-  /// [amount]: Tutar
+  /// [amount]: Tutar (işlem dövizi)
   final double amount;
 
   /// [paymentType]: Ödeme tipi ('Cash', 'CreditCard', 'Check', 'Note')
@@ -61,6 +65,15 @@ class CollectionModel {
 
   /// [currencyCode]: İşlem dövizi
   final String? currencyCode;
+
+  /// [exchangeRate]: 1 işlem dövizi = kaç merkez
+  final double? exchangeRate;
+
+  /// [baseAmount]: Merkez döviz tutarı
+  final double? baseAmount;
+
+  /// [baseCurrencyCode]: Merkez / varsayılan para birimi
+  final String? baseCurrencyCode;
 
   /// [salespersonCode]: Plasiyer kodu
   final String? salespersonCode;
@@ -105,6 +118,9 @@ class CollectionModel {
     this.targetCashCode,
     this.documentNo,
     this.currencyCode,
+    this.exchangeRate,
+    this.baseAmount,
+    this.baseCurrencyCode,
     this.salespersonCode,
     this.specialCode1,
     this.endorsement,
@@ -137,6 +153,13 @@ class CollectionModel {
       targetCashCode: map['target_cash_code'] as String?,
       documentNo: map['document_no'] as String?,
       currencyCode: map['currency_code'] as String?,
+      exchangeRate: map['exchange_rate'] != null
+          ? (map['exchange_rate'] as num).toDouble()
+          : null,
+      baseAmount: map['base_amount'] != null
+          ? (map['base_amount'] as num).toDouble()
+          : null,
+      baseCurrencyCode: map['base_currency_code'] as String?,
       salespersonCode: map['salesperson_code'] as String?,
       specialCode1: map['special_code_1'] as String?,
       endorsement: map['endorsement'] as String?,
@@ -170,6 +193,9 @@ class CollectionModel {
       'target_cash_code': targetCashCode,
       'document_no': documentNo,
       'currency_code': currencyCode,
+      'exchange_rate': exchangeRate,
+      'base_amount': baseAmount,
+      'base_currency_code': baseCurrencyCode,
       'salesperson_code': salespersonCode,
       'special_code_1': specialCode1,
       'endorsement': endorsement,

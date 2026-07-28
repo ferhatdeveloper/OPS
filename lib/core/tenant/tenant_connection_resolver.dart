@@ -107,6 +107,26 @@ class TenantConnectionResolver {
     return input.trim().replaceAll(RegExp(r'/+$'), '');
   }
 
+  /// Aktif SaaS kökü proxy / override ise prod `api.retailex.app` URL’lerini
+  /// aynı path ile yeni köke taşır (web CORS proxy).
+  ///
+  /// Örnek: origin=`http://127.0.0.1:8799`,
+  /// url=`https://api.retailex.app/lovan` → `http://127.0.0.1:8799/lovan`
+  static String rewriteRestUrlForSaasOrigin(
+    String restUrl, {
+    required String saasOrigin,
+  }) {
+    final url = normalizeBaseUrl(restUrl);
+    final origin = normalizeBaseUrl(saasOrigin);
+    if (url.isEmpty || origin.isEmpty) return url;
+    final prod = normalizeBaseUrl(PostgrestTenantDefaults.saasOrigin);
+    if (origin == prod) return url;
+    if (url.startsWith(prod)) {
+      return '$origin${url.substring(prod.length)}';
+    }
+    return url;
+  }
+
   /// SaaS kiracı URL: `https://api.retailex.app/{slug}`
   static String buildSaaSTenantPostgrestUrl(
     String slug, {

@@ -5,12 +5,12 @@ import '../model/order_model.dart';
 import '../../customers/model/customer_model.dart';
 import '../../../../service/database_service.dart';
 import '../../../../core/localization/app_localization.dart';
-import '../../stock/engine/unit_conversion_service.dart';
 import '../engine/recommendation_engine.dart';
 import '../model/ai_suggestion_model.dart';
 import '../../delivery/viewmodel/delivery_hold_entry.dart';
 import '../../shared/view/catalog_barcode_actions.dart';
 import '../../shared/view/digital_signature_screen.dart';
+import '../../shared/view/product_line_qty_unit_sheet.dart';
 import '../../shared/view/voucher_defaults_fields.dart';
 import '../../shared/view/mbt_catalog_toolbar.dart';
 import '../../shared/view/unsaved_voucher_dialog.dart';
@@ -31,6 +31,12 @@ class OrderEntryScreen extends ConsumerStatefulWidget {
   /// [cardRole]: Cari rolü (alışta tedarikçi zorunlu)
   final CariCardRole? cardRole;
 
+  /// [initialProductToAdd]: Ziyaret/barkod sonrası sepete eklenecek ürün haritası
+  final Map<String, dynamic>? initialProductToAdd;
+
+  /// [existingOrderId]: Düzenleme — yüklü sipariş id (null → yeni)
+  final String? existingOrderId;
+
   const OrderEntryScreen({
     Key? key,
     required this.customerId,
@@ -38,6 +44,8 @@ class OrderEntryScreen extends ConsumerStatefulWidget {
     this.customerCode,
     this.orderType = OrderType.sales,
     this.cardRole,
+    this.initialProductToAdd,
+    this.existingOrderId,
   }) : super(key: key);
 
   @override
@@ -131,13 +139,53 @@ class _OrderEntryScreenState extends ConsumerState<OrderEntryScreen>
         widget.customerId,
         _products.map((p) => p['id'] as String).toList(),
       );
+      final seedProduct = widget.initialProductToAdd;
+      if (seedProduct != null && mounted) {
+        await _showUnitSelection(seedProduct);
+      }
     });
   }
 
   /// {@template _beginOrderDraftOrPrompt}
   /// Mevcut kaydedilmemiş sipariş varsa ortak taslak uyarısı gösterir.
+  /// Düzenleme modunda [existingOrderId] taslağı korunur.
   /// {@endtemplate}
   Future<void> _beginOrderDraftOrPrompt() async {
+    final editId = widget.existingOrderId?.trim();
+    if (editId != null && editId.isNotEmpty) {
+      final orderState = ref.read(orderProvider);
+      if (orderState.draftOrder?.id == editId &&
+          orderState.items.isNotEmpty) {
+        if ((orderState.draftOrder?.notes ?? '').isNotEmpty) {
+          _notesController.text = orderState.draftOrder!.notes!;
+        }
+        return;
+      }
+      final ok = await ref
+          .read(orderProvider.notifier)
+          .loadDraftFromOrderId(editId);
+      if (!mounted) return;
+      if (!ok) {
+        final err = ref.read(orderProvider).error;
+        final l10n = AppLocalization.of(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              err != null && err.startsWith('field_sales.')
+                  ? l10n.translate(err)
+                  : l10n.translate('field_sales.order_edit_not_found'),
+            ),
+          ),
+        );
+        return;
+      }
+      final notes = ref.read(orderProvider).draftOrder?.notes;
+      if (notes != null && notes.isNotEmpty) {
+        _notesController.text = notes;
+      }
+      return;
+    }
+
     final orderState = ref.read(orderProvider);
     final hasDraft = orderState.items.isNotEmpty;
     final label = _resolvedCustomerName?.trim().isNotEmpty == true
@@ -224,61 +272,28 @@ class _OrderEntryScreenState extends ConsumerState<OrderEntryScreen>
   }
 
   Future<void> _showUnitSelection(Map<String, dynamic> p) async {
-    final unitSetId = p['unit_set_id'] as String?;
-    final units = await UnitConversionService.getUnitsForProduct(unitSetId);
-    
-    if (units.isEmpty) {
-      ref.read(orderProvider.notifier).addItem(p['id'] as String, p['name'] as String, 1);
-      return;
-    }
-
-    if (!mounted) return;
-
-    showModalBottomSheet(
+    final result = await showProductLineQtyUnitSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-      ),
-      builder: (context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              p['name'] as String,
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              AppLocalization.of(context).translate('field_sales.select_unit'),
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-            ),
-            const SizedBox(height: 4),
-            ...units.map((u) => ListTile(
-              dense: true,
-              visualDensity: VisualDensity.compact,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-              leading: const Icon(Icons.shopping_bag_outlined, size: 20),
-              title: Text(u.unitName, style: const TextStyle(fontSize: 13)),
-              trailing: const Icon(Icons.chevron_right, size: 18),
-              onTap: () {
-                ref.read(orderProvider.notifier).addItem(p['id'] as String, p['name'] as String, 1, unitName: u.unitName);
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text(
-                    AppLocalization.of(context).translate(
-                      'field_sales.item_added_with_unit',
-                      args: {
-                        'name': '${p['name']}',
-                        'unit': u.unitName,
-                      },
-                    ),
-                  ),
-                ));
-              },
-            )).toList(),
-          ],
+      product: p,
+    );
+    if (result == null || !mounted) return;
+
+    ref.read(orderProvider.notifier).addItem(
+          p['id'] as String,
+          p['name'] as String,
+          result.quantity,
+          unitName: result.unitName,
+        );
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          AppLocalization.of(context).translate(
+            'field_sales.item_added_with_unit',
+            args: {
+              'name': '${p['name']}',
+              'unit': '${result.quantity} ${result.unitName}',
+            },
+          ),
         ),
       ),
     );
@@ -573,9 +588,16 @@ class _OrderEntryScreenState extends ConsumerState<OrderEntryScreen>
                                       ),
                                       FutureBuilder<AISuggestionModel?>(
                                         future: RecommendationEngine()
-                                            .getSuggestion(
-                                          widget.customerId,
-                                          p['id'] as String,
+                                            .getSuggestionEnriched(
+                                          customerId: widget.customerId,
+                                          productId: p['id'] as String,
+                                          customerLabel:
+                                              widget.customerCode ??
+                                                  widget.customerName ??
+                                                  widget.customerId,
+                                          productLabel: code.isNotEmpty
+                                              ? code
+                                              : (p['id'] as String),
                                         ),
                                         builder: (context, snapshot) {
                                           if (snapshot.hasData &&
@@ -1148,7 +1170,13 @@ class _OrderEntryScreenState extends ConsumerState<OrderEntryScreen>
       return;
     }
 
-    final success = await ref.read(orderProvider.notifier).saveOrder(_notesController.text);
+    final success = (widget.existingOrderId?.trim().isNotEmpty == true)
+        ? await ref
+            .read(orderProvider.notifier)
+            .updateLocalOrder(_notesController.text)
+        : await ref
+            .read(orderProvider.notifier)
+            .saveOrder(_notesController.text);
     if (!success) {
       final err = ref.read(orderProvider).error;
       if (mounted && err != null) {

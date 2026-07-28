@@ -133,6 +133,7 @@ class OrderModel {
       'status': status,
       'notes': notes,
       'is_synced': isSynced ? 1 : 0,
+      'is_deleted': 0,
       'approval_status': approvalStatus,
       'created_at':
           createdAt?.toIso8601String() ?? DateTime.now().toIso8601String(),

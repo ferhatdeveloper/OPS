@@ -30,6 +30,17 @@ String? jobQueueEntityTable(String type) {
     'stock_count' || 'stock_counts' => 'stock_counts',
     'dispatch' || 'dispatches' || 'waybill' || 'waybills' => 'waybills',
     'visit' || 'visits' => 'visits',
+    'bank_card' || 'bank_cards' => 'bank_cards',
+    'check_portfolio' || 'check_portfolios' => 'check_portfolio',
+    'promissory_portfolio' ||
+    'promissory_portfolios' ||
+    'promissory_note' =>
+      'promissory_portfolio',
+    'supplier_purchase_request' ||
+    'supplier_purchase_requests' ||
+    'supply_request' =>
+      'supplier_purchase_requests',
+    // customer / product: is_synced kolonu yok; PostgREST / skip
     _ => null,
   };
 }

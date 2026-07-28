@@ -164,15 +164,35 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
       updatedAt: DateTime.now(),
     );
 
-    await ref.read(customerProvider.notifier).saveCustomer(newCustomer);
+    final ok =
+        await ref.read(customerProvider.notifier).saveCustomer(newCustomer);
 
-    if (mounted) {
-      setState(() => _isLoading = false);
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+    if (!ok) {
+      final err = ref.read(customerProvider).error;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalization.of(context).translate('customer.save_success')), backgroundColor: Colors.green),
+        SnackBar(
+          content: Text(
+            err ??
+                AppLocalization.of(context).translate(
+                  'customer.save_failed',
+                ),
+          ),
+          backgroundColor: Colors.red,
+        ),
       );
-      Navigator.pop(context, true);
+      return;
     }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          AppLocalization.of(context).translate('customer.save_success'),
+        ),
+        backgroundColor: Colors.green,
+      ),
+    );
+    Navigator.pop(context, newCustomer);
   }
 
   @override

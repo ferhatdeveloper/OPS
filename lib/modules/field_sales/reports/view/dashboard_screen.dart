@@ -4,7 +4,6 @@ import 'package:fl_chart/fl_chart.dart';
 import '../viewmodel/report_provider.dart';
 import '../../../../service/nfc_service.dart';
 import '../../../../service/notification_service.dart';
-import '../../../../service/offline_maps_service.dart';
 import '../../invoices/view/invoice_entry_screen.dart';
 import '../../other/view/stock_ops_screen.dart';
 import 'performance_dashboard_screen.dart';
@@ -401,7 +400,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: () => OfflineMapsService().downloadRegion('İstanbul Avrupa Yakası'),
+              onPressed: () => Navigator.pushNamed(
+                context,
+                '/field-sales/offline-map-download',
+              ),
               icon: const Icon(Icons.download_for_offline_rounded),
               label: const Text('Çevrimdışı Harita İndir'),
               style: ElevatedButton.styleFrom(

@@ -1,11 +1,11 @@
 // Dosya Adı: whms_route_map.dart
-// Açıklama: OPS fs_stock stub route ↔ gelecekteki WHMS namespace hizası
+// Açıklama: OPS stub ↔ WHMS /whms/* route hizası (Depo Yönetimi menü)
 // Oluşturulma Tarihi: 2026-07-26
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-26
+// Son Güncelleme: 2026-07-28
 
 /// {@template whms_route_alignment}
-/// Menü/route hizası — Faz 1: OPS stub kalır; WHMS ayrı namespace.
+/// Menü/route hizası — `fs_whms` alt seed yalnız `/whms/*`.
 ///
 /// Kullanım örneği:
 /// ```dart
@@ -44,34 +44,124 @@ class WhmsRouteMap {
   /// [opsStockProduction]: Üretimden giriş
   static const String opsStockProduction = '/field-sales/stock-production';
 
-  // --- WHMS (gelecek — field_sales menüsüne gömülmez) ---
+  // --- WHMS (Depo Yönetimi — field_sales menüsüne gömülmez) ---
 
-  /// [whmsShell]: WHMS ana giriş (Faz 2+)
+  /// [whmsShell]: WHMS ana giriş
   static const String whmsShell = '/whms';
 
-  /// [whmsMultiWarehouse]: Merkez çoklu depo
+  /// [whmsOrdersHub]: Emirler kategorisi
+  static const String whmsOrdersHub = '/whms/orders-hub';
+
+  /// [whmsOrders]: Emir listesi dens
+  static const String whmsOrders = '/whms/orders';
+
+  /// [whmsOrderCreate]: Yeni emir dens
+  static const String whmsOrderCreate = '/whms/orders/create';
+
+  /// [whmsOrderDetail]: Emir detay dens
+  static const String whmsOrderDetail = '/whms/orders/detail';
+
+  /// [whmsOrderReceipt]: Mal kabul / putaway yürütme dens
+  static const String whmsOrderReceipt = '/whms/orders/receipt';
+
+  /// [whmsReceiptList]: Mal kabul emir listesi
+  static const String whmsReceiptList = '/whms/receipt';
+
+  /// [whmsPutaway]: Yerleştirme emir listesi
+  static const String whmsPutaway = '/whms/putaway';
+
+  /// [whmsPickList]: Toplama emir listesi
+  static const String whmsPickList = '/whms/pick-list';
+
+  /// [whmsPick]: Pick emir yürütme dens
+  static const String whmsPick = '/whms/pick';
+
+  /// [whmsShipping]: Sevk / son kontrol listesi
+  static const String whmsShipping = '/whms/shipping';
+
+  /// [whmsReturns]: İade dens
+  static const String whmsReturns = '/whms/returns';
+
+  /// [whmsDefs]: Tanımlamalar hub
+  static const String whmsDefs = '/whms/defs';
+
+  /// [whmsLocations]: Lokasyon master dens
+  static const String whmsLocations = '/whms/locations';
+
+  /// [whmsFifo]: FIFO/FEFO kural dens CRUD
+  static const String whmsFifo = '/whms/fifo';
+
+  /// [whmsMultiWarehouse]: Merkez ambar master dens
   static const String whmsMultiWarehouse = '/whms/warehouses';
 
-  /// [whmsStockQuery]: Merkez stok sorgu
+  /// [whmsVehicleTypes]: Araç tipi dens
+  static const String whmsVehicleTypes = '/whms/vehicle-types';
+
+  /// [whmsVehicles]: Araç dens
+  static const String whmsVehicles = '/whms/vehicles';
+
+  /// [whmsStockHub]: Stok hub
+  static const String whmsStockHub = '/whms/stock';
+
+  /// [whmsStockQuery]: Merkez stok sorgu dens
   static const String whmsStockQuery = '/whms/stock-query';
 
-  /// [whmsTransfer]: Merkez depolar arası transfer
+  /// [whmsLot]: Lot / SKT dens
+  static const String whmsLot = '/whms/lot';
+
+  /// [whmsReservation]: Rezervasyon dens
+  static const String whmsReservation = '/whms/reservation';
+
+  /// [whmsTransfer]: Merkez transfer emir dens
   static const String whmsTransfer = '/whms/transfer';
 
   /// [whmsCount]: Merkez sayım
   static const String whmsCount = '/whms/count';
 
+  /// [whmsCountExecute]: Sayım yürütme (satır / barkod)
+  static const String whmsCountExecute = '/whms/count/execute';
+
+  /// [whmsReportsHub]: Raporlar hub
+  static const String whmsReportsHub = '/whms/reports-hub';
+
+  /// [whmsReports]: Merkez depo KPI
+  static const String whmsReports = '/whms/reports';
+
+  /// [whmsReportsOrderPerf]: Emir performansı
+  static const String whmsReportsOrderPerf = '/whms/reports/order-perf';
+
+  /// [whmsReportsCountVar]: Sayım fark
+  static const String whmsReportsCountVar = '/whms/reports/count-var';
+
+  /// [whmsSystem]: Sistem / sync stub
+  static const String whmsSystem = '/whms/system';
+
+  /// [whmsLabels]: Etiket / cihaz hub
+  static const String whmsLabels = '/whms/labels';
+
+  /// [whmsDevices]: Cihaz / terminal dens
+  static const String whmsDevices = '/whms/devices';
+
+  /// [whmsPackageTypes]: Paket tipi dens
+  static const String whmsPackageTypes = '/whms/labels/packages';
+
+  /// [whmsTares]: Dara dens
+  static const String whmsTares = '/whms/labels/tares';
+
+  /// [whmsLabelTemplates]: Etiket şablon dens
+  static const String whmsLabelTemplates = '/whms/labels/templates';
+
   /// Legacy inventory — WHMS ile karıştırılmamalı
   static const String legacyInventoryWarehouses = '/inventory/warehouses';
 
-  /// OPS stub → gelecekteki WHMS hedefi (Faz 1 yalnız sözleşme).
+  /// OPS stub → WHMS hedefi.
   static const Map<String, String> opsStubToWhmsTarget = {
     opsMultiWarehouse: whmsMultiWarehouse,
     opsWarehouseStockQuery: whmsStockQuery,
     opsWarehouseTransfer: whmsTransfer,
     opsStockMovement: whmsTransfer,
     opsStockProduction: whmsShell,
-    opsBatchExpiry: whmsShell,
+    opsBatchExpiry: whmsLot,
     opsConsignment: whmsShell,
   };
 
@@ -87,27 +177,43 @@ class WhmsRouteMap {
     'sub_stk_warehouse': opsStockWarehouse,
   };
 
-  /// {@template whms_route_map_is_ops_stub}
+  /// Depo Yönetimi (`fs_whms`) alt seed → WHMS-native route.
+  static const Map<String, String> fsWhmsMenuSeed = {
+    'sub_whms_orders': whmsOrdersHub,
+    'sub_whms_orders_list': whmsOrders,
+    'sub_whms_receipt': whmsReceiptList,
+    'sub_whms_putaway': whmsPutaway,
+    'sub_whms_pick': whmsPickList,
+    'sub_whms_shipping': whmsShipping,
+    'sub_whms_returns': whmsReturns,
+    'sub_whms_defs': whmsDefs,
+    'sub_whms_fifo': whmsFifo,
+    'sub_whms_warehouses': whmsMultiWarehouse,
+    'sub_whms_vehicle_types': whmsVehicleTypes,
+    'sub_whms_vehicles': whmsVehicles,
+    'sub_whms_stock': whmsStockHub,
+    'sub_whms_count': whmsCount,
+    'sub_whms_transfer': whmsTransfer,
+    'sub_whms_query': whmsStockQuery,
+    'sub_whms_lot': whmsLot,
+    'sub_whms_reservation': whmsReservation,
+    'sub_whms_reports': whmsReportsHub,
+    'sub_whms_reports_kpi': whmsReports,
+    'sub_whms_reports_perf': whmsReportsOrderPerf,
+    'sub_whms_reports_count': whmsReportsCountVar,
+    'sub_whms_system': whmsSystem,
+    'sub_whms_devices': whmsDevices,
+    'sub_whms_labels': whmsLabels,
+    'whms_locations': whmsLocations,
+    'sub_whms_locations': whmsLocations,
+    'whms_fifo': whmsFifo,
+  };
+
   /// Route OPS stub mu?
-  ///
-  /// Parametreler:
-  /// - [route]: Named route
-  ///
-  /// Dönüş değeri:
-  /// - [bool]: true ise field_sales stub
-  /// {@endtemplate}
   static bool isOpsStub(String route) =>
       opsStubToWhmsTarget.containsKey(route) || route == opsStockWarehouse;
 
-  /// {@template whms_route_map_future_target}
-  /// OPS stub için gelecekteki WHMS hedefi.
-  ///
-  /// Parametreler:
-  /// - [opsRoute]: OPS named route
-  ///
-  /// Dönüş değeri:
-  /// - [String]: WHMS route veya null
-  /// {@endtemplate}
+  /// OPS stub için WHMS hedefi.
   static String? futureWhmsTarget(String opsRoute) =>
       opsStubToWhmsTarget[opsRoute];
 }

@@ -182,14 +182,52 @@ class VisitNotifier extends StateNotifier<VisitState> {
     }
   }
 
+  /// {@template resolve_customer_coords}
+  /// Rota veya `customers` tablosundan cari lat/lng çözer.
+  /// Rota dışı (Mevcut Cari) ziyaretlerde firstWhere patlamasın.
+  /// {@endtemplate}
+  Future<({double? lat, double? lng})> _resolveCustomerCoords(
+    String customerId,
+  ) async {
+    for (final rc in state.routeCustomers) {
+      if (rc.customerId == customerId &&
+          rc.latitude != null &&
+          rc.longitude != null) {
+        return (lat: rc.latitude, lng: rc.longitude);
+      }
+    }
+    try {
+      final db = await DatabaseService.getInstance();
+      final sqliteDb = await db.getDatabase();
+      final rows = await sqliteDb.query(
+        'customers',
+        columns: ['latitude', 'longitude'],
+        where: 'id = ?',
+        whereArgs: [customerId],
+        limit: 1,
+      );
+      if (rows.isNotEmpty) {
+        return (
+          lat: (rows.first['latitude'] as num?)?.toDouble(),
+          lng: (rows.first['longitude'] as num?)?.toDouble(),
+        );
+      }
+    } catch (_) {}
+    return (lat: null, lng: null);
+  }
+
   Future<bool> checkIn(String customerId) async {
+    // Bellekte yoksa DB'deki Open ziyareti yükle; engelde UI forma yönlendirir.
+    if (state.activeVisit == null) {
+      await fetchActiveVisit();
+    }
     if (state.activeVisit != null) {
-      // UI: AppLocalization.translate(error) — l10n key
+      // UI: redirectToOpenVisitIfNeeded — l10n key
       state = state.copyWith(error: 'field_sales.visit_already_open');
       return false;
     }
 
-    state = state.copyWith(isLoading: true);
+    state = state.copyWith(isLoading: true, error: null);
     try {
       final gps = GpsService();
       final hasPermission = await gps.checkPermissions();
@@ -201,10 +239,13 @@ class VisitNotifier extends StateNotifier<VisitState> {
         return false;
       }
 
-      // Geofencing Check
-      final routeCustomer = state.routeCustomers.firstWhere((rc) => rc.customerId == customerId);
-      if (routeCustomer.latitude != null && routeCustomer.longitude != null) {
-        final inRange = await gps.isWithinVisitRange(routeCustomer.latitude!, routeCustomer.longitude!);
+      // Geofence: rota veya cari kart koordinatı varsa uygula
+      final coords = await _resolveCustomerCoords(customerId);
+      if (coords.lat != null && coords.lng != null) {
+        final inRange = await gps.isWithinVisitRange(
+          coords.lat!,
+          coords.lng!,
+        );
         if (!inRange) {
           state = state.copyWith(
             isLoading: false,
@@ -226,6 +267,7 @@ class VisitNotifier extends StateNotifier<VisitState> {
       );
 
       final db = await DatabaseService.getInstance();
+      await db.ensureVisitsTableSchema();
       final sqliteDb = await db.getDatabase();
       await sqliteDb.insert('visits', visit.toMap());
 
@@ -239,14 +281,19 @@ class VisitNotifier extends StateNotifier<VisitState> {
         body: l10n.translate('field_sales.visit_started_notif_body'),
       );
 
-      // Phase 9: Reward Points
-      final session = await db.getUserSession();
-      final userId = session?['id'] as String? ?? 'current_user';
-      await GamificationService().addPoints(
-        userId,
-        GamificationService.pointsPerVisit,
-        l10n.translate('field_sales.visit_started_points_reason'),
-      );
+      // Phase 9: Reward Points — puan / şema hatası check-in'i engellemez
+      try {
+        await db.ensurePlasiyerProfileSchema();
+        final session = await db.getUserSession();
+        final userId = session?['id'] as String? ?? 'current_user';
+        await GamificationService().addPoints(
+          userId,
+          GamificationService.pointsPerVisit,
+          l10n.translate('field_sales.visit_started_points_reason'),
+        );
+      } catch (e) {
+        debugPrint('Visit gamification skipped: $e');
+      }
 
       return true;
     } catch (e) {
@@ -383,6 +430,82 @@ class VisitNotifier extends StateNotifier<VisitState> {
     }
   }
 
+  /// {@template update_active_visit_notes}
+  /// Açık ziyaretin `notes` (+ opsiyonel ses yolu) alanını SQLite’a yazar.
+  ///
+  /// Parametreler:
+  /// - [notes]: Ham not metni (form Not alanı)
+  /// - [audioRecordingPath]: STT ses dosyası yolu (varsa birlikte kaydedilir)
+  ///
+  /// Dönüş değeri:
+  /// - [bool]: Güncelleme başarılı mı
+  /// {@endtemplate}
+  Future<bool> updateActiveVisitNotes(
+    String notes, {
+    String? audioRecordingPath,
+  }) async {
+    final active = state.activeVisit;
+    if (active == null) return false;
+    try {
+      final audio = audioRecordingPath?.trim();
+      final updated = active.copyWith(
+        notes: notes,
+        audioRecordingPath: (audio != null && audio.isNotEmpty) ? audio : null,
+      );
+      final db = await DatabaseService.getInstance();
+      await db.ensureVisitsTableSchema();
+      final sqliteDb = await db.getDatabase();
+      final patch = <String, dynamic>{'notes': notes};
+      if (audio != null && audio.isNotEmpty) {
+        patch['audio_recording_path'] = audio;
+      }
+      await sqliteDb.update(
+        'visits',
+        patch,
+        where: 'id = ?',
+        whereArgs: [active.id],
+      );
+      state = state.copyWith(activeVisit: updated);
+      return true;
+    } catch (e) {
+      debugPrint('updateActiveVisitNotes: $e');
+      return false;
+    }
+  }
+
+  /// {@template update_active_visit_audio_recording_path}
+  /// Açık ziyaretin STT ses dosyası yolunu SQLite’a yazar.
+  ///
+  /// Parametreler:
+  /// - [path]: Tam dosya yolu (stub metadata kabul edilir)
+  ///
+  /// Dönüş değeri:
+  /// - [bool]: Güncelleme başarılı mı
+  /// {@endtemplate}
+  Future<bool> updateActiveVisitAudioRecordingPath(String path) async {
+    final active = state.activeVisit;
+    if (active == null) return false;
+    final trimmed = path.trim();
+    if (trimmed.isEmpty) return false;
+    try {
+      final updated = active.copyWith(audioRecordingPath: trimmed);
+      final db = await DatabaseService.getInstance();
+      await db.ensureVisitsTableSchema();
+      final sqliteDb = await db.getDatabase();
+      await sqliteDb.update(
+        'visits',
+        {'audio_recording_path': trimmed},
+        where: 'id = ?',
+        whereArgs: [active.id],
+      );
+      state = state.copyWith(activeVisit: updated);
+      return true;
+    } catch (e) {
+      debugPrint('updateActiveVisitAudioRecordingPath: $e');
+      return false;
+    }
+  }
+
   /// {@template enqueue_visit_sync}
   /// Tamamlanan ziyareti Logo/sync kuyruğuna ekler (`reason_code` → SPECODE).
   /// {@endtemplate}
@@ -477,6 +600,7 @@ extension VisitModelExtension on VisitModel {
     double? checkOutLong,
     String? notes,
     String? reasonCode,
+    String? audioRecordingPath,
     String? status,
     int? durationMinutes,
     bool? isSynced,
@@ -494,6 +618,7 @@ extension VisitModelExtension on VisitModel {
       checkOutLong: checkOutLong ?? this.checkOutLong,
       notes: notes ?? this.notes,
       reasonCode: reasonCode ?? this.reasonCode,
+      audioRecordingPath: audioRecordingPath ?? this.audioRecordingPath,
       status: status ?? this.status,
       durationMinutes: durationMinutes ?? this.durationMinutes,
       isSynced: isSynced ?? this.isSynced,

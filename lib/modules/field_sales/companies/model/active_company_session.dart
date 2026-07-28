@@ -2,7 +2,7 @@
 // Açıklama: Aktif firma/dönem oturum kaydı (MBT AppBar 001_01 bağlamı)
 // Oluşturulma Tarihi: 2026-07-26
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-26
+// Son Güncelleme: 2026-07-27
 
 /// {@template active_company_session}
 /// Seçili firma + dönem oturum bilgisi.
@@ -66,6 +66,12 @@ class ActiveCompanySession {
     if (isEmpty) return companyName;
     final name = companyName.isEmpty ? companyNo : companyName;
     return '$name ( ${companyNo}_$periodNo )';
+  }
+
+  /// Dens chip kısa biçim: `001_01` (dashboard kalabalığı azaltır)
+  String get densChipLabel {
+    if (isEmpty) return companyName;
+    return '${companyNo}_$periodNo';
   }
 
   /// {@template active_company_session_copy_with}

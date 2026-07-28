@@ -125,6 +125,7 @@ class WarehouseMasterSeed {
             'type': wh.type,
             'is_active': 1,
             'is_synced': 0,
+            'is_deleted': 0,
             'created_at': createdAt,
             'updated_at': createdAt,
           },

@@ -2,7 +2,7 @@
 // Açıklama: OPS ↔ WHMS köprü DTO’ları (yükleme emri / transfer / sayım)
 // Oluşturulma Tarihi: 2026-07-26
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-26
+// Son Güncelleme: 2026-07-28
 
 /// {@template whms_approval_status}
 /// Sync onay durumu — `sync_approval_rules` ile uyumlu.
@@ -148,22 +148,41 @@ class WhmsWarehouseTransferDto {
 
 /// {@template whms_count_result_dto}
 /// Merkez sayım sonucu (plasiyer sayımından ayrı).
+///
+/// Kullanım örneği:
+/// ```dart
+/// final dto = WhmsCountResultDto(
+///   id: 'cnt-1',
+///   warehouseCode: 'MRK',
+///   date: DateTime(2026, 7, 28),
+///   lines: const [],
+/// );
+/// ```
 /// {@endtemplate}
 class WhmsCountResultDto {
   /// [id]: Sayım fiş id
   final String id;
 
+  /// [orderId]: Bağlı sayım emri id (opsiyonel)
+  final String? orderId;
+
   /// [warehouseCode]: Sayılan ambar
   final String warehouseCode;
+
+  /// [locationCode]: Raf / göz (opsiyonel)
+  final String? locationCode;
 
   /// [date]: Sayım tarihi
   final DateTime date;
 
-  /// [lines]: Sayılan satırlar
+  /// [lines]: Sayılan satırlar (fiili miktar)
   final List<WhmsBridgeLine> lines;
 
   /// [approval]: ONAY
   final WhmsApprovalStatus approval;
+
+  /// [isSynced]: Logo / kuyruk sync bayrağı
+  final bool isSynced;
 
   /// {@macro whms_count_result_dto}
   const WhmsCountResultDto({
@@ -171,6 +190,36 @@ class WhmsCountResultDto {
     required this.warehouseCode,
     required this.date,
     required this.lines,
+    this.orderId,
+    this.locationCode,
     this.approval = WhmsApprovalStatus.pending,
+    this.isSynced = false,
   });
+
+  /// Map serileştirme (queue / mapper iskeleti).
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        if (orderId != null) 'order_id': orderId,
+        'warehouse_code': warehouseCode,
+        if (locationCode != null) 'location_code': locationCode,
+        'date': date.toIso8601String(),
+        'lines': lines.map((l) => l.toMap()).toList(growable: false),
+        'ONAY': _approvalToInt(approval),
+        'is_synced': isSynced ? 1 : 0,
+      };
+
+  static int _approvalToInt(WhmsApprovalStatus status) {
+    switch (status) {
+      case WhmsApprovalStatus.pending:
+        return 0;
+      case WhmsApprovalStatus.approved:
+        return 1;
+      case WhmsApprovalStatus.synced:
+        return 2;
+      case WhmsApprovalStatus.rejected:
+        return 3;
+      case WhmsApprovalStatus.error:
+        return 4;
+    }
+  }
 }

@@ -1,7 +1,8 @@
 import 'package:postgres/postgres.dart';
 import 'package:flutter/foundation.dart';
-import 'dart:io';
 import 'dart:convert';
+// ignore: unnecessary_import — web stub; Platform yalnızca !kIsWeb dalında
+import 'dart:io' show Platform;
 
 class PostgresService {
   static final PostgresService _instance = PostgresService._internal();
@@ -16,7 +17,13 @@ class PostgresService {
   bool _isConnected = false;
 
   // ── Bağlantı Ayarları ───────────────────────────────────────────────────
-  final String _host = Platform.isAndroid ? '10.0.2.2' : '127.0.0.1';
+  /// Yerel TCP host (PostgREST yokken). Web'de Platform yasak → kısa devre.
+  static String resolveLocalPgHost() {
+    if (kIsWeb) return '127.0.0.1';
+    return Platform.isAndroid ? '10.0.2.2' : '127.0.0.1';
+  }
+
+  final String _host = resolveLocalPgHost();
   final int _port = 5432;
   final String _database = 'EXFINOPS';
   final String _username = 'postgres';
@@ -24,7 +31,7 @@ class PostgresService {
 
   // ── Aktif Firma+Dönem Bağlamı ────────────────────────────────────────────
   // Wizard'da seçilen firma / dönem numaraları
-  String _activeFirmNr = '01';
+  String _activeFirmNr = '001';
   String _activePeriodNr = '01';
 
   // ── Aktif Kiracı PostgREST Bağlamı (RetailEX parity) ─────────────────────
@@ -56,11 +63,27 @@ class PostgresService {
   /// [activeTenantJwt]: Opsiyonel JWT Bearer
   String? get activeTenantJwt => _activeTenantJwt;
 
-  /// Aktif firma ve dönemi ayarla (wizard tamamlandığında çağrılır)
+  /// Aktif firma ve dönemi ayarla (wizard / login tamamlandığında).
+  /// Firma 3 hane (`001`), dönem 2 hane (`01`) — RetailEX `rex_*` uyumu.
   void setActiveContext({required String firmNr, required String periodNr}) {
-    _activeFirmNr = firmNr.padLeft(2, '0');
-    _activePeriodNr = periodNr.padLeft(2, '0');
-    debugPrint('🏢 Aktif bağlam güncellendi: Firma=$_activeFirmNr / Dönem=$_activePeriodNr');
+    final f = firmNr.trim();
+    final p = periodNr.trim();
+    _activeFirmNr = f.isEmpty ? '001' : f.padLeft(3, '0');
+    _activePeriodNr = p.isEmpty ? '01' : p.padLeft(2, '0');
+    debugPrint(
+      '🏢 Aktif bağlam güncellendi: '
+      'Firma=$_activeFirmNr / Dönem=$_activePeriodNr',
+    );
+  }
+
+  /// RetailEX firma tablosu: `rex_{FF}_{base}`.
+  String getRexFirmTable(String baseTableName) {
+    return 'rex_${_activeFirmNr}_$baseTableName';
+  }
+
+  /// RetailEX dönem tablosu: `rex_{FF}_{DD}_{base}`.
+  String getRexPeriodTable(String baseTableName) {
+    return 'rex_${_activeFirmNr}_${_activePeriodNr}_$baseTableName';
   }
 
   /// {@template set_active_tenant_context}
@@ -91,6 +114,16 @@ class PostgresService {
       '🏢 Kiracı PostgREST: code=$_activeTenantCode '
       'url=$_activeRemoteRestUrl schema=$_activePostgrestSchema',
     );
+  }
+
+  /// Kiracı PostgREST bellek bağlamını temizler (Değiştir / ilk giriş).
+  void clearActiveTenantContext() {
+    _activeTenantCode = '';
+    _activeRemoteRestUrl = '';
+    _activePostgrestSchema = 'public';
+    _activeTenantApiKey = null;
+    _activeTenantJwt = null;
+    debugPrint('🏢 Kiracı PostgREST bağlamı temizlendi');
   }
 
   /// PostgREST istek yolu: `{remoteRestUrl}{path}`
@@ -148,6 +181,14 @@ class PostgresService {
   // ── Bağlantı ─────────────────────────────────────────────────────────────
 
   Future<bool> connect() async {
+    // Kiracı PostgREST aktifken yerel TCP (10.0.2.2:5432) deneme.
+    if (_activeRemoteRestUrl.trim().isNotEmpty) {
+      debugPrint(
+        '📡 PostgREST kiracı aktif ($_activeRemoteRestUrl); '
+        'TCP Postgres atlanıyor',
+      );
+      return false;
+    }
     if (_isConnected && _connection != null && _connection!.isOpen) {
       return true;
     }
@@ -703,18 +744,23 @@ class PostgresService {
     required int userId,
     required double latitude,
     required double longitude,
+    double? accuracy,
     int? batteryLevel,
   }) async {
     await query('''
-      INSERT INTO live_location_snapshots (user_id, latitude, longitude, battery_level, last_update)
-      VALUES (@uid, @lat, @lng, @battery, NOW())
+      INSERT INTO live_location_snapshots (
+        user_id, latitude, longitude, accuracy, battery_level, last_update
+      )
+      VALUES (@uid, @lat, @lng, @accuracy, @battery, NOW())
       ON CONFLICT (user_id) DO UPDATE
         SET latitude = @lat, longitude = @lng,
+            accuracy = COALESCE(@accuracy, live_location_snapshots.accuracy),
             battery_level = @battery, last_update = NOW()
     ''', params: {
       'uid': userId,
       'lat': latitude,
       'lng': longitude,
+      'accuracy': accuracy,
       'battery': batteryLevel,
     });
   }

@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/localization/app_localization.dart';
+import 'report_dens_empty_state.dart';
 
 /// {@template report_dens_row_placeholder}
 /// Rapor dens satır iskeleti için yer tutucu.
@@ -199,14 +200,8 @@ class ReportDensForm extends StatelessWidget {
         ),
         Expanded(
           child: rows.isEmpty
-              ? Center(
-                  child: Text(
-                    l10n.translate('field_sales.report_dens.rows_empty'),
-                    style: TextStyle(
-                      color: Colors.grey.shade500,
-                      fontSize: 14,
-                    ),
-                  ),
+              ? const ReportDensEmptyState(
+                  messageKey: 'field_sales.report_dens.rows_empty',
                 )
               : ListView.separated(
                   padding: const EdgeInsets.fromLTRB(12, 4, 12, 16),

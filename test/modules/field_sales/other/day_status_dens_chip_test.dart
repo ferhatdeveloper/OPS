@@ -42,7 +42,7 @@ void main() {
       await pumpStubWithL10n(tester, const DayStatusDensChip());
       await tester.pumpAndSettle();
 
-      expect(find.text('Mesai Kapalı'), findsOneWidget);
+      expect(find.text('Kapalı'), findsOneWidget);
     });
 
     testWidgets('mesai açıkken açık metni gösterir', (tester) async {
@@ -63,7 +63,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Mesai Açık'), findsOneWidget);
+      expect(find.text('Açık'), findsOneWidget);
     });
   });
 }

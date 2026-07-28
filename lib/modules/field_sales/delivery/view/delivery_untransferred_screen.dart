@@ -2,12 +2,13 @@
 // Açıklama: Aktarılamayan teslimatlar dens kuyruk (1-SATIŞ / 2-ALIŞ)
 // Oluşturulma Tarihi: 2026-07-26
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-26
+// Son Güncelleme: 2026-07-27
 
 import 'package:flutter/material.dart';
 
 import '../../../../core/localization/app_localization.dart';
 import '../../shared/view/mbt_sales_purchase_queue_body.dart';
+import '../../shared/view/field_sales_dens_app_bar.dart';
 
 /// {@template delivery_untransferred_screen}
 /// Aktarılamayan teslimatlar dens kuyruk ekranı.
@@ -34,26 +35,8 @@ class DeliveryUntransferredScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FD),
-      appBar: AppBar(
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF375A7F), Color(0xFF00A8E8)],
-            ),
-          ),
-        ),
-        title: Text(
-          title,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-            color: Colors.white,
-          ),
-        ),
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
+      appBar: FieldSalesDensAppBar(
+        title: title,
       ),
       body: const MbtSalesPurchaseQueueBody(
         emptyMessageKey: 'field_sales.delivery_untransferred_empty',

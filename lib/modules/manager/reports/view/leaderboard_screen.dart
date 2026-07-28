@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/localization/app_localization.dart';
+import '../../../field_sales/shared/view/field_sales_dens_app_bar.dart';
 
 class LeaderboardScreen extends StatefulWidget {
   const LeaderboardScreen({Key? key}) : super(key: key);
@@ -60,25 +61,23 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
-      appBar: AppBar(
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF375A7F), Color(0xFF00A8E8)],
-            ),
-          ),
-        ),
-        title: Text(AppLocalization.of(context).translate('target.target_ranking'), style: const TextStyle(fontWeight: FontWeight.bold)),
-        foregroundColor: Colors.white,
-        elevation: 0,
+      appBar: FieldSalesDensAppBar(
+        title: AppLocalization.of(context).translate('target.target_ranking'),
+        useGradient: true,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.share),
-            tooltip: AppLocalization.of(context).translate('target.share_ranking'),
+          FieldSalesDensAppBar.densIconButton(
+            icon: Icons.share,
+            tooltip: AppLocalization.of(context)
+                .translate('target.share_ranking'),
             onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalization.of(context).translate('target.ranking_shared'))));
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    AppLocalization.of(context)
+                        .translate('target.ranking_shared'),
+                  ),
+                ),
+              );
             },
           ),
         ],
@@ -88,7 +87,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
           _buildPodium(context),
           Expanded(
             child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               itemCount: _leaderboard.length > 3 ? _leaderboard.length - 3 : 0,
               itemBuilder: (context, index) {
                 final rep = _leaderboard[index + 3];
@@ -107,21 +106,47 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 24, 16, 32),
+      padding: const EdgeInsets.fromLTRB(10, 12, 10, 16),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
-        borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(32), bottomRight: Radius.circular(32)),
-        boxShadow: [BoxShadow(color: isDarkMode ? Colors.transparent : Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 5))],
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(24),
+          bottomRight: Radius.circular(24),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: isDarkMode
+                ? Colors.transparent
+                : Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          if (_leaderboard.length > 1) _buildPodiumBar(context, _leaderboard[1], 2, 120, Colors.grey.shade300),
-          const SizedBox(width: 12),
-          if (_leaderboard.isNotEmpty) _buildPodiumBar(context, _leaderboard[0], 1, 150, const Color(0xFFFFD700)), // Gold
-          const SizedBox(width: 12),
-          if (_leaderboard.length > 2) _buildPodiumBar(context, _leaderboard[2], 3, 100, const Color(0xFFCD7F32)), // Bronze
+          if (_leaderboard.length > 1)
+            _buildPodiumBar(context, _leaderboard[1], 2, 90, Colors.grey.shade300),
+          const SizedBox(width: 8),
+          if (_leaderboard.isNotEmpty)
+            _buildPodiumBar(
+              context,
+              _leaderboard[0],
+              1,
+              110,
+              const Color(0xFFFFD700),
+            ),
+          const SizedBox(width: 8),
+          if (_leaderboard.length > 2)
+            _buildPodiumBar(
+              context,
+              _leaderboard[2],
+              3,
+              75,
+              const Color(0xFFCD7F32),
+            ),
         ],
       ),
     );
@@ -146,13 +171,27 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
             Container(
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(color: medalColor, shape: BoxShape.circle, border: Border.all(color: isDarkMode ? Colors.transparent : Colors.white, width: 2)),
-              child: Text('\$rank', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.white)),
+              child: Text(
+                '$rank',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                  color: Colors.white,
+                ),
+              ),
             ),
           ],
         ),
         const SizedBox(height: 8),
         Text(rep['name'].split(' ')[0], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-        Text("\${rep['points']} P", style: const TextStyle(color: Color(0xFF00A8E8), fontWeight: FontWeight.bold, fontSize: 12)),
+        Text(
+          "${rep['points']} P",
+          style: const TextStyle(
+            color: Color(0xFF00A8E8),
+            fontWeight: FontWeight.bold,
+            fontSize: 12,
+          ),
+        ),
         const SizedBox(height: 12),
         Container(
           width: 80,
@@ -168,7 +207,14 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              Text('\$rank.', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24, color: medalColor.withOpacity(0.8))),
+              Text(
+                '$rank.',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 24,
+                  color: medalColor.withOpacity(0.8),
+                ),
+              ),
               const SizedBox(height: 8),
             ],
           ),
@@ -186,6 +232,8 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDarkMode ? Colors.white : const Color(0xFF2C3E50);
     final subtitleColor = isDarkMode ? Colors.grey[400] : Colors.grey.shade500;
+    final pointsLabel =
+        AppLocalization.of(context).translate('target.points');
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -199,7 +247,14 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
         children: [
           SizedBox(
             width: 30,
-            child: Text('\$rank', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: isDarkMode ? Colors.grey[600] : Colors.grey.shade400)),
+            child: Text(
+              '$rank',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+                color: isDarkMode ? Colors.grey[600] : Colors.grey.shade400,
+              ),
+            ),
           ),
           CircleAvatar(
             radius: 20,
@@ -212,7 +267,10 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(rep['name'], style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: textColor)),
-                Text("\${rep['points']} ${AppLocalization.of(context).translate('target.points')}", style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
+                Text(
+                  "${rep['points']} $pointsLabel",
+                  style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+                ),
                 const SizedBox(height: 8),
                 Row(
                   children: [
@@ -228,7 +286,14 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Text('\${(progress * 100).toInt()}%', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: isOverachieving ? Colors.green : subtitleColor))
+                    Text(
+                      '${(progress * 100).toInt()}%',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        color: isOverachieving ? Colors.green : subtitleColor,
+                      ),
+                    ),
                   ],
                 ),
               ],

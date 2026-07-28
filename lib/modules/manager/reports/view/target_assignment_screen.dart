@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../field_sales/shared/view/field_sales_dens_app_bar.dart';
+
 class TargetAssignmentScreen extends StatefulWidget {
   const TargetAssignmentScreen({Key? key}) : super(key: key);
 
@@ -136,100 +138,155 @@ class _TargetAssignmentScreenState extends State<TargetAssignmentScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FD),
-      appBar: AppBar(
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF375A7F), Color(0xFF00A8E8)],
-            ),
-          ),
-        ),
-        title: const Text('Hedef Atama', style: TextStyle(fontWeight: FontWeight.bold)),
-        foregroundColor: Colors.white,
-        elevation: 0,
+      appBar: FieldSalesDensAppBar(
+        title: 'Hedef Atama',
+        useGradient: true,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.sync),
+          FieldSalesDensAppBar.densIconButton(
+            icon: Icons.sync,
             tooltip: 'ERP ile Eşitle',
             onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Hedefler Logo ERP ile eşitleniyor...')));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Hedefler Logo ERP ile eşitleniyor...'),
+                ),
+              );
             },
           ),
         ],
       ),
       body: ListView.builder(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(10, 8, 10, 12),
         itemCount: _reps.length,
         itemBuilder: (context, index) {
           final rep = _reps[index];
           final bool hasTarget = rep['revenueTarget'] != null;
 
           return Card(
-            elevation: 4,
+            elevation: 2,
             shadowColor: Colors.black.withOpacity(0.05),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            margin: const EdgeInsets.only(bottom: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            margin: const EdgeInsets.only(bottom: 8),
             child: InkWell(
               onTap: () => _showSetTargetBottomSheet(rep),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(12),
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
                 child: Column(
                   children: [
                     Row(
                       children: [
                         CircleAvatar(
-                          radius: 24,
-                          backgroundColor: hasTarget ? Colors.green.withOpacity(0.1) : Colors.orange.withOpacity(0.1),
+                          radius: 18,
+                          backgroundColor: hasTarget
+                              ? Colors.green.withOpacity(0.1)
+                              : Colors.orange.withOpacity(0.1),
                           child: Icon(
-                            hasTarget ? Icons.check_circle : Icons.pending_actions,
+                            hasTarget
+                                ? Icons.check_circle
+                                : Icons.pending_actions,
                             color: hasTarget ? Colors.green : Colors.orange,
-                            size: 28,
+                            size: 20,
                           ),
                         ),
-                        const SizedBox(width: 16),
+                        const SizedBox(width: 10),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(rep['name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF2C3E50))),
-                              const SizedBox(height: 4),
-                              Text(rep['region'], style: TextStyle(color: Colors.grey.shade600, fontSize: 14)),
+                              Text(
+                                rep['name'],
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                  color: Color(0xFF2C3E50),
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                rep['region'],
+                                style: TextStyle(
+                                  color: Colors.grey.shade600,
+                                  fontSize: 12,
+                                ),
+                              ),
                             ],
                           ),
                         ),
-                        Icon(Icons.chevron_right, color: Colors.grey.shade400),
+                        Icon(
+                          Icons.chevron_right,
+                          size: 18,
+                          color: Colors.grey.shade400,
+                        ),
                       ],
                     ),
                     if (hasTarget) ...[
                       const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 12),
-                        child: Divider(),
+                        padding: EdgeInsets.symmetric(vertical: 6),
+                        child: Divider(height: 1),
                       ),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: [
-                          Expanded(child: _buildTargetPill('Ciro', "\${rep['revenueTarget']}₺", Icons.monetization_on, Colors.blue)),
-                          Expanded(child: _buildTargetPill('Ziyaret', "\${rep['visitTarget']}", Icons.location_on, Colors.purple)),
-                          Expanded(child: _buildTargetPill('Müşteri', "\${rep['newCustTarget']}", Icons.person_add, Colors.orange)),
+                          Expanded(
+                            child: _buildTargetPill(
+                              'Ciro',
+                              '${rep['revenueTarget']}₺',
+                              Icons.monetization_on,
+                              Colors.blue,
+                            ),
+                          ),
+                          Expanded(
+                            child: _buildTargetPill(
+                              'Ziyaret',
+                              '${rep['visitTarget']}',
+                              Icons.location_on,
+                              Colors.purple,
+                            ),
+                          ),
+                          Expanded(
+                            child: _buildTargetPill(
+                              'Müşteri',
+                              '${rep['newCustTarget']}',
+                              Icons.person_add,
+                              Colors.orange,
+                            ),
+                          ),
                         ],
-                      )
+                      ),
                     ] else ...[
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 6),
                       Container(
-                        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                        decoration: BoxDecoration(color: Colors.orange.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 6,
+                          horizontal: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                         child: const Row(
                           children: [
-                            Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 16),
-                            SizedBox(width: 8),
-                            Text('Aylık hedef atanmamış.', style: TextStyle(color: Colors.orange, fontSize: 13, fontWeight: FontWeight.bold)),
+                            Icon(
+                              Icons.warning_amber_rounded,
+                              color: Colors.orange,
+                              size: 14,
+                            ),
+                            SizedBox(width: 6),
+                            Text(
+                              'Aylık hedef atanmamış.',
+                              style: TextStyle(
+                                color: Colors.orange,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ],
                         ),
-                      )
-                    ]
+                      ),
+                    ],
                   ],
                 ),
               ),

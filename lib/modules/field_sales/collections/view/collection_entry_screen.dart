@@ -2,13 +2,16 @@
 // Açıklama: Tahsilat girişi — cari guard + nakit MBT dens alan seti
 // Oluşturulma Tarihi: 2024-03-20
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-26
+// Son Güncelleme: 2026-07-28
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/localization/app_localization.dart';
 import '../../../../service/database_service.dart';
 import '../../shared/view/unsaved_voucher_scope.dart';
+import '../../currency/engine/collection_currency_exchange.dart';
+import '../../currency/viewmodel/currency_rate_store.dart';
+import '../../currency/viewmodel/default_currency_resolver.dart';
 import '../model/finance_movement_type.dart';
 import '../model/session_salesperson_code.dart';
 import '../viewmodel/collection_provider.dart';
@@ -71,7 +74,17 @@ class _CollectionEntryScreenState extends ConsumerState<CollectionEntryScreen> {
   final _checkNoController = TextEditingController();
 
   /// [_currencyController]: Nakit — işlem dövizi
-  final _currencyController = TextEditingController(text: 'TRY');
+  final _currencyController = TextEditingController();
+
+  /// [_exchangeRateController]: Nakit — kur (seçilen → merkez)
+  final _exchangeRateController = TextEditingController(text: '1');
+
+  /// [_defaultCurrencyCode]: Merkez / firma varsayılan para birimi
+  String _defaultCurrencyCode =
+      CollectionCurrencyExchange.fallbackDefaultCode;
+
+  /// [_rateMap]: Döviz kuru ekranından kod→kur
+  Map<String, String> _rateMap = const {};
 
   /// [_documentNoController]: Nakit — evrak no
   final _documentNoController = TextEditingController();
@@ -158,7 +171,10 @@ class _CollectionEntryScreenState extends ConsumerState<CollectionEntryScreen> {
     _originalDebtorController.addListener(_onDraftFieldChanged);
     _workplaceController.addListener(_onDraftFieldChanged);
     _accountNoController.addListener(_onDraftFieldChanged);
+    _amountController.addListener(_onCurrencyUiChanged);
+    _exchangeRateController.addListener(_onCurrencyUiChanged);
     Future.microtask(() async {
+      await _prefillDefaultCurrency();
       await _prefillSalespersonFromSession();
       if (!CollectionNotifier.isValidCustomerId(widget.customerId)) {
         if (!mounted) return;
@@ -191,6 +207,55 @@ class _CollectionEntryScreenState extends ConsumerState<CollectionEntryScreen> {
     if (mounted) setState(() {});
   }
 
+  /// {@template _onCurrencyUiChanged}
+  /// Kur / tutar değişince dens döviz özeti yenilenir.
+  /// {@endtemplate}
+  void _onCurrencyUiChanged() {
+    if (mounted) setState(() {});
+  }
+
+  /// {@template _prefillDefaultCurrency}
+  /// Merkez varsayılan dövizi + kur map ön-doldurur.
+  /// {@endtemplate}
+  Future<void> _prefillDefaultCurrency() async {
+    try {
+      final code = await const DefaultCurrencyResolver().resolve();
+      final rates = await const CurrencyRateStore().load();
+      if (!mounted) return;
+      setState(() {
+        _defaultCurrencyCode = code;
+        _rateMap = rates.rates;
+        if (_currencyController.text.trim().isEmpty) {
+          _currencyController.text = code;
+        }
+        _applyRateForCurrency(_currencyController.text);
+      });
+    } catch (_) {
+      if (!mounted) return;
+      if (_currencyController.text.trim().isEmpty) {
+        _currencyController.text =
+            CollectionCurrencyExchange.fallbackDefaultCode;
+      }
+    }
+  }
+
+  /// {@template _applyRateForCurrency}
+  /// Seçilen döviz için kur alanını doldurur.
+  /// {@endtemplate}
+  void _applyRateForCurrency(String code) {
+    final rate = CollectionCurrencyExchange.resolveRate(
+      currencyCode: code,
+      defaultCurrency: _defaultCurrencyCode,
+      rates: _rateMap,
+    );
+    _exchangeRateController.text = rate > 0
+        ? CollectionCurrencyExchange.formatRate(rate)
+        : (CollectionCurrencyExchange.isDefaultCurrency(
+                code, _defaultCurrencyCode)
+            ? '1'
+            : '');
+  }
+
   /// {@template _discardCollectionDraft}
   /// Kaydedilmemiş tahsilat formunu temizler (MBT Sil).
   /// {@endtemplate}
@@ -209,7 +274,8 @@ class _CollectionEntryScreenState extends ConsumerState<CollectionEntryScreen> {
     _workplaceController.clear();
     _accountNoController.clear();
     _dueDate = null;
-    _currencyController.text = 'TRY';
+    _currencyController.text = _defaultCurrencyCode;
+    _exchangeRateController.text = '1';
   }
 
   /// {@template _prefillSalespersonFromSession}
@@ -255,12 +321,15 @@ class _CollectionEntryScreenState extends ConsumerState<CollectionEntryScreen> {
     _originalDebtorController.removeListener(_onDraftFieldChanged);
     _workplaceController.removeListener(_onDraftFieldChanged);
     _accountNoController.removeListener(_onDraftFieldChanged);
+    _amountController.removeListener(_onCurrencyUiChanged);
+    _exchangeRateController.removeListener(_onCurrencyUiChanged);
     _amountController.dispose();
     _notesController.dispose();
     _bankController.dispose();
     _branchController.dispose();
     _checkNoController.dispose();
     _currencyController.dispose();
+    _exchangeRateController.dispose();
     _documentNoController.dispose();
     _cashCodeController.dispose();
     _descriptionController.dispose();
@@ -380,14 +449,18 @@ class _CollectionEntryScreenState extends ConsumerState<CollectionEntryScreen> {
       ),
       child: CollectionCashMbtFields(
         currencyController: _currencyController,
+        exchangeRateController: _exchangeRateController,
+        defaultCurrencyCode: _defaultCurrencyCode,
         documentNoController: _documentNoController,
         cashCodeController: _cashCodeController,
         descriptionController: _descriptionController,
         amountController: _amountController,
         salespersonController: _salespersonController,
         specialCodeController: _specialCodeController,
-        // Üst tutar kartı zaten var; dens tutar aynı controller ile tutulur
         showAmountField: true,
+        onCurrencyChanged: (code) {
+          setState(() => _applyRateForCurrency(code));
+        },
       ),
     );
   }
@@ -796,8 +869,8 @@ class _CollectionEntryScreenState extends ConsumerState<CollectionEntryScreen> {
 
   void _handleSave() async {
     final l10n = AppLocalization.of(context);
-    final amount = double.tryParse(
-          _amountController.text.trim().replaceAll(',', '.'),
+    final amount = CollectionCurrencyExchange.parseRate(
+          _amountController.text,
         ) ??
         0.0;
     if (amount <= 0) {
@@ -817,6 +890,20 @@ class _CollectionEntryScreenState extends ConsumerState<CollectionEntryScreen> {
         ? _descriptionController.text.trim()
         : _notesController.text;
 
+    final exchangeRate = _isCash
+        ? CollectionCurrencyExchange.parseRate(
+            _exchangeRateController.text,
+          )
+        : null;
+    final baseAmount = (_isCash &&
+            exchangeRate != null &&
+            exchangeRate > 0)
+        ? CollectionCurrencyExchange.toBaseAmount(
+            amountInCurrency: amount,
+            exchangeRate: exchangeRate,
+          )
+        : null;
+
     final success = await ref.read(collectionProvider.notifier).saveCollection(
           customerId: widget.customerId,
           amount: amount,
@@ -831,7 +918,14 @@ class _CollectionEntryScreenState extends ConsumerState<CollectionEntryScreen> {
           cashCode: (_isCash || isCard) ? _cashCodeController.text : null,
           documentNo:
               (_isCash || isCheck || isCard) ? _documentNoController.text : null,
-          currencyCode: _isCash ? _currencyController.text : null,
+          currencyCode: _isCash
+              ? CollectionCurrencyExchange.normalize(
+                  _currencyController.text,
+                )
+              : null,
+          exchangeRate: exchangeRate,
+          baseAmount: (baseAmount != null && baseAmount > 0) ? baseAmount : null,
+          baseCurrencyCode: _isCash ? _defaultCurrencyCode : null,
           salespersonCode: _isCash ? _salespersonController.text : null,
           specialCode1: _isCash ? _specialCodeController.text : null,
           endorsement: isCheck ? _endorsementController.text : null,

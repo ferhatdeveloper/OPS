@@ -13,6 +13,7 @@ import '../../../../service/invoice_print_service.dart';
 import '../../shared/view/catalog_barcode_actions.dart';
 import '../../shared/view/digital_signature_screen.dart';
 import '../../shared/view/mbt_catalog_toolbar.dart';
+import '../../shared/view/product_line_qty_unit_sheet.dart';
 import '../../shared/view/unsaved_voucher_dialog.dart';
 import '../../shared/view/unsaved_voucher_scope.dart';
 import '../../shared/view/voucher_defaults_fields.dart';
@@ -278,8 +279,6 @@ class _InvoiceEntryScreenState extends ConsumerState<InvoiceEntryScreen> with Si
                       final price = (p['price'] as num).toDouble();
                       final unit = p['unit'] as String? ??
                           l10n.translate('field_sales.unit_piece');
-                      final vatRate = (p['vat_rate'] as num?)?.toDouble() ??
-                          20.0;
 
                       return Container(
                         margin: const EdgeInsets.only(bottom: 6),
@@ -352,15 +351,7 @@ class _InvoiceEntryScreenState extends ConsumerState<InvoiceEntryScreen> with Si
                                 ),
                               ),
                               ElevatedButton(
-                                onPressed: () => ref
-                                    .read(invoiceProvider.notifier)
-                                    .addItem(
-                                      p['id'],
-                                      name,
-                                      price,
-                                      1,
-                                      vatRate: vatRate,
-                                    ),
+                                onPressed: () => _addProductWithQtyUnit(p),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor:
                                       const Color(0xFF00A8E8).withOpacity(0.1),
@@ -385,35 +376,54 @@ class _InvoiceEntryScreenState extends ConsumerState<InvoiceEntryScreen> with Si
     );
   }
 
+  /// {@template _add_product_with_qty_unit}
+  /// Dens birim+miktar sheet ile fatura satırına ürün ekler.
+  /// {@endtemplate}
+  Future<void> _addProductWithQtyUnit(Map<String, dynamic> product) async {
+    final result = await showProductLineQtyUnitSheet(
+      context: context,
+      product: product,
+    );
+    if (result == null || !mounted) return;
+
+    final id = product['id'];
+    if (id == null) return;
+    final name = product['name']?.toString() ?? '';
+    final price = (product['price'] as num?)?.toDouble() ?? 0.0;
+    final vatRate = (product['vat_rate'] as num?)?.toDouble() ?? 20.0;
+
+    await ref.read(invoiceProvider.notifier).addItem(
+          id.toString(),
+          name,
+          price,
+          result.quantity,
+          vatRate: vatRate,
+          unitName: result.unitName,
+        );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          AppLocalization.of(context).translate(
+            'field_sales.item_added_with_unit',
+            args: {
+              'name': name,
+              'unit': '${result.quantity} ${result.unitName}',
+            },
+          ),
+        ),
+        duration: const Duration(seconds: 1),
+      ),
+    );
+  }
+
   /// {@template _open_barcode_lookup}
   /// Barkod dens lookup açar; seçilen ürünü faturaya ekler.
   /// {@endtemplate}
   Future<void> _openBarcodeLookup(AppLocalization l10n) async {
     final product = await openFieldSalesBarcodeScan(context);
     if (product == null || !mounted) return;
-    final id = product['id'];
-    final name = product['name']?.toString() ?? '';
-    final price = (product['price'] as num?)?.toDouble() ?? 0.0;
-    final vatRate = (product['vat_rate'] as num?)?.toInt() ?? 20;
-    if (id == null) return;
-    ref.read(invoiceProvider.notifier).addItem(
-          id.toString(),
-          name,
-          price,
-          1.0,
-          vatRate: vatRate.toDouble(),
-        );
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          l10n.translate(
-            'field_sales.product_added',
-            args: {'name': name},
-          ),
-        ),
-        duration: const Duration(seconds: 1),
-      ),
-    );
+    await _addProductWithQtyUnit(product);
   }
 
   /// {@template _onMbtToolbarAction}
@@ -566,6 +576,13 @@ class _InvoiceEntryScreenState extends ConsumerState<InvoiceEntryScreen> with Si
   }
 
   Widget _buildCartItem(InvoiceItemModel item) {
+    final unitLabel = (item.unitName ?? '').trim().isEmpty
+        ? AppLocalization.of(context).translate('field_sales.unit_piece')
+        : item.unitName!;
+    final qtyText = item.quantity == item.quantity.roundToDouble()
+        ? '${item.quantity.toInt()}'
+        : item.quantity.toString();
+
     return Container(
       margin: const EdgeInsets.only(bottom: 6),
       padding: const EdgeInsets.fromLTRB(10, 8, 6, 8),
@@ -598,7 +615,7 @@ class _InvoiceEntryScreenState extends ConsumerState<InvoiceEntryScreen> with Si
                 constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
                 onPressed: () => ref
                     .read(invoiceProvider.notifier)
-                    .updateQuantity(item.productId, 0),
+                    .updateQuantity(item.id, 0),
               ),
             ],
           ),
@@ -606,7 +623,7 @@ class _InvoiceEntryScreenState extends ConsumerState<InvoiceEntryScreen> with Si
           Row(
             children: [
               Text(
-                '${item.price} ',
+                '${item.price} / $unitLabel',
                 style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
               ),
               const Spacer(),
@@ -631,14 +648,14 @@ class _InvoiceEntryScreenState extends ConsumerState<InvoiceEntryScreen> with Si
                       onPressed: () => ref
                           .read(invoiceProvider.notifier)
                           .updateQuantity(
-                            item.productId,
+                            item.id,
                             item.quantity - 1,
                           ),
                     ),
                     SizedBox(
-                      width: 28,
+                      width: 36,
                       child: Text(
-                        '${item.quantity.toInt()}',
+                        qtyText,
                         textAlign: TextAlign.center,
                         style: const TextStyle(
                           fontWeight: FontWeight.w600,
@@ -657,7 +674,7 @@ class _InvoiceEntryScreenState extends ConsumerState<InvoiceEntryScreen> with Si
                       onPressed: () => ref
                           .read(invoiceProvider.notifier)
                           .updateQuantity(
-                            item.productId,
+                            item.id,
                             item.quantity + 1,
                           ),
                     ),

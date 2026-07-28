@@ -2,7 +2,7 @@
 // Açıklama: Cari ekstre hareketleri SQLite erişim + minimal seed
 // Oluşturulma Tarihi: 2026-07-26
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-26
+// Son Güncelleme: 2026-07-28
 
 import 'package:sqflite/sqflite.dart';
 
@@ -11,6 +11,7 @@ import '../../../../core/services/logo_payload_mapper.dart';
 import '../../../../service/database_service.dart';
 import '../../collections/model/finance_movement_type.dart';
 import '../model/customer_extract_movement.dart';
+import '../model/customer_reconciliation_summary.dart';
 
 /// {@template customer_extract_store}
 /// `customer_movements` tablosunu oluşturur, boşsa seedler, sorgular.
@@ -345,5 +346,69 @@ class CustomerExtractStore {
     );
 
     return rows.map(CustomerExtractMovement.fromMap).toList();
+  }
+
+  /// {@template customer_extract_store_reconciliation}
+  /// Dönem öncesi açılış + dönem borç/alacak özeti (mutabakat).
+  ///
+  /// Parametreler:
+  /// - [customerId]: Cari id (zorunlu)
+  /// - [start]: Dönem başlangıç (dahil)
+  /// - [end]: Dönem bitiş (dahil)
+  ///
+  /// Dönüş değeri:
+  /// - [CustomerReconciliationSummary]: Mutabakat özeti
+  /// {@endtemplate}
+  Future<CustomerReconciliationSummary> reconciliationSummary({
+    required String customerId,
+    required DateTime start,
+    required DateTime end,
+  }) async {
+    final cari = customerId.trim();
+    if (cari.isEmpty) {
+      return CustomerReconciliationSummary.empty;
+    }
+
+    await ensureReady();
+    final db = await _db();
+
+    final startIso = DateTime(start.year, start.month, start.day)
+        .toIso8601String();
+
+    final openingRows = await db.rawQuery(
+      '''
+SELECT
+  COALESCE(SUM(debit), 0) AS d,
+  COALESCE(SUM(credit), 0) AS c
+FROM $tableName
+WHERE COALESCE(is_deleted, 0) = 0
+  AND customer_id = ?
+  AND movement_date < ?
+''',
+      <Object?>[cari, startIso],
+    );
+    final openingDebit =
+        (openingRows.first['d'] as num?)?.toDouble() ?? 0;
+    final openingCredit =
+        (openingRows.first['c'] as num?)?.toDouble() ?? 0;
+
+    final movements = await query(
+      customerId: cari,
+      start: start,
+      end: end,
+    );
+    var debit = 0.0;
+    var credit = 0.0;
+    for (final m in movements) {
+      debit += m.debit;
+      credit += m.credit;
+    }
+
+    return CustomerReconciliationSummary(
+      openingBalance: openingDebit - openingCredit,
+      periodDebit: debit,
+      periodCredit: credit,
+      movementCount: movements.length,
+    );
   }
 }

@@ -67,9 +67,11 @@ class VisitMbtFields extends StatelessWidget {
   /// [notesController]: Not
   final TextEditingController notesController;
 
+  /// [notesHeader]: Not alanı üstü dens şerit (ör. STT kayıt)
+  final Widget? notesHeader;
+
   /// [visitReason]: Seçili ziyaret sebebi kodu (null = Seçim)
   final String? visitReason;
-
   /// [onVisitReasonChanged]: Sebep kodu değişimi
   final ValueChanged<String?> onVisitReasonChanged;
 
@@ -108,6 +110,7 @@ class VisitMbtFields extends StatelessWidget {
     required this.referenceController,
     required this.attachmentsController,
     required this.notesController,
+    this.notesHeader,
     required this.visitReason,
     required this.onVisitReasonChanged,
     required this.outcome,
@@ -479,6 +482,7 @@ class VisitMbtFields extends StatelessWidget {
           },
         ),
         const SizedBox(height: 8),
+        if (notesHeader != null) notesHeader!,
         _textField(
           controller: notesController,
           label: l10n.translate('field_sales.visit_note_label'),

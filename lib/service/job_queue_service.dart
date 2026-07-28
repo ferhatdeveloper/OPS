@@ -12,6 +12,7 @@ import 'package:uuid/uuid.dart';
 import '../core/database/migrations/SqlQuerys.dart';
 import '../core/services/logo_api_service.dart';
 import '../core/services/logo_payload_mapper.dart';
+import '../modules/field_sales/ai_insights/viewmodel/supply_request_logo_sync_mapper.dart';
 import 'database_service.dart';
 import 'job_queue_entity_map.dart';
 
@@ -217,6 +218,35 @@ class JobQueueService {
             return LogoApiResult.fail('Ziyaret payload boş');
           }
           return LogoApiResult.ok(visitQueueSkippedData(payload!));
+        case 'bank_card':
+        case 'bank_cards':
+          return _syncFinanceMasterStub(
+            type,
+            entityId,
+            payload,
+            normalize: LogoPayloadMapper.bankCardFromLocal,
+          );
+        case 'check_portfolio':
+        case 'check_portfolios':
+          return _syncFinanceMasterStub(
+            type,
+            entityId,
+            payload,
+            normalize: LogoPayloadMapper.checkPortfolioFromLocal,
+          );
+        case 'promissory_portfolio':
+        case 'promissory_portfolios':
+        case 'promissory_note':
+          return _syncFinanceMasterStub(
+            type,
+            entityId,
+            payload,
+            normalize: LogoPayloadMapper.promissoryPortfolioFromLocal,
+          );
+        case 'supplier_purchase_request':
+        case 'supplier_purchase_requests':
+        case 'supply_request':
+          return _syncSupplierPurchaseRequest(logo, entityId, payload);
         default:
           debugPrint('Bilinmeyen entity_type: $type — atlanıyor');
           return LogoApiResult.ok({'skipped': true});
@@ -224,6 +254,56 @@ class JobQueueService {
     } catch (e) {
       return LogoApiResult.fail(e.toString());
     }
+  }
+
+  /// Banka / çek / senet master — Logo endpoint stub (normalize + skipped ok).
+  LogoApiResult _syncFinanceMasterStub(
+    String type,
+    String entityId,
+    Map<String, dynamic>? payload, {
+    required Map<String, dynamic> Function(Map<String, dynamic> row) normalize,
+  }) {
+    if (payload == null || payload.isEmpty) {
+      return LogoApiResult.fail('$type payload boş');
+    }
+    final body = normalize(Map<String, dynamic>.from(payload));
+    return LogoApiResult.ok({
+      'skipped': true,
+      'sync_stub': true,
+      'entity_type': type,
+      'entity_id': entityId,
+      'payload': body,
+    });
+  }
+
+  /// Tedarik talebi → Logo satın alma siparişi (`POST /orders`, purchase).
+  ///
+  /// [SupplyRequestLogoSyncMapper.useRealLogoPurchasePath] false veya
+  /// payload `stub: true` → yerel is_synced işaretleme (stub ok).
+  Future<LogoApiResult> _syncSupplierPurchaseRequest(
+    LogoApiService logo,
+    String entityId,
+    Map<String, dynamic>? payload,
+  ) async {
+    if (payload == null || payload.isEmpty) {
+      return LogoApiResult.fail('supplier_purchase_request payload boş');
+    }
+    final stub = payload['stub'] == true ||
+        !SupplyRequestLogoSyncMapper.useRealLogoPurchasePath;
+    if (stub) {
+      return LogoApiResult.ok({
+        'skipped': true,
+        'sync_stub': true,
+        'entity_type': SupplyRequestLogoSyncMapper.entityType,
+        'entity_id': entityId,
+        'payload': payload,
+      });
+    }
+    final body = _ensureOrderTypeFields(Map<String, dynamic>.from(payload));
+    body['type'] = 'purchase';
+    body['order_type'] = 'purchase';
+    body['order_channel'] = LogoPayloadMapper.orderChannelKey('purchase');
+    return logo.createOrder(body);
   }
 
   Future<LogoApiResult> _syncOrder(
@@ -414,6 +494,9 @@ class JobQueueService {
       description: c['notes']?.toString(),
       documentNo: c['document_no']?.toString(),
       currencyCode: c['currency_code']?.toString(),
+      exchangeRate: (c['exchange_rate'] as num?)?.toDouble(),
+      baseAmount: (c['base_amount'] as num?)?.toDouble(),
+      baseCurrencyCode: c['base_currency_code']?.toString(),
       salesmanCode: c['salesperson_code']?.toString(),
       specialCode1: c['special_code_1']?.toString(),
       bankName: c['bank_name']?.toString(),
@@ -469,9 +552,15 @@ class JobQueueService {
     try {
       final dbService = await DatabaseService.getInstance();
       final db = await dbService.getDatabase();
+      final values = <String, Object?>{'is_synced': 1};
+      if (table == 'supplier_purchase_requests') {
+        values['status'] = 'synced';
+        values['ONAY'] = 2;
+        values['updated_at'] = DateTime.now().toIso8601String();
+      }
       await db.update(
         table,
-        {'is_synced': 1},
+        values,
         where: 'id = ?',
         whereArgs: [entityId],
       );

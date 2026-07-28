@@ -7,6 +7,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/localization/app_localization.dart';
+import '../../shared/view/field_sales_dens_app_bar.dart';
 import '../../shared/view/mbt_sales_purchase_queue_body.dart';
 import '../model/invoice_untransferred_record.dart';
 import '../model/invoice_untransferred_seed.dart';
@@ -104,29 +105,11 @@ class _InvoicesUntransferredScreenState
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FD),
-      appBar: AppBar(
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF375A7F), Color(0xFF00A8E8)],
-            ),
-          ),
-        ),
-        title: Text(
-          title,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-            color: Colors.white,
-          ),
-        ),
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
+      appBar: FieldSalesDensAppBar(
+        title: title,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
+          FieldSalesDensAppBar.densIconButton(
+            icon: Icons.refresh,
             onPressed: _loading ? null : _reload,
             tooltip: l10n.translate('common.reload'),
           ),

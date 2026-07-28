@@ -5,12 +5,18 @@ import '../modules/field_sales/collections/model/cash_card_seed.dart';
 import '../modules/field_sales/invoices/model/einvoice_status_seed.dart';
 import '../modules/field_sales/pricing/model/price_list_seed.dart';
 import '../modules/field_sales/stock/model/batch_expiry_seed.dart';
+import '../modules/field_sales/favorites/viewmodel/menu_favorites_store.dart';
+import '../modules/field_sales/shared/model/field_sales_menu_l10n.dart';
+import '../modules/admin_panel/viewmodel/permission_group_store.dart';
 import '../modules/field_sales/stock/model/warehouse_master_seed.dart';
+import '../core/auth/permission_resolver.dart';
+import '../service/gamification_service.dart';
 import '../modules/field_sales/waybills/model/ewaybill_status_seed.dart';
 import 'postgres_service.dart';
 import 'dart:convert';
 import '../core/services/postgre_service.dart';
 import 'storage_service.dart';
+import '../core/auth/remember_me_store.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:async';
 import 'package:crypto/crypto.dart';
@@ -229,12 +235,23 @@ class DatabaseService {
       await ensureCustomersCardRoleColumn();
       await ensureCollectionsTableSchema();
       await ensureVisitsTableSchema();
+      await ensureVisitVoiceIntelligenceSchema();
+      await ensureWaybillsTableSchema();
       await ensureEinvoiceStatusSchema();
       await ensureEwaybillStatusSchema();
       await ensureWarehousesSchema();
+      await ensureWhmsP0Schema();
       await ensurePriceListsSchema();
       await ensureBatchExpirySchema();
       await ensureCashCardsSchema();
+      await ensureSupplierPurchaseRequestsSchema();
+      await ensurePlasiyerProfileSchema();
+      // P0: eski TR menü title → l10n key (Postgres sync / eski seed)
+      await ensureFieldSalesMenuL10nTitles();
+      await ensureAiDemandForecastMenuItems();
+      await ensureWhmsDepoMenuItems();
+      await ensureAiDynamicReportAndVisionMenuItems();
+      await ensureAiDynamicReportsSchema();
 
       // Menü tablosu reset kontrolü ve otomatik sıfırlama kaldırıldı
       // Dil tablosunu oluştur
@@ -478,14 +495,15 @@ class DatabaseService {
   /// Kullanıcı oturumunu sonlandır
   Future<void> logout() async {
     try {
-      // Oturum bilgilerini temizle
-      await _storage.clearCredentials(preserveRememberMe: true);
+      // Logout: beni hatırla dahil tüm kimlik / oturum temizlenir
+      await _storage.clearCredentials(preserveRememberMe: false);
 
-      // Seçili firma bilgisini temizle
       await _storage.setSetting('selected_company_id', '');
-
-      // Auth token'ı temizle
       await _storage.setSetting('auth_token', '');
+      await _storage.setSetting('user_session', '');
+      try {
+        await const RememberMeStore().clear();
+      } catch (_) {}
     } catch (e) {
       print('Çıkış yapılırken hata oluştu: $e');
       rethrow;
@@ -524,33 +542,47 @@ class DatabaseService {
     return await _storage.getObject(key);
   }
 
-  /// Save user credentials if "Remember Me" is selected
+  /// Save user credentials if "Remember Me" is selected.
+  /// Şifre düz metin yazılmaz; obfuscate kopya [RememberMeStore]'da.
   Future<void> saveCredentials(String username, String password) async {
     await _storage.setSetting('saved_username', username);
-    await _storage.setSetting('saved_password', password);
+    await _storage.setSetting('saved_password', '');
     await _storage.setSetting('remember_me', true);
   }
 
-  /// Clear saved credentials
+  /// Clear saved credentials (+ RememberMeStore)
   Future<void> clearCredentials() async {
     await _storage.setSetting('saved_username', '');
     await _storage.setSetting('saved_password', '');
     await _storage.setSetting('remember_me', false);
+    try {
+      await const RememberMeStore().clear();
+    } catch (_) {}
   }
 
   /// Check if credentials are saved
   Future<bool> hasRememberedCredentials() async {
-    final rememberMe = await _storage.getSetting('remember_me');
+    try {
+      if (await const RememberMeStore().isEnabled()) return true;
+    } catch (_) {}
     return await _storage.getBoolSetting('remember_me', defaultValue: false);
   }
 
   /// Get saved username
   Future<String?> getSavedUsername() async {
+    try {
+      final s = await const RememberMeStore().load();
+      if (s != null && s.username.isNotEmpty) return s.username;
+    } catch (_) {}
     return await _storage.getSetting('saved_username');
   }
 
-  /// Get saved password
+  /// Get saved password (obfuscate store veya legacy)
   Future<String?> getSavedPassword() async {
+    try {
+      final p = await const RememberMeStore().loadPlainPassword();
+      if (p != null && p.isNotEmpty) return p;
+    } catch (_) {}
     return await _storage.getSetting('saved_password');
   }
 
@@ -740,9 +772,11 @@ class DatabaseService {
     String? createdAt,
     String? updatedAt,
     bool isSelected = false,
+    String? defaultCurrency,
   }) async {
     if (await _storage.hasSQLiteSupport()) {
       final db = await _storage.getDatabase();
+      await ensureCompaniesTableSchema();
       final existingCompany = await db.query(
         'companies',
         where: 'id = ?',
@@ -755,6 +789,8 @@ class DatabaseService {
         'name': name,
         'description': description,
         'is_active': isActive ? 1 : 0,
+        if (defaultCurrency != null && defaultCurrency.trim().isNotEmpty)
+          'default_currency': defaultCurrency.trim().toUpperCase(),
         'created_at': createdAt,
         'updated_at': updatedAt,
         'is_selected': isSelected ? 1 : 0,
@@ -883,6 +919,8 @@ class DatabaseService {
       await db.execute(SqlQuerys.createCompaniesTable);
       await db.execute(SqlQuerys.createLanguagesTable);
       await db.execute(SqlQuerys.createTranslationsTable);
+      // P0: plasiyer_profile erken CREATE — check-in puan yolu yarışını keser
+      await db.execute(SqlQuerys.createPlasiyerProfileTable);
     }
   }
 
@@ -929,6 +967,20 @@ class DatabaseService {
         await db.execute(SqlQuerys.dropCompaniesTable);
         await db.execute(SqlQuerys.createCompaniesTable);
         print('companies tablosu yeni şemaya göre oluşturuldu!');
+      }
+      // Merkez varsayılan para birimi (eksikse ALTER)
+      var cols = await db.rawQuery('PRAGMA table_info(companies)');
+      final hasDefaultCurrency = cols.any(
+        (col) => col['name'] == 'default_currency',
+      );
+      if (!hasDefaultCurrency) {
+        try {
+          await db.execute(
+            'ALTER TABLE companies ADD COLUMN default_currency TEXT',
+          );
+        } catch (e) {
+          print('❌ companies.default_currency kolon ekleme hatası: $e');
+        }
       }
     }
   }
@@ -984,6 +1036,21 @@ class DatabaseService {
           print('✅ orders.approval_status kolonu eklendi');
         } catch (e) {
           print('❌ orders.approval_status kolon ekleme hatası: $e');
+        }
+      }
+
+      final afterDeleted = await db.rawQuery('PRAGMA table_info(orders)');
+      final hasDeleted =
+          afterDeleted.any((col) => col['name'] == 'is_deleted');
+      if (!hasDeleted && afterDeleted.isNotEmpty) {
+        try {
+          await db.execute(
+            'ALTER TABLE orders ADD COLUMN is_deleted '
+            'INTEGER NOT NULL DEFAULT 0',
+          );
+          print('✅ orders.is_deleted kolonu eklendi');
+        } catch (e) {
+          print('❌ orders.is_deleted kolon ekleme hatası: $e');
         }
       }
 
@@ -1069,6 +1136,9 @@ class DatabaseService {
       'target_cash_code': 'TEXT',
       'document_no': 'TEXT',
       'currency_code': 'TEXT',
+      'exchange_rate': 'REAL',
+      'base_amount': 'REAL',
+      'base_currency_code': 'TEXT',
       'salesperson_code': 'TEXT',
       'special_code_1': 'TEXT',
       'endorsement': 'TEXT',
@@ -1092,7 +1162,7 @@ class DatabaseService {
   }
 
   /// {@template ensureVisitsTableSchema}
-  /// Visits tablosuna `reason_code` (VisitReasonMaster) ekler (eksikse).
+  /// Visits tablosuna `reason_code` ve `audio_recording_path` ekler (eksikse).
   /// {@endtemplate}
   Future<void> ensureVisitsTableSchema() async {
     if (!await _storage.hasSQLiteSupport()) return;
@@ -1102,14 +1172,623 @@ class DatabaseService {
       await db.execute(SqlQuerys.createVisitsTable);
       return;
     }
-    final hasReasonCode =
-        columns.any((col) => col['name'] == 'reason_code');
-    if (hasReasonCode) return;
+    final names = columns
+        .map((col) => col['name']?.toString())
+        .whereType<String>()
+        .toSet();
+    if (!names.contains('reason_code')) {
+      try {
+        await db.execute(SqlQuerys.addVisitsReasonCodeColumn);
+        print('✅ visits.reason_code kolonu eklendi');
+      } catch (e) {
+        print('❌ visits.reason_code kolon ekleme hatası: $e');
+      }
+    }
+    if (!names.contains('audio_recording_path')) {
+      try {
+        await db.execute(SqlQuerys.addVisitsAudioRecordingPathColumn);
+        print('✅ visits.audio_recording_path kolonu eklendi');
+      } catch (e) {
+        print('❌ visits.audio_recording_path kolon ekleme hatası: $e');
+      }
+    }
+    if (!names.contains('voice_consent_at')) {
+      try {
+        await db.execute(SqlQuerys.addVisitsVoiceConsentAtColumn);
+      } catch (_) {}
+    }
+    if (!names.contains('emotion_summary')) {
+      try {
+        await db.execute(SqlQuerys.addVisitsEmotionSummaryColumn);
+      } catch (_) {}
+    }
+    if (!names.contains('ai_status_draft')) {
+      try {
+        await db.execute(SqlQuerys.addVisitsAiStatusDraftColumn);
+      } catch (_) {}
+    }
+  }
+
+  /// {@template ensureVisitVoiceIntelligenceSchema}
+  /// `visit_audio_segments` + `visit_transcripts` + visits voice kolonları.
+  /// {@endtemplate}
+  Future<void> ensureVisitVoiceIntelligenceSchema() async {
+    if (!await _storage.hasSQLiteSupport()) return;
+    final db = await _storage.getDatabase();
+    await ensureVisitsTableSchema();
     try {
-      await db.execute(SqlQuerys.addVisitsReasonCodeColumn);
-      print('✅ visits.reason_code kolonu eklendi');
+      await db.execute(SqlQuerys.createVisitAudioSegmentsTable);
     } catch (e) {
-      print('❌ visits.reason_code kolon ekleme hatası: $e');
+      print('❌ visit_audio_segments create: $e');
+    }
+    try {
+      await db.execute(SqlQuerys.createVisitTranscriptsTable);
+    } catch (e) {
+      print('❌ visit_transcripts create: $e');
+    }
+  }
+
+  /// {@template ensureWaybillsTableSchema}
+  /// Waybills tablosuna `invoice_id` ekler (faturasız rapor / bağlantı).
+  /// {@endtemplate}
+  Future<void> ensureWaybillsTableSchema() async {
+    if (!await _storage.hasSQLiteSupport()) return;
+    final db = await _storage.getDatabase();
+    final columns = await db.rawQuery('PRAGMA table_info(waybills)');
+    if (columns.isEmpty) {
+      await db.execute(SqlQuerys.createWaybillsTable);
+      return;
+    }
+    final names = columns
+        .map((col) => col['name']?.toString())
+        .whereType<String>()
+        .toSet();
+    if (!names.contains('invoice_id')) {
+      try {
+        await db.execute(SqlQuerys.addWaybillInvoiceIdColumn);
+        print('✅ waybills.invoice_id kolonu eklendi');
+      } catch (e) {
+        print('❌ waybills.invoice_id kolon ekleme hatası: $e');
+      }
+    }
+  }
+
+  /// {@template ensurePlasiyerProfileSchema}
+  /// Gamification `plasiyer_profile` tablosu + oturum kullanıcısı seed satırı.
+  /// {@endtemplate}
+  Future<void> ensurePlasiyerProfileSchema() async {
+    if (!await _storage.hasSQLiteSupport()) return;
+    final db = await _storage.getDatabase();
+    try {
+      final session = await getUserSession();
+      final userId = session?['id']?.toString().trim();
+      final name = session?['name']?.toString() ??
+          session?['username']?.toString() ??
+          userId;
+      await GamificationService().ensureSchema(
+        db,
+        userId: userId,
+        displayName: name,
+      );
+      if (userId != null && userId.isNotEmpty) {
+        print('✅ plasiyer_profile hazır ($userId)');
+      }
+    } catch (e) {
+      print('❌ plasiyer_profile şema/seed hatası: $e');
+    }
+  }
+
+  /// {@template ensureAiDemandForecastMenuItems}
+  /// AI öngörü + tedarik talep alt menülerini mevcut DB’ye ekler (idempotent).
+  /// Permission group + menu_permissions seed ile hizalar.
+  /// {@endtemplate}
+  Future<void> ensureAiDemandForecastMenuItems() async {
+    if (!await _storage.hasSQLiteSupport()) return;
+    final db = await _storage.getDatabase();
+    try {
+      Future<void> upsertSub({
+        required String parentUuid,
+        required String uuid,
+        required String titleKey,
+        required String icon,
+        required String route,
+      }) async {
+        final existing = await db.query(
+          'menu',
+          columns: ['id'],
+          where: 'uuid = ?',
+          whereArgs: [uuid],
+          limit: 1,
+        );
+        if (existing.isNotEmpty) return;
+        final parents = await db.query(
+          'menu',
+          columns: ['id', 'uuid'],
+          where: 'uuid = ?',
+          whereArgs: [parentUuid],
+          limit: 1,
+        );
+        if (parents.isEmpty) return;
+        final parentId = parents.first['id'];
+        final now = DateTime.now().toIso8601String();
+        await db.insert(
+          'menu',
+          {
+            'uuid': uuid,
+            'title': titleKey,
+            'icon': icon,
+            'route': route,
+            'parent_id': parentId,
+            'parent_uuid': parentUuid,
+            'is_visible': 1,
+            'module_name': 'FieldSales',
+            'created_at': now,
+            'updated_at': now,
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+
+      await upsertSub(
+        parentUuid: 'fs_other',
+        uuid: 'sub_oth_ai_insights',
+        titleKey: 'field_sales.stubs.ai_insights',
+        icon: 'auto_awesome',
+        route: '/field-sales/ai-insights',
+      );
+      await upsertSub(
+        parentUuid: 'fs_stock',
+        uuid: 'sub_stk_supply_req',
+        titleKey: 'field_sales.stubs.supply_request',
+        icon: 'local_shipping',
+        route: '/field-sales/supply-requests',
+      );
+
+      // Permission groups: admin full + rol paketlerine UUID ekle
+      try {
+        final allUuids = (await db.query('menu', columns: ['uuid']))
+            .map((r) => (r['uuid'] as String?)?.trim() ?? '')
+            .where((u) => u.isNotEmpty)
+            .toList();
+        final session = await getUserSession();
+        final userId = session?['id']?.toString();
+        final companyNo =
+            int.tryParse('${session?['company_no'] ?? 1}') ?? 1;
+        final permStore = PermissionGroupStore(db);
+        await permStore.seedDefaults(
+          adminUserId: userId,
+          companyNo: companyNo,
+          allMenuUuids: allUuids,
+        );
+
+        // Doğrudan menu_permissions (oturum kullanıcısı — admin full)
+        for (final uuid in const [
+          'sub_oth_ai_insights',
+          'sub_stk_supply_req',
+        ]) {
+          final menus = await db.query(
+            'menu',
+            columns: ['id'],
+            where: 'uuid = ?',
+            whereArgs: [uuid],
+            limit: 1,
+          );
+          if (menus.isEmpty || userId == null || userId.isEmpty) continue;
+          final menuId = menus.first['id'];
+          await db.insert(
+            'menu_permissions',
+            {
+              'uuid': 'perm_$uuid',
+              'menu_id': menuId,
+              'menu_uuid': uuid,
+              'user_id': userId,
+              'company_no': companyNo,
+              'can_view': 1,
+              'can_edit': 1,
+              'can_add': 1,
+              'can_delete': 1,
+            },
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+        }
+      } catch (e) {
+        print('⚠️ AI menu permission seed: $e');
+      }
+    } catch (e) {
+      print('❌ AI demand menu ensure hatası: $e');
+    }
+  }
+
+  /// {@template ensureWhmsDepoMenuItems}
+  /// Merkez Depo Yönetimi (`fs_whms`) ana + alt menüleri (idempotent).
+  /// Saha satış `fs_stock` ile karışmaz.
+  /// {@endtemplate}
+  Future<void> ensureWhmsDepoMenuItems() async {
+    if (!await _storage.hasSQLiteSupport()) return;
+    final db = await _storage.getDatabase();
+    try {
+      final now = DateTime.now().toIso8601String();
+      final existingParent = await db.query(
+        'menu',
+        columns: ['id'],
+        where: 'uuid = ?',
+        whereArgs: ['fs_whms'],
+        limit: 1,
+      );
+      int parentId;
+      if (existingParent.isEmpty) {
+        parentId = await db.insert(
+          'menu',
+          {
+            'uuid': 'fs_whms',
+            'title': FieldSalesMenuL10n.titleForSeed(
+              'fs_whms',
+              'Depo Yönetimi',
+            ),
+            'icon': 'warehouse',
+            'display_order': 10,
+            'parent_id': null,
+            'is_visible': 1,
+            'is_favorite': 0,
+            'module_name': 'FieldSales',
+            'created_at': now,
+            'updated_at': now,
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      } else {
+        parentId = existingParent.first['id'] as int;
+      }
+
+      const subs = <Map<String, String>>[
+        {
+          'uuid': 'sub_whms_orders',
+          'title': 'Emirler',
+          'icon': 'assignment',
+          'route': '/whms/orders-hub',
+        },
+        {
+          'uuid': 'sub_whms_defs',
+          'title': 'Tanımlamalar',
+          'icon': 'tune',
+          'route': '/whms/defs',
+        },
+        {
+          'uuid': 'sub_whms_stock',
+          'title': 'Stok',
+          'icon': 'inventory',
+          'route': '/whms/stock',
+        },
+        {
+          'uuid': 'sub_whms_reports',
+          'title': 'Raporlar',
+          'icon': 'bar_chart',
+          'route': '/whms/reports-hub',
+        },
+        {
+          'uuid': 'sub_whms_system',
+          'title': 'Sistem',
+          'icon': 'settings',
+          'route': '/whms/system',
+        },
+        {
+          'uuid': 'sub_whms_labels',
+          'title': 'Etiketler',
+          'icon': 'label',
+          'route': '/whms/labels',
+        },
+        {
+          'uuid': 'sub_whms_orders_list',
+          'title': 'Emir Listesi',
+          'icon': 'list_alt',
+          'route': '/whms/orders',
+        },
+        {
+          'uuid': 'sub_whms_receipt',
+          'title': 'Mal Kabul',
+          'icon': 'move_to_inbox',
+          'route': '/whms/receipt',
+        },
+        {
+          'uuid': 'sub_whms_putaway',
+          'title': 'Yerleştirme',
+          'icon': 'place',
+          'route': '/whms/putaway',
+        },
+        {
+          'uuid': 'sub_whms_pick',
+          'title': 'Toplama',
+          'icon': 'shopping_basket',
+          'route': '/whms/pick-list',
+        },
+        {
+          'uuid': 'sub_whms_shipping',
+          'title': 'Sevk / Son Kontrol',
+          'icon': 'local_shipping',
+          'route': '/whms/shipping',
+        },
+        {
+          'uuid': 'sub_whms_transfer',
+          'title': 'Transfer',
+          'icon': 'swap_horiz',
+          'route': '/whms/transfer',
+        },
+        {
+          'uuid': 'sub_whms_count',
+          'title': 'Sayım',
+          'icon': 'fact_check',
+          'route': '/whms/count',
+        },
+        {
+          'uuid': 'sub_whms_returns',
+          'title': 'İade',
+          'icon': 'assignment_return',
+          'route': '/whms/returns',
+        },
+        {
+          'uuid': 'sub_whms_fifo',
+          'title': 'FIFO / FEFO',
+          'icon': 'schedule',
+          'route': '/whms/fifo',
+        },
+        {
+          'uuid': 'sub_whms_warehouses',
+          'title': 'Ambarlar',
+          'icon': 'warehouse',
+          'route': '/whms/warehouses',
+        },
+        {
+          'uuid': 'sub_whms_locations',
+          'title': 'Lokasyonlar',
+          'icon': 'grid_view',
+          'route': '/whms/locations',
+        },
+        {
+          'uuid': 'sub_whms_vehicle_types',
+          'title': 'Araç Tipi',
+          'icon': 'category',
+          'route': '/whms/vehicle-types',
+        },
+        {
+          'uuid': 'sub_whms_vehicles',
+          'title': 'Araçlar',
+          'icon': 'airport_shuttle',
+          'route': '/whms/vehicles',
+        },
+        {
+          'uuid': 'sub_whms_query',
+          'title': 'Stok Sorgu',
+          'icon': 'search',
+          'route': '/whms/stock-query',
+        },
+        {
+          'uuid': 'sub_whms_lot',
+          'title': 'Lot / SKT',
+          'icon': 'date_range',
+          'route': '/whms/lot',
+        },
+        {
+          'uuid': 'sub_whms_reservation',
+          'title': 'Rezervasyon',
+          'icon': 'lock',
+          'route': '/whms/reservation',
+        },
+        {
+          'uuid': 'sub_whms_reports_kpi',
+          'title': 'KPI Dashboard',
+          'icon': 'insights',
+          'route': '/whms/reports',
+        },
+        {
+          'uuid': 'sub_whms_reports_perf',
+          'title': 'Emir Performansı',
+          'icon': 'speed',
+          'route': '/whms/reports/order-perf',
+        },
+        {
+          'uuid': 'sub_whms_reports_count',
+          'title': 'Sayım Fark',
+          'icon': 'difference',
+          'route': '/whms/reports/count-var',
+        },
+        {
+          'uuid': 'sub_whms_devices',
+          'title': 'Cihazlar',
+          'icon': 'devices',
+          'route': '/whms/devices',
+        },
+      ];
+
+      for (final sub in subs) {
+        final uuid = sub['uuid']!;
+        final existing = await db.query(
+          'menu',
+          columns: ['id', 'route'],
+          where: 'uuid = ?',
+          whereArgs: [uuid],
+          limit: 1,
+        );
+        if (existing.isNotEmpty) {
+          final currentRoute = (existing.first['route'] as String?)?.trim();
+          if (currentRoute != sub['route']) {
+            await db.update(
+              'menu',
+              {
+                'route': sub['route'],
+                'updated_at': now,
+              },
+              where: 'uuid = ?',
+              whereArgs: [uuid],
+            );
+          }
+          continue;
+        }
+        await db.insert(
+          'menu',
+          {
+            'uuid': uuid,
+            'title': FieldSalesMenuL10n.titleForSeed(uuid, sub['title']!),
+            'icon': sub['icon'],
+            'route': sub['route'],
+            'parent_id': parentId,
+            'parent_uuid': 'fs_whms',
+            'is_visible': 1,
+            'module_name': 'FieldSales',
+            'created_at': now,
+            'updated_at': now,
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+
+      try {
+        final allUuids = (await db.query('menu', columns: ['uuid']))
+            .map((r) => (r['uuid'] as String?)?.trim() ?? '')
+            .where((u) => u.isNotEmpty)
+            .toList();
+        final session = await getUserSession();
+        final userId = session?['id']?.toString();
+        final companyNo =
+            int.tryParse('${session?['company_no'] ?? 1}') ?? 1;
+        final permStore = PermissionGroupStore(db);
+        await permStore.seedDefaults(
+          adminUserId: userId,
+          companyNo: companyNo,
+          allMenuUuids: allUuids,
+        );
+      } catch (e) {
+        print('⚠️ WHMS menu permission seed: $e');
+      }
+    } catch (e) {
+      print('❌ WHMS depo menü ensure hatası: $e');
+    }
+  }
+
+  /// {@template ensureAiDynamicReportsSchema}
+  /// AI dinamik rapor tablosu (`ai_dynamic_reports` — PostgREST spec JSON).
+  /// {@endtemplate}
+  Future<void> ensureAiDynamicReportsSchema() async {
+    if (!await _storage.hasSQLiteSupport()) return;
+    final db = await _storage.getDatabase();
+    await db.execute(SqlQuerys.createAiDynamicReportsTable);
+    await db.execute(SqlQuerys.createCompetitorProductsTable);
+    await db.execute(SqlQuerys.createCompetitorObservationsTable);
+  }
+
+  /// {@template ensureAiDynamicReportAndVisionMenuItems}
+  /// AI rapor + raf vision + fatura OCR alt menüleri (idempotent).
+  /// {@endtemplate}
+  Future<void> ensureAiDynamicReportAndVisionMenuItems() async {
+    if (!await _storage.hasSQLiteSupport()) return;
+    final db = await _storage.getDatabase();
+    try {
+      Future<void> upsertSub({
+        required String parentUuid,
+        required String uuid,
+        required String titleKey,
+        required String icon,
+        required String route,
+      }) async {
+        final existing = await db.query(
+          'menu',
+          columns: ['id'],
+          where: 'uuid = ?',
+          whereArgs: [uuid],
+          limit: 1,
+        );
+        if (existing.isNotEmpty) return;
+        final parents = await db.query(
+          'menu',
+          columns: ['id', 'uuid'],
+          where: 'uuid = ?',
+          whereArgs: [parentUuid],
+          limit: 1,
+        );
+        if (parents.isEmpty) return;
+        final parentId = parents.first['id'];
+        final now = DateTime.now().toIso8601String();
+        await db.insert(
+          'menu',
+          {
+            'uuid': uuid,
+            'title': titleKey,
+            'icon': icon,
+            'route': route,
+            'parent_id': parentId,
+            'parent_uuid': parentUuid,
+            'is_visible': 1,
+            'module_name': 'FieldSales',
+            'created_at': now,
+            'updated_at': now,
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+
+      await upsertSub(
+        parentUuid: 'fs_reports',
+        uuid: 'sub_rep_ai_dynamic',
+        titleKey: 'field_sales.stubs.ai_dynamic_report',
+        icon: 'auto_fix',
+        route: '/field-sales/ai-reports',
+      );
+      await upsertSub(
+        parentUuid: 'fs_other',
+        uuid: 'sub_oth_shelf_vision',
+        titleKey: 'field_sales.stubs.competitor_shelf_vision',
+        icon: 'price_change',
+        route: '/field-sales/competitor-shelf-vision',
+      );
+      await upsertSub(
+        parentUuid: 'fs_other',
+        uuid: 'sub_oth_invoice_scan',
+        titleKey: 'field_sales.stubs.invoice_scan',
+        icon: 'document_scanner',
+        route: '/field-sales/invoice-scan',
+      );
+      await upsertSub(
+        parentUuid: 'fs_other',
+        uuid: 'sub_oth_vehicle_vision',
+        titleKey: 'field_sales.stubs.vehicle_vision',
+        icon: 'directions_car',
+        route: '/field-sales/vehicle-vision',
+      );
+    } catch (e) {
+      print('❌ AI report/vision menu ensure hatası: $e');
+    }
+  }
+
+  /// {@template ensureFieldSalesMenuL10nTitles}
+  /// Eski TR menü başlıklarını l10n anahtarına taşır (dashboard `.tr()`).
+  /// {@endtemplate}
+  Future<void> ensureFieldSalesMenuL10nTitles() async {
+    if (!await _storage.hasSQLiteSupport()) return;
+    final db = await _storage.getDatabase();
+    try {
+      final rows = await db.query(
+        'menu',
+        columns: ['id', 'uuid', 'title'],
+        where: "module_name = 'FieldSales'",
+      );
+      final now = DateTime.now().toIso8601String();
+      for (final row in rows) {
+        final uuid = row['uuid']?.toString().trim() ?? '';
+        if (uuid.isEmpty) continue;
+        final title = row['title']?.toString() ?? '';
+        final next = FieldSalesMenuL10n.storedTitleForUuid(
+          uuid: uuid,
+          currentTitle: title,
+        );
+        if (next == title) continue;
+        await db.update(
+          'menu',
+          {'title': next, 'updated_at': now},
+          where: 'id = ?',
+          whereArgs: [row['id']],
+        );
+      }
+    } catch (e) {
+      print('❌ FieldSales menu l10n migrate hatası: $e');
     }
   }
 
@@ -1142,6 +1821,19 @@ class DatabaseService {
           print('✅ invoices.gib_status kolonu eklendi');
         } catch (e) {
           print('❌ invoices.gib_status kolon ekleme hatası: $e');
+        }
+      }
+    }
+
+    final itemCols = await db.rawQuery('PRAGMA table_info(invoice_items)');
+    if (itemCols.isNotEmpty) {
+      final hasUnit = itemCols.any((c) => c['name'] == 'unit_name');
+      if (!hasUnit) {
+        try {
+          await db.execute(SqlQuerys.addInvoiceItemsUnitNameColumn);
+          print('✅ invoice_items.unit_name kolonu eklendi');
+        } catch (e) {
+          print('❌ invoice_items.unit_name kolon ekleme hatası: $e');
         }
       }
     }
@@ -1239,8 +1931,22 @@ class DatabaseService {
     await db.execute(SqlQuerys.createWarehouseStocksTable);
 
     try {
+      final cols = await db.rawQuery('PRAGMA table_info(warehouses)');
+      if (cols.isNotEmpty &&
+          !cols.any((c) => c['name'] == 'is_deleted')) {
+        await db.execute(
+          'ALTER TABLE warehouses ADD COLUMN is_deleted '
+          'INTEGER NOT NULL DEFAULT 0',
+        );
+      }
+    } catch (e) {
+      print('❌ warehouses is_deleted kolon hatası: $e');
+    }
+
+    try {
       final countRows = await db.rawQuery(
-        'SELECT COUNT(*) AS c FROM warehouses',
+        'SELECT COUNT(*) AS c FROM warehouses '
+        'WHERE COALESCE(is_deleted, 0) = 0',
       );
       final count = (countRows.first['c'] as num?)?.toInt() ?? 0;
       if (count == 0) {
@@ -1267,6 +1973,104 @@ class DatabaseService {
     if (!await _storage.hasSQLiteSupport()) return;
     final db = await _storage.getDatabase();
     await db.execute(SqlQuerys.createWarehouseStocksTable);
+  }
+
+  /// {@template ensureWhmsOrdersSchema}
+  /// WHMS P0 — `whms_orders` / `whms_order_lines` + ONAY alanları.
+  /// {@endtemplate}
+  Future<void> ensureWhmsOrdersSchema() async {
+    if (!await _storage.hasSQLiteSupport()) return;
+    final db = await _storage.getDatabase();
+    await db.execute(SqlQuerys.createWhmsOrdersTable);
+    await db.execute(SqlQuerys.createWhmsOrderLinesTable);
+    await _ensureWhmsOrderExtraColumns(db);
+  }
+
+  /// Eksik emir kolonları (eski CREATE IF NOT EXISTS sonrası).
+  Future<void> _ensureWhmsOrderExtraColumns(Database db) async {
+    Future<Set<String>> colsOf(String table) async {
+      try {
+        final rows = await db.rawQuery('PRAGMA table_info($table)');
+        return rows
+            .map((r) => r['name']?.toString() ?? '')
+            .where((n) => n.isNotEmpty)
+            .toSet();
+      } catch (_) {
+        return <String>{};
+      }
+    }
+
+    Future<void> add(
+      String table,
+      Set<String> cols,
+      String name,
+      String typeSql,
+    ) async {
+      if (cols.contains(name)) return;
+      try {
+        await db.execute(
+          'ALTER TABLE $table ADD COLUMN $name $typeSql',
+        );
+        cols.add(name);
+      } catch (_) {}
+    }
+
+    final orderCols = await colsOf('whms_orders');
+    if (orderCols.isNotEmpty) {
+      await add(
+        'whms_orders',
+        orderCols,
+        'from_warehouse_code',
+        'TEXT',
+      );
+      await add('whms_orders', orderCols, 'reference_no', 'TEXT');
+      await add('whms_orders', orderCols, 'completed_at', 'TEXT');
+      await add(
+        'whms_orders',
+        orderCols,
+        'require_serial',
+        'INTEGER NOT NULL DEFAULT 0',
+      );
+    }
+
+    final lineCols = await colsOf('whms_order_lines');
+    if (lineCols.isNotEmpty) {
+      await add(
+        'whms_order_lines',
+        lineCols,
+        'quantity_done',
+        'REAL NOT NULL DEFAULT 0',
+      );
+      await add('whms_order_lines', lineCols, 'serial_no', 'TEXT');
+      await add(
+        'whms_order_lines',
+        lineCols,
+        'ONAY',
+        'INTEGER NOT NULL DEFAULT 0',
+      );
+      await add(
+        'whms_order_lines',
+        lineCols,
+        'is_synced',
+        'INTEGER NOT NULL DEFAULT 0',
+      );
+    }
+  }
+
+  /// {@template ensureWhmsP0Schema}
+  /// WHMS P0 — emir / satır / lokasyon / FIFO / sayım emri tabloları.
+  /// {@endtemplate}
+  Future<void> ensureWhmsP0Schema() async {
+    if (!await _storage.hasSQLiteSupport()) return;
+    final db = await _storage.getDatabase();
+    await db.execute(SqlQuerys.createWhmsOrdersTable);
+    await db.execute(SqlQuerys.createWhmsOrderLinesTable);
+    await _ensureWhmsOrderExtraColumns(db);
+    await db.execute(SqlQuerys.createWhmsLocationsTable);
+    await db.execute(SqlQuerys.createWhmsFifoRulesTable);
+    await db.execute(SqlQuerys.createWhmsCountOrdersTable);
+    await db.execute(SqlQuerys.createWhmsCountResultsTable);
+    await db.execute(SqlQuerys.createWhmsDevicesTable);
   }
 
   /// {@template ensurePriceListsSchema}
@@ -1347,6 +2151,15 @@ class DatabaseService {
     }
   }
 
+  /// {@template ensureSupplierPurchaseRequestsSchema}
+  /// Depocu tedarik talep tablosu (`supplier_purchase_requests`).
+  /// {@endtemplate}
+  Future<void> ensureSupplierPurchaseRequestsSchema() async {
+    if (!await _storage.hasSQLiteSupport()) return;
+    final db = await _storage.getDatabase();
+    await db.execute(SqlQuerys.createSupplierPurchaseRequestsTable);
+  }
+
   /// {@template ensureCashCardsSchema}
   /// Kasa kart master tablosu + boşsa CashCardMaster seed.
   /// {@endtemplate}
@@ -1355,6 +2168,7 @@ class DatabaseService {
     final db = await _storage.getDatabase();
 
     await db.execute(SqlQuerys.createCashCardsTable);
+    await db.execute(SqlQuerys.createReportLayoutsTable);
 
     try {
       final countRows = await db.rawQuery(
@@ -1451,8 +2265,12 @@ class DatabaseService {
       await db.execute(SqlQuerys.createEwaybillStatusTable);
       await db.execute(SqlQuerys.createVisitsTable);
       await db.execute(SqlQuerys.createWarehousesTable);
+      await db.execute(SqlQuerys.createWhmsOrdersTable);
+      await db.execute(SqlQuerys.createWhmsOrderLinesTable);
       await db.execute(SqlQuerys.createBatchExpiryTable);
       await db.execute(SqlQuerys.createCashCardsTable);
+      await db.execute(SqlQuerys.createSupplierPurchaseRequestsTable);
+      await db.execute(SqlQuerys.createReportLayoutsTable);
       await db.execute(SqlQuerys.createWarehouseTransfersTable);
       await db.execute(SqlQuerys.createStockCountsTable);
       await db.execute(SqlQuerys.createRoutesTable);
@@ -1475,11 +2293,20 @@ class DatabaseService {
       await db.execute(SqlQuerys.createLocationHistoryTable);
       await db.execute(SqlQuerys.createGpsLogsTable);
       await db.execute(SqlQuerys.createExpensesTable);
+      await db.execute(SqlQuerys.createPlasiyerProfileTable);
       await db.execute(SqlQuerys.createCustomerMovementsTable);
       await db.execute(SqlQuerys.createPartialDeliveriesTable);
     }
     await db.execute(SqlQuerys.createMenuTable);
     await db.execute(SqlQuerys.createMenuPermissionsTable);
+    await db.execute(SqlQuerys.createPermissionGroupsTable);
+    await db.execute(SqlQuerys.createPermissionGroupMenusTable);
+    await db.execute(SqlQuerys.createPermissionGroupMembersTable);
+    await db.execute(SqlQuerys.createMenuFavoritesTable);
+
+    // Favoriler seed wipe’a dayanıklı: is_favorite → menu_favorites
+    final favoritesStore = MenuFavoritesStore(db);
+    await favoritesStore.migrateFromMenuFlags();
 
     // Mevcut FieldSales modül menülerini temizle (Temiz bir başlangıç için)
     await db.delete('menu', where: "module_name = 'FieldSales'");
@@ -1505,19 +2332,23 @@ class DatabaseService {
       {'uuid': 'fs_visit', 'title': 'Ziyaret', 'icon': 'location_on', 'order': 7},
       {'uuid': 'fs_finance', 'title': 'Finans', 'icon': 'monetization_on', 'order': 8},
       {'uuid': 'fs_stock', 'title': 'Stok', 'icon': 'qr_code_scanner', 'order': 9},
-      {'uuid': 'fs_reports', 'title': 'Raporlar', 'icon': 'bar_chart', 'order': 10},
-      {'uuid': 'fs_currency', 'title': 'Döviz', 'icon': 'currency_exchange', 'order': 11},
-      {'uuid': 'fs_companies', 'title': 'Şirketler', 'icon': 'business', 'order': 12},
-      {'uuid': 'fs_sync', 'title': 'Güncelleme', 'icon': 'sync', 'order': 13},
-      {'uuid': 'fs_announcements', 'title': 'Duyurular', 'icon': 'campaign', 'order': 14},
-      {'uuid': 'fs_settings', 'title': 'Ayarlar', 'icon': 'settings', 'order': 15},
-      {'uuid': 'fs_other', 'title': 'Diğer', 'icon': 'more_horiz', 'order': 16},
+      {'uuid': 'fs_whms', 'title': 'Depo Yönetimi', 'icon': 'warehouse', 'order': 10},
+      {'uuid': 'fs_reports', 'title': 'Raporlar', 'icon': 'bar_chart', 'order': 11},
+      {'uuid': 'fs_currency', 'title': 'Döviz', 'icon': 'currency_exchange', 'order': 12},
+      {'uuid': 'fs_companies', 'title': 'Şirketler', 'icon': 'business', 'order': 13},
+      {'uuid': 'fs_sync', 'title': 'Güncelleme', 'icon': 'sync', 'order': 14},
+      {'uuid': 'fs_announcements', 'title': 'Duyurular', 'icon': 'campaign', 'order': 15},
+      {'uuid': 'fs_settings', 'title': 'Ayarlar', 'icon': 'settings', 'order': 16},
+      {'uuid': 'fs_other', 'title': 'Diğer', 'icon': 'more_horiz', 'order': 17},
     ];
 
     for (final menu in mainMenus) {
       final menuId = await db.insert('menu', {
         'uuid': menu['uuid'],
-        'title': menu['title'],
+        'title': FieldSalesMenuL10n.titleForSeed(
+          menu['uuid'] as String,
+          menu['title'] as String,
+        ),
         'icon': menu['icon'],
         'display_order': menu['order'],
         'parent_id': null,
@@ -1602,6 +2433,14 @@ class DatabaseService {
         'fs_visit': [
           {'uuid': 'sub_visit_existing', 'title': 'Mevcut Cari Hesap', 'icon': 'person', 'route': '/field-sales/visit-existing'},
           {'uuid': 'sub_visit_new', 'title': 'Yeni Cari Hesap', 'icon': 'person_add', 'route': '/field-sales/visit-new'},
+          {'uuid': 'sub_visit_weekly_plan', 'title': 'field_sales.stubs.weekly_route_plan', 'icon': 'calendar_view_week', 'route': '/field-sales/weekly-route-plan'},
+          {'uuid': 'sub_visit_today_route', 'title': 'Bugünkü Rotam', 'icon': 'route', 'route': '/field-sales/routes/plan'},
+          {
+            'uuid': 'sub_visit_in_app_route',
+            'title': 'field_sales.stubs.in_app_route_map',
+            'icon': 'map',
+            'route': '/field-sales/in-app-route-map',
+          },
           {'uuid': 'sub_visit_history', 'title': 'Geçmiş Ziyaretler', 'icon': 'history', 'route': '/field-sales/visit-history'},
           {'uuid': 'sub_visit_untransferred', 'title': 'Transfer Edilmeyenler', 'icon': 'sync_disabled', 'route': '/field-sales/visit-untransferred'},
         ],
@@ -1612,7 +2451,10 @@ class DatabaseService {
           {'uuid': 'sub_fin_transferred', 'title': 'Transfer Edilen Tahsilatlar', 'icon': 'sync', 'route': '/field-sales/finance-transferred'},
           {'uuid': 'sub_fin_untransferred', 'title': 'Transfer Edilmeyen Tahsilatlar', 'icon': 'sync_disabled', 'route': '/field-sales/finance-untransferred'},
           {'uuid': 'sub_fin_acc', 'title': 'Kasa Kart Listesi', 'icon': 'account_balance_wallet', 'route': '/field-sales/cash-cards'},
+          {'uuid': 'sub_fin_bank', 'title': 'Banka Kart Listesi', 'icon': 'account_balance', 'route': '/field-sales/bank-cards'},
           {'uuid': 'sub_fin_checks', 'title': 'Çek Listesi', 'icon': 'fact_check', 'route': '/field-sales/checks'},
+          {'uuid': 'sub_fin_notes', 'title': 'Senet Listesi', 'icon': 'description', 'route': '/field-sales/promissory-list'},
+          {'uuid': 'sub_fin_company', 'title': 'Firma Genel Görünüm', 'icon': 'insights', 'route': '/field-sales/company-general'},
         ],
         'fs_stock': [
           {'uuid': 'sub_stk_detail', 'title': 'Detay', 'icon': 'info', 'route': '/field-sales/products'},
@@ -1629,14 +2471,154 @@ class DatabaseService {
           {'uuid': 'sub_stk_consign', 'title': 'Konsinye', 'icon': 'local_shipping', 'route': '/field-sales/consignment'},
           {'uuid': 'sub_stk_transferred', 'title': 'Transfer Edilenler', 'icon': 'sync', 'route': '/field-sales/stock-transferred'},
           {'uuid': 'sub_stk_untransferred', 'title': 'Transfer Edilmeyenler', 'icon': 'sync_disabled', 'route': '/field-sales/stock-untransferred'},
+          {
+            'uuid': 'sub_stk_supply_req',
+            'title': 'field_sales.stubs.supply_request',
+            'icon': 'local_shipping',
+            'route': '/field-sales/supply-requests',
+          },
+        ],
+        'fs_whms': [
+          {
+            'uuid': 'sub_whms_orders',
+            'title': 'Emirler',
+            'icon': 'assignment',
+            'route': '/whms/orders-hub',
+          },
+          {
+            'uuid': 'sub_whms_defs',
+            'title': 'Tanımlamalar',
+            'icon': 'tune',
+            'route': '/whms/defs',
+          },
+          {
+            'uuid': 'sub_whms_stock',
+            'title': 'Stok',
+            'icon': 'inventory',
+            'route': '/whms/stock',
+          },
+          {
+            'uuid': 'sub_whms_reports',
+            'title': 'Raporlar',
+            'icon': 'bar_chart',
+            'route': '/whms/reports-hub',
+          },
+          {
+            'uuid': 'sub_whms_system',
+            'title': 'Sistem',
+            'icon': 'settings',
+            'route': '/whms/system',
+          },
+          {
+            'uuid': 'sub_whms_labels',
+            'title': 'Etiketler',
+            'icon': 'label',
+            'route': '/whms/labels',
+          },
+          {
+            'uuid': 'sub_whms_orders_list',
+            'title': 'Emir Listesi',
+            'icon': 'list_alt',
+            'route': '/whms/orders',
+          },
+          {
+            'uuid': 'sub_whms_receipt',
+            'title': 'Mal Kabul',
+            'icon': 'move_to_inbox',
+            'route': '/whms/receipt',
+          },
+          {
+            'uuid': 'sub_whms_putaway',
+            'title': 'Yerleştirme',
+            'icon': 'place',
+            'route': '/whms/putaway',
+          },
+          {
+            'uuid': 'sub_whms_pick',
+            'title': 'Toplama',
+            'icon': 'shopping_basket',
+            'route': '/whms/pick-list',
+          },
+          {
+            'uuid': 'sub_whms_shipping',
+            'title': 'Sevk / Son Kontrol',
+            'icon': 'local_shipping',
+            'route': '/whms/shipping',
+          },
+          {
+            'uuid': 'sub_whms_transfer',
+            'title': 'Transfer',
+            'icon': 'swap_horiz',
+            'route': '/whms/transfer',
+          },
+          {
+            'uuid': 'sub_whms_count',
+            'title': 'Sayım',
+            'icon': 'fact_check',
+            'route': '/whms/count',
+          },
+          {
+            'uuid': 'sub_whms_returns',
+            'title': 'İade',
+            'icon': 'assignment_return',
+            'route': '/whms/returns',
+          },
+          {
+            'uuid': 'sub_whms_fifo',
+            'title': 'FIFO / FEFO',
+            'icon': 'schedule',
+            'route': '/whms/fifo',
+          },
+          {
+            'uuid': 'sub_whms_warehouses',
+            'title': 'Ambarlar',
+            'icon': 'warehouse',
+            'route': '/whms/warehouses',
+          },
+          {
+            'uuid': 'sub_whms_query',
+            'title': 'Stok Sorgu',
+            'icon': 'search',
+            'route': '/whms/stock-query',
+          },
+          {
+            'uuid': 'sub_whms_devices',
+            'title': 'Cihazlar',
+            'icon': 'devices',
+            'route': '/whms/devices',
+          },
         ],
         'fs_reports': [
           {'uuid': 'sub_rep_cari', 'title': 'Cari', 'icon': 'person', 'route': '/field-sales/report-cari'},
           {'uuid': 'sub_rep_stok', 'title': 'Stok', 'icon': 'qr_code', 'route': '/field-sales/report-stock'},
-          {'uuid': 'sub_rep_siparis', 'title': 'Sipariş', 'icon': 'shopping_cart', 'route': '/field-sales/report-sales'},
+          {'uuid': 'sub_rep_siparis', 'title': 'Sipariş', 'icon': 'shopping_cart', 'route': '/field-sales/report-siparis'},
           {'uuid': 'sub_rep_fatura', 'title': 'Fatura', 'icon': 'receipt', 'route': '/field-sales/report-invoice'},
           {'uuid': 'sub_rep_irsaliye', 'title': 'İrsaliye', 'icon': 'description', 'route': '/field-sales/report-waybill'},
-          {'uuid': 'sub_rep_diger', 'title': 'Diğer', 'icon': 'more_horiz', 'route': '/field-sales/report-other'},
+          {'uuid': 'sub_rep_diger', 'title': 'submodules.diger', 'icon': 'more_horiz', 'route': '/field-sales/report-other'},
+          {
+            'uuid': 'sub_rep_yonetici',
+            'title': 'Yönetici Raporları',
+            'icon': 'insert_chart',
+            'route': '/field-sales/report-yonetici',
+          },
+          {
+            'uuid': 'sub_rep_finans',
+            'title': 'Finans',
+            'icon': 'account_balance',
+            'route': '/field-sales/report-finans',
+          },
+          {
+            'uuid': 'sub_rep_ops',
+            'title': 'OPS Raporları',
+            'icon': 'engineering',
+            'route': '/field-sales/report-ops',
+          },
+          {
+            'uuid': 'sub_rep_ai_dynamic',
+            'title': 'field_sales.stubs.ai_dynamic_report',
+            'icon': 'auto_fix',
+            'route': '/field-sales/ai-reports',
+          },
           {'uuid': 'sub_rep_backup', 'title': 'Rapor Yedekle/İndir', 'icon': 'cloud_download', 'route': '/field-sales/report-backup'},
         ],
         'fs_currency': [
@@ -1665,6 +2647,66 @@ class DatabaseService {
         'fs_other': [
           {'uuid': 'sub_oth_send', 'title': 'Bilgi Gönderme', 'icon': 'send', 'route': '/field-sales/send-info'},
           {'uuid': 'sub_oth_day', 'title': 'Güne Başlama Bitirme', 'icon': 'work', 'route': '/field-sales/day-status'},
+          {
+            'uuid': 'sub_oth_weekly_route',
+            'title': 'field_sales.stubs.weekly_route_plan',
+            'icon': 'calendar_view_week',
+            'route': '/field-sales/weekly-route-plan',
+          },
+          {
+            'uuid': 'sub_oth_live_loc',
+            'title': 'submodules.canli_konum',
+            'icon': 'my_location',
+            'route': '/field-sales/gps-tracking',
+          },
+          {
+            'uuid': 'sub_oth_cam_monitor',
+            'title': 'submodules.arac_kamera_izleme',
+            'icon': 'videocam',
+            'route': '/field-sales/vehicle-camera-monitor',
+          },
+          {
+            'uuid': 'sub_oth_cam_settings',
+            'title': 'field_sales.stubs.vehicle_camera_settings',
+            'icon': 'video_settings',
+            'route': '/field-sales/vehicle-camera-settings',
+          },
+          {
+            'uuid': 'sub_oth_offline_map',
+            'title': 'field_sales.stubs.offline_map_download',
+            'icon': 'download_for_offline',
+            'route': '/field-sales/offline-map-download',
+          },
+          {
+            'uuid': 'sub_oth_in_app_route',
+            'title': 'field_sales.stubs.in_app_route_map',
+            'icon': 'route',
+            'route': '/field-sales/in-app-route-map',
+          },
+          {
+            'uuid': 'sub_oth_ai_insights',
+            'title': 'field_sales.stubs.ai_insights',
+            'icon': 'auto_awesome',
+            'route': '/field-sales/ai-insights',
+          },
+          {
+            'uuid': 'sub_oth_shelf_vision',
+            'title': 'field_sales.stubs.competitor_shelf_vision',
+            'icon': 'price_change',
+            'route': '/field-sales/competitor-shelf-vision',
+          },
+          {
+            'uuid': 'sub_oth_invoice_scan',
+            'title': 'field_sales.stubs.invoice_scan',
+            'icon': 'document_scanner',
+            'route': '/field-sales/invoice-scan',
+          },
+          {
+            'uuid': 'sub_oth_vehicle_vision',
+            'title': 'field_sales.stubs.vehicle_vision',
+            'icon': 'directions_car',
+            'route': '/field-sales/vehicle-vision',
+          },
           {'uuid': 'sub_oth_images', 'title': 'Resimler', 'icon': 'image', 'route': '/field-sales/image-settings'},
         ],
       };
@@ -1673,7 +2715,10 @@ class DatabaseService {
         for (final sub in subMenus[menu['uuid']]!) {
           final subId = await db.insert('menu', {
             'uuid': sub['uuid'],
-            'title': sub['title'],
+            'title': FieldSalesMenuL10n.titleForSeed(
+              sub['uuid'] as String,
+              sub['title'] as String,
+            ),
             'icon': sub['icon'],
             'route': sub['route'],
             'parent_id': effectiveId,
@@ -1695,11 +2740,33 @@ class DatabaseService {
         }
       }
     }
+    // Seed sonrası sık kullanılanları menu_favorites’tan geri yükle
+    await favoritesStore.applyFavoritesToMenu();
+
+    // Gelişmiş yetki grupları: admin full + plasiyer/depocu örnek
+    try {
+      final allUuids = (await db.query('menu', columns: ['uuid']))
+          .map((r) => (r['uuid'] as String?)?.trim() ?? '')
+          .where((u) => u.isNotEmpty)
+          .toList();
+      final permStore = PermissionGroupStore(db);
+      await permStore.seedDefaults(
+        adminUserId: userId,
+        companyNo: companyNo,
+        allMenuUuids: allUuids,
+      );
+    } catch (e) {
+      print('⚠️ permission_groups seed atlandı: $e');
+    }
+
     print(
       menusOnly
           ? 'FieldSales menü seed yenilendi (menusOnly).'
           : 'Saha satış mock verileri başarıyla yüklendi.',
     );
+
+    // P0: seed sonrası title'ları l10n key'e kilitle
+    await ensureFieldSalesMenuL10nTitles();
 
     if (!menusOnly) {
       // 2. Mock Veri Kayıtlarını Ekle (Müşteriler, Ürünler, vb.)
@@ -2029,30 +3096,8 @@ class DatabaseService {
       'sort_order': 3,
     }, conflictAlgorithm: ConflictAlgorithm.replace);
 
-    // MBT Şirketler: Firma 001 · Dönem 01 · 01-01-2024…31-12-2024
-    await db.insert('companies', {
-      'id': 'mbt_001',
-      'company_no': '001',
-      'name': 'MBT',
-      'description': 'MBT demo firma',
-      'is_active': 1,
-      'created_at': '2024-01-01',
-      'updated_at': '2024-12-31',
-      'is_selected': 1,
-      'approval_status': 0,
-    }, conflictAlgorithm: ConflictAlgorithm.replace);
-
-    await db.insert('company_period', {
-      'id': 'mbt_period_01',
-      'company_id': 'mbt_001',
-      'period_name': '01',
-      'start_date': '2024-01-01',
-      'end_date': '2024-12-31',
-      'is_active': 1,
-      'created_at': '2024-01-01',
-      'updated_at': '2024-12-31',
-      'company_no': '001',
-    }, conflictAlgorithm: ConflictAlgorithm.replace);
+    // MBT dens demo firma/dönem EKLENMEZ — firmalar PostgREST /firms.
+    // (Eski mbt_001 seed kaldırıldı; Şirketler ekranı stub üretmez.)
 
     print('Mock saha satış kayıtları başarıyla oluşturuldu.');
   }
@@ -2089,6 +3134,17 @@ class DatabaseService {
     return [];
   }
 
+  /// {@template restoreMenuFavorites}
+  /// `menu_favorites` tablosundaki UUID’leri `menu.is_favorite`’a yazar.
+  /// Seed / Postgres sync sonrası çağrılır.
+  /// {@endtemplate}
+  Future<void> restoreMenuFavorites() async {
+    if (!await _storage.hasSQLiteSupport()) return;
+    final db = await _storage.getDatabase();
+    await db.execute(SqlQuerys.createMenuFavoritesTable);
+    await MenuFavoritesStore(db).applyFavoritesToMenu();
+  }
+
   /// Sync menus from PostgreSQL (EXFINOPS DB) to local SQLite
   Future<void> syncMenusFromPostgres() async {
     if (await _storage.hasSQLiteSupport()) {
@@ -2113,6 +3169,10 @@ class DatabaseService {
              }
              await batch.commit(noResult: true);
              print('✅ Menüler PostgreSQL''den senkronize edildi (${remoteMenus.length} kayıt).');
+             // P0: remote TR title varsa FieldSales l10n key'e geri çek
+             await ensureFieldSalesMenuL10nTitles();
+             // Sık kullanılanlar menu_favorites’ta; remote replace sonrası geri yaz
+             await restoreMenuFavorites();
           }
         }
       } catch (e) {
@@ -2251,7 +3311,8 @@ class DatabaseService {
     }
   }
 
-  /// Kullanıcı ve şirkete göre yetkili menüleri Supabase'den çeker
+  /// Kullanıcı ve şirkete göre yetkili menüleri çeker
+  /// (doğrudan menu_permissions ∪ permission_groups).
   Future<List<Map<String, dynamic>>> getMenusByUserAndCompany({
     required String userId,
     required int companyNo,
@@ -2262,14 +3323,45 @@ class DatabaseService {
     if (!kIsWeb) {
       if (await _storage.hasSQLiteSupport()) {
         final db = await _storage.getDatabase();
-        // 1. Yetkili menüleri SQLite'dan çek (JOIN version)
-        menuResponse = await db.rawQuery('''
-          SELECT m.* FROM menu m
-          INNER JOIN menu_permissions p ON m.id = p.menu_id
-          WHERE p.user_id = ? AND p.company_no = ? AND p.can_view = 1
-          AND m.is_visible = 1 AND m.is_deleted = 0
-          ORDER BY m.display_order ASC
-        ''', [userId, companyNo]);
+        await db.execute(SqlQuerys.createPermissionGroupsTable);
+        await db.execute(SqlQuerys.createPermissionGroupMenusTable);
+        await db.execute(SqlQuerys.createPermissionGroupMembersTable);
+
+        final store = PermissionGroupStore(db);
+        final hasData = await store.hasAnyPermissionData(
+          userId: userId,
+          companyNo: companyNo,
+        );
+
+        if (!hasData) {
+          // Legacy: yetki kaydı yok → tüm görünür menüler
+          menuResponse = await db.rawQuery('''
+            SELECT m.* FROM menu m
+            WHERE m.is_visible = 1 AND m.is_deleted = 0
+            ORDER BY m.display_order ASC
+          ''');
+        } else {
+          final effective = await store.resolveEffective(
+            userId: userId,
+            companyNo: companyNo,
+          );
+          final viewable = PermissionResolver.viewableUuids(effective);
+          if (viewable.isEmpty) {
+            menuResponse = [];
+          } else {
+            final placeholders =
+                List.generate(viewable.length, (i) => '?').join(',');
+            menuResponse = await db.rawQuery(
+              '''
+              SELECT m.* FROM menu m
+              WHERE m.uuid IN ($placeholders)
+                AND m.is_visible = 1 AND m.is_deleted = 0
+              ORDER BY m.display_order ASC
+              ''',
+              viewable.toList(),
+            );
+          }
+        }
       } else {
         return [];
       }
@@ -2553,12 +3645,29 @@ class DatabaseService {
   Future<void> toggleFavoriteMenuItem(int menuId, bool isFavorite) async {
     if (await _storage.hasSQLiteSupport()) {
       final db = await _storage.getDatabase();
+      await db.execute(SqlQuerys.createMenuFavoritesTable);
       await db.update(
         'menu',
         {'is_favorite': isFavorite ? 1 : 0},
         where: 'id = ?',
         whereArgs: [menuId],
       );
+      final rows = await db.query(
+        'menu',
+        columns: ['uuid'],
+        where: 'id = ?',
+        whereArgs: [menuId],
+        limit: 1,
+      );
+      if (rows.isEmpty) return;
+      final uuid = (rows.first['uuid'] as String?)?.trim() ?? '';
+      if (uuid.isEmpty) return;
+      final store = MenuFavoritesStore(db);
+      if (isFavorite) {
+        await store.add(uuid);
+      } else {
+        await store.remove(uuid);
+      }
     }
   }
 
@@ -2566,6 +3675,8 @@ class DatabaseService {
   Future<void> updateFavoriteMenuItems(List<int> menuIds) async {
     if (await _storage.hasSQLiteSupport()) {
       final db = await _storage.getDatabase();
+      await db.execute(SqlQuerys.createMenuFavoritesTable);
+      final uuids = <String>[];
       await db.transaction((txn) async {
         await txn.update('menu', {'is_favorite': 0});
         for (final id in menuIds) {
@@ -2575,8 +3686,19 @@ class DatabaseService {
             where: 'id = ?',
             whereArgs: [id],
           );
+          final rows = await txn.query(
+            'menu',
+            columns: ['uuid'],
+            where: 'id = ?',
+            whereArgs: [id],
+            limit: 1,
+          );
+          if (rows.isEmpty) continue;
+          final uuid = (rows.first['uuid'] as String?)?.trim() ?? '';
+          if (uuid.isNotEmpty) uuids.add(uuid);
         }
       });
+      await MenuFavoritesStore(db).replaceAll(uuids);
     }
   }
 
@@ -3291,6 +4413,9 @@ class DatabaseService {
 
   /// Public olarak veritabanı nesnesini döndürür
   Future<Database> getDatabase() async {
+    if (!_isInitialized) {
+      await initialize();
+    }
     return await _storage.getDatabase();
   }
 

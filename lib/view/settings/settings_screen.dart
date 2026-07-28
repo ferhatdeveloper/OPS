@@ -2,15 +2,20 @@
 // Açıklama: Uygulama ayarları ekranı
 // Oluşturulma Tarihi: 2024-03-21
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-26
+// Son Güncelleme: 2026-07-28
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../core/localization/app_localization.dart';
+import '../../core/widgets/app_version_label.dart';
 import '../../service/database_service.dart';
 import '../../service/menu_service.dart';
 import '../../service/theme_service.dart';
 import '../../service/language_service.dart';
+import '../../modules/field_sales/reports/view/report_logo_settings_screen.dart';
+import '../../modules/field_sales/ai/view/ai_settings_screen.dart';
+import '../../modules/field_sales/ai/view/ai_voice_chat_screen.dart';
+import '../../modules/field_sales/settings/view/appearance_settings_screen.dart';
 import 'sync_log_screen.dart';
 
 /// {@template SettingsScreen}
@@ -212,6 +217,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _buildThemeSection(),
                   const SizedBox(height: 24),
                   _buildLanguageSection(),
+                  const SizedBox(height: 16),
+                  const Center(child: AppVersionLabel()),
                 ],
               ),
             ),
@@ -492,6 +499,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildThemeSection() {
+    final l10n = AppLocalization.of(context);
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -502,15 +510,68 @@ class _SettingsScreenState extends State<SettingsScreen> {
               children: [
                 const Icon(Icons.palette, color: Colors.purple),
                 const SizedBox(width: 8),
-                const Text(
-                  'Tema Ayarları',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                Text(
+                  l10n.translate('settings.theme'),
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            // Tema ayarları buraya eklenecek
-            const Text('Tema ayarları yakında eklenecek...'),
+            const SizedBox(height: 8),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.text_fields),
+              title: Text(l10n.translate('settings.appearance')),
+              subtitle: Text(l10n.translate('settings.appearance_desc')),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.pushNamed(
+                  context,
+                  AppearanceSettingsScreen.routeName,
+                );
+              },
+            ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.image_outlined),
+              title: Text(l10n.translate('settings.report_logo')),
+              subtitle: Text(l10n.translate('settings.report_logo_desc')),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.pushNamed(
+                  context,
+                  ReportLogoSettingsScreen.routeName,
+                );
+              },
+            ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.smart_toy_outlined),
+              title: Text(l10n.translate('settings.ai')),
+              subtitle: Text(l10n.translate('settings.ai_desc')),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.pushNamed(
+                  context,
+                  AiSettingsScreen.routeName,
+                );
+              },
+            ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.chat_outlined),
+              title: Text(l10n.translate('settings.ai_chat')),
+              subtitle: Text(l10n.translate('settings.ai_chat_desc')),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.pushNamed(
+                  context,
+                  AiVoiceChatScreen.routeName,
+                );
+              },
+            ),
           ],
         ),
       ),

@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'menu_management.dart';
 import 'company_management.dart';
 import 'user_authorization.dart';
+import 'permission_groups_screen.dart';
 import 'sync_operations.dart';
 import 'terminal_operations.dart';
 import 'device_approval_screen.dart';
@@ -40,6 +41,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
     'Menü Yönetimi',
     'Firma Yönetimi',
     'Kullanıcı İşlemleri',
+    'Yetki Grupları',
     'Senkronizasyon',
     'Terminal',
     'Cihaz Onaylama',
@@ -49,6 +51,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
     Icons.menu,
     Icons.business,
     Icons.supervisor_account,
+    Icons.security,
     Icons.sync,
     Icons.terminal,
     Icons.device_unknown,
@@ -58,6 +61,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
     MenuManagement(),
     CompanyManagement(),
     UserAuthorization(),
+    PermissionGroupsScreen(embedded: true),
     SyncOperations(),
     TerminalOperations(),
     DeviceApprovalScreen(),

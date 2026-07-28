@@ -2,7 +2,7 @@
 // Açıklama: Katalog Barkod/Kamera → ürün dens lookup navigasyonu
 // Oluşturulma Tarihi: 2026-07-26
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-26
+// Son Güncelleme: 2026-07-28
 
 import 'package:flutter/material.dart';
 
@@ -13,6 +13,8 @@ import '../../../../core/init/navigation/routes.dart';
 ///
 /// Parametreler:
 /// - [context]: Navigasyon bağlamı
+/// - [autoScan]: true → açılışta kamera barkod tarayıcı
+/// - [selectionMode]: true → Seç ile ürün haritası pop
 ///
 /// Dönüş değeri:
 /// - [Future]: Seçilen ürün haritası veya null
@@ -24,9 +26,16 @@ import '../../../../core/init/navigation/routes.dart';
 /// ```
 /// {@endtemplate}
 Future<Map<String, dynamic>?> openFieldSalesBarcodeScan(
-  BuildContext context,
-) {
+  BuildContext context, {
+  bool autoScan = false,
+  bool selectionMode = true,
+}) {
+  final args = <String, dynamic>{
+    if (autoScan) 'autoScan': true,
+    if (!selectionMode) 'selectionMode': false,
+  };
   return Navigator.of(context).pushNamed<Map<String, dynamic>>(
     AppRoutes.fieldSalesBarcodeScan,
+    arguments: args.isEmpty ? null : args,
   );
 }

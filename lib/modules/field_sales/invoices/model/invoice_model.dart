@@ -3,7 +3,7 @@
 // Açıklama: Fatura modeli (e-Fatura ETTN / GİB durum alanları dahil)
 // Oluşturulma Tarihi: 2024-03-20
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-26
+// Son Güncelleme: 2026-07-28
 
 /// {@template invoice_model}
 /// Yerel fatura kaydı (SQLite `invoices`).
@@ -179,16 +179,38 @@ class InvoiceModel {
   }
 }
 
+/// {@template invoice_item_model}
+/// Fatura kalemi (SQLite `invoice_items`).
+/// {@endtemplate}
 class InvoiceItemModel {
+  /// [id]: Birincil anahtar
   final String id;
+
+  /// [invoiceId]: Bağlı fatura id
   final String invoiceId;
+
+  /// [productId]: Ürün id
   final String productId;
+
+  /// [quantity]: Miktar
   final double quantity;
+
+  /// [price]: Birim fiyat
   final double price;
+
+  /// [vatAmount]: KDV tutarı
   final double vatAmount;
+
+  /// [totalAmount]: Satır toplamı (KDV hariç net)
   final double totalAmount;
+
+  /// [productName]: Gösterim adı (join)
   final String? productName;
 
+  /// [unitName]: Satır birimi (Adet / Koli / …)
+  final String? unitName;
+
+  /// {@macro invoice_item_model}
   InvoiceItemModel({
     required this.id,
     required this.invoiceId,
@@ -198,6 +220,7 @@ class InvoiceItemModel {
     required this.vatAmount,
     required this.totalAmount,
     this.productName,
+    this.unitName,
   });
 
   Map<String, dynamic> toMap() {
@@ -209,10 +232,14 @@ class InvoiceItemModel {
       'price': price,
       'vat_amount': vatAmount,
       'total_amount': totalAmount,
+      'unit_name': unitName,
     };
   }
 
-  factory InvoiceItemModel.fromMap(Map<String, dynamic> map, {String? productName}) {
+  factory InvoiceItemModel.fromMap(
+    Map<String, dynamic> map, {
+    String? productName,
+  }) {
     return InvoiceItemModel(
       id: map['id'],
       invoiceId: map['invoice_id'],
@@ -222,6 +249,7 @@ class InvoiceItemModel {
       vatAmount: map['vat_amount'],
       totalAmount: map['total_amount'],
       productName: productName,
+      unitName: map['unit_name'] as String?,
     );
   }
 }
