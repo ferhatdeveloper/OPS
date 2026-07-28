@@ -17,7 +17,7 @@ import 'dart:convert';
 import '../core/services/postgre_service.dart';
 import 'storage_service.dart';
 import '../core/auth/remember_me_store.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
 import 'dart:async';
 import 'package:crypto/crypto.dart';
 
@@ -240,6 +240,7 @@ class DatabaseService {
       await ensureEinvoiceStatusSchema();
       await ensureEwaybillStatusSchema();
       await ensureWarehousesSchema();
+      await ensureLogoSalesmanUserSchema();
       await ensureWhmsP0Schema();
       await ensurePriceListsSchema();
       await ensureBatchExpirySchema();
@@ -1917,6 +1918,35 @@ class DatabaseService {
       }
     } catch (e) {
       print('❌ campaigns duyuru seed hatası: $e');
+    }
+  }
+
+  /// Logo plasiyer tablosu + users.logo_salesman_code.
+  Future<void> ensureLogoSalesmanUserSchema() async {
+    if (!await _storage.hasSQLiteSupport()) return;
+    final db = await _storage.getDatabase();
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS salesmen (
+        id TEXT PRIMARY KEY,
+        code TEXT NOT NULL UNIQUE,
+        name TEXT,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        logo_ref TEXT,
+        is_synced INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT,
+        updated_at TEXT
+      );
+    ''');
+    try {
+      final cols = await db.rawQuery('PRAGMA table_info(users)');
+      if (cols.isNotEmpty &&
+          !cols.any((c) => c['name'] == 'logo_salesman_code')) {
+        await db.execute(
+          'ALTER TABLE users ADD COLUMN logo_salesman_code TEXT',
+        );
+      }
+    } catch (e) {
+      debugPrint('users.logo_salesman_code: $e');
     }
   }
 

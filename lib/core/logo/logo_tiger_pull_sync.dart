@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../../service/database_service.dart';
+import 'logo_salesman_user_provisioner.dart';
 import 'logo_tiger_rest_client.dart';
 
 /// {@template logo_tiger_entity_sync_result}
@@ -19,11 +20,15 @@ class LogoTigerEntitySyncResult {
   final int errors;
   final String? message;
 
+  /// Kullanıcı provision sayısı (salesmen).
+  final int usersCreated;
+
   const LogoTigerEntitySyncResult({
     this.fetched = 0,
     this.upserted = 0,
     this.errors = 0,
     this.message,
+    this.usersCreated = 0,
   });
 }
 
@@ -36,6 +41,7 @@ class LogoTigerSyncResult {
   final LogoTigerEntitySyncResult customers;
   final LogoTigerEntitySyncResult warehouses;
   final LogoTigerEntitySyncResult orders;
+  final LogoTigerEntitySyncResult salesmen;
   final String? error;
   final List<String> messages;
 
@@ -45,6 +51,7 @@ class LogoTigerSyncResult {
     this.customers = const LogoTigerEntitySyncResult(),
     this.warehouses = const LogoTigerEntitySyncResult(),
     this.orders = const LogoTigerEntitySyncResult(),
+    this.salesmen = const LogoTigerEntitySyncResult(),
     this.error,
     this.messages = const [],
   });
@@ -62,13 +69,17 @@ class LogoTigerSyncResult {
 class LogoTigerPullSync {
   final LogoTigerRestClient _client;
   final Future<Database> Function()? _dbFactory;
+  final LogoSalesmanUserProvisioner _userProvisioner;
 
   /// {@macro logo_tiger_pull_sync}
   LogoTigerPullSync({
     LogoTigerRestClient? client,
     Future<Database> Function()? dbFactory,
+    LogoSalesmanUserProvisioner? userProvisioner,
   })  : _client = client ?? LogoTigerRestClient(),
-        _dbFactory = dbFactory;
+        _dbFactory = dbFactory,
+        _userProvisioner =
+            userProvisioner ?? LogoSalesmanUserProvisioner();
 
   Future<Database> _db() async {
     final factory = _dbFactory;
@@ -78,13 +89,14 @@ class LogoTigerPullSync {
   }
 
   /// {@template logo_tiger_pull_sync_all}
-  /// Ürün + cari + ambar(locationCodes) + satış siparişleri çeker.
+  /// Ürün + cari + ambar + sipariş + plasiyer (+ OPS kullanıcı).
   /// {@endtemplate}
   Future<LogoTigerSyncResult> pullAll({
     bool products = true,
     bool customers = true,
     bool warehouses = true,
     bool orders = true,
+    bool salesmen = true,
     int maxPages = 100,
   }) async {
     final messages = <String>[];
@@ -102,6 +114,7 @@ class LogoTigerPullSync {
       var customersR = const LogoTigerEntitySyncResult();
       var warehousesR = const LogoTigerEntitySyncResult();
       var ordersR = const LogoTigerEntitySyncResult();
+      var salesmenR = const LogoTigerEntitySyncResult();
 
       if (products) {
         productsR = await _syncProducts(db, maxPages: maxPages);
@@ -122,11 +135,20 @@ class LogoTigerPullSync {
         ordersR = await _syncOrders(db, maxPages: maxPages);
         messages.add('Sipariş: ${ordersR.upserted}/${ordersR.fetched}');
       }
+      if (salesmen) {
+        salesmenR = await _syncSalesmen(db, maxPages: maxPages);
+        messages.add(
+          'Plasiyer: ${salesmenR.upserted}/${salesmenR.fetched}'
+          ' · kullanıcı: +${salesmenR.usersCreated}'
+          '${salesmenR.message != null ? ' (${salesmenR.message})' : ''}',
+        );
+      }
 
       final anyError = productsR.errors +
               customersR.errors +
               warehousesR.errors +
-              ordersR.errors >
+              ordersR.errors +
+              salesmenR.errors >
           0;
       return LogoTigerSyncResult(
         ok: !anyError,
@@ -134,6 +156,7 @@ class LogoTigerPullSync {
         customers: customersR,
         warehouses: warehousesR,
         orders: ordersR,
+        salesmen: salesmenR,
         messages: messages,
         error: anyError ? 'Bazı kayıtlar atlandı/hatalı' : null,
       );
@@ -355,6 +378,75 @@ class LogoTigerPullSync {
       fetched: rows.length,
       upserted: upserted,
       errors: errors,
+    );
+  }
+
+  /// Plasiyer kartları + OPS kullanıcı provision (şifre 1234).
+  Future<LogoTigerEntitySyncResult> _syncSalesmen(
+    Database db, {
+    required int maxPages,
+  }) async {
+    List<Map<String, dynamic>> rows;
+    try {
+      rows = await _client.fetchSalesmen(maxPages: maxPages);
+    } catch (e) {
+      return LogoTigerEntitySyncResult(
+        message: 'salesmen okunamadı: $e',
+      );
+    }
+    if (rows.isEmpty) {
+      return const LogoTigerEntitySyncResult(
+        message: 'salesmen boş veya kaynak yok',
+      );
+    }
+
+    var upserted = 0;
+    var errors = 0;
+    final now = DateTime.now().toIso8601String();
+    final forUsers = <Map<String, String>>[];
+
+    for (final row in rows) {
+      try {
+        final code = _str(row, ['CODE', 'code', 'SPECODE', 'SALESMANCODE']);
+        if (code.isEmpty) continue;
+        final name = _str(
+          row,
+          ['NAME', 'name', 'DEFINITION_', 'DEFINITION', 'TITLE'],
+          fallback: code,
+        );
+        final logoRef = _str(
+          row,
+          ['LOGICALREF', 'INTERNAL_REFERENCE', 'REF'],
+        );
+        await db.insert(
+          'salesmen',
+          {
+            'id': code,
+            'code': code,
+            'name': name,
+            'is_active': 1,
+            'logo_ref': logoRef.isEmpty ? null : logoRef,
+            'is_synced': 1,
+            'created_at': now,
+            'updated_at': now,
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+        forUsers.add({'code': code, 'name': name});
+        upserted++;
+      } catch (e) {
+        errors++;
+        debugPrint('LogoTiger salesman upsert: $e');
+      }
+    }
+
+    final usersCreated = await _userProvisioner.ensureUsers(db, forUsers);
+
+    return LogoTigerEntitySyncResult(
+      fetched: rows.length,
+      upserted: upserted,
+      errors: errors,
+      usersCreated: usersCreated,
     );
   }
 

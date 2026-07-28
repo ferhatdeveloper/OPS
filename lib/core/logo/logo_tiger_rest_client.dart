@@ -93,6 +93,15 @@ class LogoTigerRestClient {
     'itemSlips',
     'unitSets',
     'salesInvoices',
+    'salesmen',
+  ];
+
+  /// Logo plasiyer / salesman resource adayları (sıra önemli).
+  static const List<String> salesmanResourceCandidates = [
+    'salesmen',
+    'Salesmen',
+    'salesMan',
+    'SLSMAN',
   ];
 
   final LogoTigerSettingsStore _store;
@@ -462,6 +471,34 @@ class LogoTigerRestClient {
     int maxPages = 50,
   }) =>
       fetchAllPaginated('locationCodes', maxPages: maxPages);
+
+  /// {@template logo_tiger_rest_client_fetch_salesmen}
+  /// Plasiyer kartları — aday resource adlarını dener.
+  /// {@endtemplate}
+  Future<List<Map<String, dynamic>>> fetchSalesmen({
+    int maxPages = 100,
+  }) async {
+    for (final name in salesmanResourceCandidates) {
+      try {
+        final probe = await listResource(name, limit: 1);
+        // Ham hata stringi varsa sonraki adayı dene
+        if (probe.raw is String &&
+            (probe.raw as String).toLowerCase().contains('404')) {
+          continue;
+        }
+        final all = await fetchAllPaginated(name, maxPages: maxPages);
+        if (all.isNotEmpty || probe.items.isEmpty) {
+          // Boş ama 200 kabul — firma plasiyersiz olabilir; yine de bu kaynağı kullan
+          if (all.isNotEmpty || name == salesmanResourceCandidates.first) {
+            return all;
+          }
+        }
+      } catch (e) {
+        debugPrint('LogoTiger fetchSalesmen($name): $e');
+      }
+    }
+    return const [];
+  }
 
   // ---------------------------------------------------------------------------
   // Create / push (RetailEX logoCreateResource)
