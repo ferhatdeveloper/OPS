@@ -5,8 +5,10 @@
 // Son Güncelleme: 2026-07-26
 
 import 'package:flutter/material.dart';
+import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/localization/app_localization.dart';
+import '../../../../core/logo/logo_tiger.dart';
 import '../../../../core/services/logo_api_service.dart';
 import '../../../../service/database_service.dart';
 import '../../../../service/job_queue_service.dart';
@@ -150,8 +152,56 @@ class _DataTransferScreenState extends State<DataTransferScreen> {
     });
 
     final logo = LogoApiService();
+    final tigerStore = LogoTigerSettingsStore();
+    final useTiger = await tigerStore.isEnabled();
     if (action != DataTransferAction.productImages) {
-      await logo.ensureReady();
+      if (useTiger) {
+        await LogoTigerRestClient().ensureReady();
+      } else {
+        await logo.ensureReady();
+      }
+    }
+
+    // Tiger REST açıkken Al → tek seferde items/Arps/locationCodes/salesOrders
+    if (useTiger &&
+        action == DataTransferAction.receive &&
+        syncItems.any((e) => e['key'] == 'customers' || e['key'] == 'products')) {
+      setState(() {
+        for (final item in syncItems) {
+          if (item['key'] == 'upload' || item['key'] == 'product_images') {
+            continue;
+          }
+          item['status'] = _stTransferring;
+          item['progress'] = 0.2;
+        }
+      });
+      try {
+        final sync = LogoTigerPullSync();
+        final result = await sync.pullAll();
+        if (!mounted) return;
+        setState(() {
+          for (final item in syncItems) {
+            final key = item['key'];
+            if (key == 'upload' || key == 'product_images') continue;
+            item['status'] = result.ok ? _stDone : _stError;
+            item['progress'] = 1.0;
+          }
+          overallProgress = 1.0;
+          if (!result.ok) {
+            lastError = result.error;
+          }
+          isSyncing = false;
+          activeAction = null;
+        });
+      } catch (e) {
+        if (!mounted) return;
+        setState(() {
+          lastError = e.toString();
+          isSyncing = false;
+          activeAction = null;
+        });
+      }
+      return;
     }
 
     for (int i = 0; i < syncItems.length; i++) {
@@ -539,12 +589,10 @@ class _DataTransferScreenState extends State<DataTransferScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final l10n = AppLocalization.of(context);
 
     return Scaffold(
-      backgroundColor:
-          isDarkMode ? const Color(0xFF121212) : const Color(0xFFF8F9FD),
+      backgroundColor: FieldSalesDensTheme.bodyBackground(context),
       appBar: AppBar(
         title: Text(
           l10n.translate('field_sales.data_transfer_title'),
@@ -571,7 +619,7 @@ class _DataTransferScreenState extends State<DataTransferScreen> {
         children: [
           Container(
             padding: const EdgeInsets.all(12),
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               color: Color(0xFF375A7F),
               borderRadius: BorderRadius.only(
                 bottomLeft: Radius.circular(30),

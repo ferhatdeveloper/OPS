@@ -1,8 +1,8 @@
 // Dosya Adı: job_queue_service.dart
-// Açıklama: Offline sync kuyruğu — Logo REST aktarımı
+// Açıklama: Offline sync kuyruğu — Logo REST / Tiger Objects aktarımı
 // Oluşturulma Tarihi: 2026-02-22
 // Geliştirici: EXFIN OPS Team
-// Son Güncelleme: 2026-07-26
+// Son Güncelleme: 2026-07-28
 
 import 'dart:convert';
 
@@ -10,8 +10,12 @@ import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
 import '../core/database/migrations/SqlQuerys.dart';
+import '../core/logo/logo_tiger.dart';
 import '../core/services/logo_api_service.dart';
 import '../core/services/logo_payload_mapper.dart';
+import '../core/sync/outbound_idempotency.dart';
+import '../core/sync/outbound_sync_phases.dart';
+import '../core/sync/postgrest_document_mirror.dart';
 import '../modules/field_sales/ai_insights/viewmodel/supply_request_logo_sync_mapper.dart';
 import 'database_service.dart';
 import 'job_queue_entity_map.dart';
@@ -25,6 +29,15 @@ class JobQueueService {
 
   bool _isProcessing = false;
 
+  /// Test inject — Tiger client (null → yeni instance).
+  LogoTigerRestClient? tigerClientForTest;
+
+  /// Test inject — Tiger ayar store.
+  LogoTigerSettingsStore? tigerStoreForTest;
+
+  /// Test inject — PostgREST mirror (null → varsayılan).
+  PostgrestDocumentMirror? postgrestMirrorForTest;
+
   /// Kuyruğa iş ekler ve işlemeyi tetikler.
   Future<void> enqueue({
     required String entityType,
@@ -34,6 +47,7 @@ class JobQueueService {
   }) async {
     final dbService = await DatabaseService.getInstance();
     final db = await dbService.getDatabase();
+    await _ensureOutboundQueueSchema(db);
 
     final jobId = const Uuid().v4();
     await db.insert('sync_queue', {
@@ -43,6 +57,7 @@ class JobQueueService {
       'payload': payload != null ? jsonEncode(payload) : null,
       'priority': priority,
       'retry_count': 0,
+      'sync_phase': OutboundSyncPhase.logo,
       'created_at': DateTime.now().toIso8601String(),
     });
 
@@ -67,7 +82,7 @@ class JobQueueService {
     return jobs.length;
   }
 
-  /// Bekleyen işleri Logo REST'e aktarır.
+  /// Bekleyen işleri Logo → PostgREST sırasıyla aktarır.
   Future<void> processQueue() async {
     if (_isProcessing) return;
     _isProcessing = true;
@@ -75,6 +90,7 @@ class JobQueueService {
     try {
       final dbService = await DatabaseService.getInstance();
       final db = await dbService.getDatabase();
+      await _ensureOutboundQueueSchema(db);
 
       final jobs = await db.query(
         'sync_queue',
@@ -86,6 +102,7 @@ class JobQueueService {
         final jobId = job['id'] as String;
         final type = (job['entity_type'] as String).toLowerCase();
         final entityId = job['entity_id'] as String;
+        final phase = OutboundSyncPhase.normalize(job['sync_phase']);
         Map<String, dynamic>? payload;
         if (job['payload'] != null) {
           try {
@@ -97,29 +114,62 @@ class JobQueueService {
           }
         }
 
-        debugPrint('Processing Job: $type ($entityId)');
-        final result = await _syncToLogo(type, entityId, payload);
+        debugPrint('Processing Job: $type ($entityId) phase=$phase');
 
-        if (result.success) {
-          await db.delete('sync_queue', where: 'id = ?', whereArgs: [jobId]);
-          await _markEntitySynced(type, entityId, payload);
-          debugPrint('Job Completed: $jobId');
-        } else {
-          final currentRetry = (job['retry_count'] as int? ?? 0) + 1;
+        String? logoRef = await _readLogoRef(type, entityId);
+        var logoOk = phase == OutboundSyncPhase.postgrest &&
+            (logoRef != null && logoRef.isNotEmpty);
+
+        if (phase == OutboundSyncPhase.logo) {
+          // Yerelde zaten Logo'ya yazılmışsa POST atlama (çift fiş engeli)
+          if (logoRef != null && logoRef.isNotEmpty) {
+            logoOk = true;
+            debugPrint('Skip Logo POST (logo_ref=$logoRef)');
+          } else {
+            final result = await _syncToLogo(type, entityId, payload);
+            if (!result.success) {
+              await _bumpRetry(db, jobId, job, result.error);
+              continue;
+            }
+            logoRef = _logoRefFromResult(result) ??
+                OutboundIdempotency.ficheNumber(type, entityId);
+            await _saveLogoRef(type, entityId, logoRef);
+            await _markEntitySynced(type, entityId, payload);
+            logoOk = true;
+          }
+
+          // Logo OK → PostgREST aşamasına geç (silme yok)
           await db.update(
             'sync_queue',
-            {
-              'retry_count': currentRetry,
-              'last_error': result.error ?? 'Bilinmeyen hata',
-              if (currentRetry <= 5)
-                'scheduled_at': DateTime.now()
-                    .add(const Duration(minutes: 5))
-                    .toIso8601String(),
-            },
+            {'sync_phase': OutboundSyncPhase.postgrest, 'last_error': null},
             where: 'id = ?',
             whereArgs: [jobId],
           );
-          debugPrint('Job Failed: $jobId → ${result.error}');
+        }
+
+        if (!logoOk) continue;
+
+        final mirror = postgrestMirrorForTest ?? PostgrestDocumentMirror();
+        final idem = OutboundIdempotency.ficheNumber(type, entityId);
+        final pgOk = await mirror.mirror(
+          entityType: type,
+          entityId: entityId,
+          logoRef: logoRef,
+          idempotencyCode: idem,
+          payload: payload,
+        );
+
+        if (pgOk) {
+          await _markPgSynced(type, entityId);
+          await db.delete('sync_queue', where: 'id = ?', whereArgs: [jobId]);
+          debugPrint('Job Completed (Logo→PG): $jobId');
+        } else {
+          await _bumpRetry(
+            db,
+            jobId,
+            {...job, 'sync_phase': OutboundSyncPhase.postgrest},
+            'PostgREST mirror başarısız',
+          );
         }
       }
     } catch (e) {
@@ -129,11 +179,54 @@ class JobQueueService {
     }
   }
 
+  Future<void> _bumpRetry(
+    dynamic db,
+    String jobId,
+    Map<String, dynamic> job,
+    String? error,
+  ) async {
+    final currentRetry = (job['retry_count'] as int? ?? 0) + 1;
+    await db.update(
+      'sync_queue',
+      {
+        'retry_count': currentRetry,
+        'last_error': error ?? 'Bilinmeyen hata',
+        if (job['sync_phase'] != null) 'sync_phase': job['sync_phase'],
+        if (currentRetry <= 5)
+          'scheduled_at': DateTime.now()
+              .add(const Duration(minutes: 5))
+              .toIso8601String(),
+      },
+      where: 'id = ?',
+      whereArgs: [jobId],
+    );
+    debugPrint('Job Failed: $jobId → $error');
+  }
+
+  String? _logoRefFromResult(LogoApiResult result) {
+    final data = result.data;
+    if (data is Map) {
+      final direct = data['logo_ref']?.toString().trim();
+      if (direct != null && direct.isNotEmpty) return direct;
+      final tiger = data['tiger'] == true;
+      if (tiger) {
+        return LogoTigerRestClient.extractLogoRef(data['data']) ??
+            LogoTigerRestClient.extractLogoRef(data);
+      }
+      return LogoTigerRestClient.extractLogoRef(data);
+    }
+    return LogoTigerRestClient.extractLogoRef(data);
+  }
+
   Future<LogoApiResult> _syncToLogo(
     String type,
     String entityId,
     Map<String, dynamic>? payload,
   ) async {
+    // Tiger REST açık + config geçerliyse desteklenen entity → Objects POST
+    final tigerResult = await _trySyncToTiger(type, entityId, payload);
+    if (tigerResult != null) return tigerResult;
+
     final logo = LogoApiService();
     await logo.loadConfig();
 
@@ -254,6 +347,225 @@ class JobQueueService {
     } catch (e) {
       return LogoApiResult.fail(e.toString());
     }
+  }
+
+  /// Tiger push dener. Desteklenmiyor / kapalı → null (Exfin yolu).
+  Future<LogoApiResult?> _trySyncToTiger(
+    String type,
+    String entityId,
+    Map<String, dynamic>? payload,
+  ) async {
+    if (!LogoTigerPushAdapter.isSupported(type)) return null;
+
+    final store = tigerStoreForTest ?? LogoTigerSettingsStore();
+    if (!await store.isPushReady()) return null;
+
+    try {
+      Map<String, dynamic>? body = payload;
+      if (type == 'order' || type == 'orders') {
+        if (body == null ||
+            (!body.containsKey('lines') &&
+                !body.containsKey('items') &&
+                !body.containsKey('customer_code') &&
+                !body.containsKey('ARP_CODE'))) {
+          body = await _buildOrderPayload(entityId);
+        } else {
+          body = _ensureOrderTypeFields(body);
+        }
+      } else if (type == 'invoice' || type == 'invoices') {
+        body = await _ensureInvoicePayloadForTiger(entityId, body);
+      } else if (type == 'supplier_purchase_request' ||
+          type == 'supplier_purchase_requests' ||
+          type == 'supply_request') {
+        if (body == null || body.isEmpty) {
+          return LogoApiResult.fail('supplier_purchase_request payload boş');
+        }
+        if (body['stub'] == true ||
+            !SupplyRequestLogoSyncMapper.useRealLogoPurchasePath) {
+          return LogoApiResult.ok({
+            'skipped': true,
+            'sync_stub': true,
+            'entity_type': SupplyRequestLogoSyncMapper.entityType,
+            'entity_id': entityId,
+            'payload': body,
+          });
+        }
+        body = _ensureOrderTypeFields(Map<String, dynamic>.from(body));
+        body['type'] = 'purchase';
+        body['order_type'] = 'purchase';
+      }
+
+      if (body == null || body.isEmpty) {
+        return LogoApiResult.fail('Tiger push payload boş: $type/$entityId');
+      }
+
+      final target = LogoTigerPushAdapter.fromQueuePayload(
+        type,
+        body,
+        entityId: entityId,
+      );
+      if (target == null) return null;
+      if ((target.restRecord['ARP_CODE'] ?? '').toString().trim().isEmpty) {
+        return LogoApiResult.fail('Tiger push ARP_CODE boş');
+      }
+
+      final client = tigerClientForTest ?? LogoTigerRestClient();
+      await client.ensureReady();
+
+      // Çift fatura engeli: aynı NUMBER Logo'da varsa POST atlama
+      final number = (target.restRecord['NUMBER'] ?? '').toString();
+      final existing = await client.findByNumber(target.resource, number);
+      if (existing != null) {
+        final ref = LogoTigerRestClient.extractLogoRef(existing) ?? number;
+        return LogoApiResult.ok(
+          {
+            'tiger': true,
+            'resource': target.resource,
+            'deduped': true,
+            'data': existing,
+            'logo_ref': ref,
+          },
+          statusCode: 200,
+        );
+      }
+
+      final result = await client.createResource(
+        target.resource,
+        target.restRecord,
+      );
+      if (result.success) {
+        return LogoApiResult.ok(
+          {
+            'tiger': true,
+            'resource': target.resource,
+            'data': result.data,
+            'logo_ref': LogoTigerRestClient.extractLogoRef(result.data) ??
+                number,
+          },
+          statusCode: result.statusCode,
+        );
+      }
+      // Logo "zaten var" benzeri hatalar → dedupe success
+      final err = (result.error ?? '').toLowerCase();
+      if (err.contains('already') ||
+          err.contains('duplicate') ||
+          err.contains('unique') ||
+          err.contains('mevcut')) {
+        final again = await client.findByNumber(target.resource, number);
+        if (again != null) {
+          return LogoApiResult.ok(
+            {
+              'tiger': true,
+              'resource': target.resource,
+              'deduped': true,
+              'data': again,
+              'logo_ref': LogoTigerRestClient.extractLogoRef(again) ?? number,
+            },
+            statusCode: 200,
+          );
+        }
+      }
+      return LogoApiResult.fail(
+        result.error ?? 'Tiger POST başarısız',
+        statusCode: result.statusCode,
+        data: result.data,
+      );
+    } catch (e) {
+      return LogoApiResult.fail('Tiger push: $e');
+    }
+  }
+
+  /// Fatura: Exfin `local_invoice_id` yolundan farklı — tam restRecord gerekir.
+  Future<Map<String, dynamic>?> _ensureInvoicePayloadForTiger(
+    String entityId,
+    Map<String, dynamic>? payload,
+  ) async {
+    if (payload != null) {
+      final hasLines =
+          (payload['lines'] is List && (payload['lines'] as List).isNotEmpty) ||
+              (payload['items'] is List &&
+                  (payload['items'] as List).isNotEmpty) ||
+              (payload['TRANSACTIONS'] != null);
+      final hasArp = _nonEmpty(
+        payload['ARP_CODE'] ?? payload['arp_code'] ?? payload['customer_code'],
+      );
+      if (hasLines && hasArp) {
+        return Map<String, dynamic>.from(payload);
+      }
+    }
+    return _buildInvoicePayload(entityId, payload);
+  }
+
+  bool _nonEmpty(dynamic v) =>
+      v != null && v.toString().trim().isNotEmpty;
+
+  Future<Map<String, dynamic>?> _buildInvoicePayload(
+    String invoiceId, [
+    Map<String, dynamic>? hint,
+  ]) async {
+    final dbService = await DatabaseService.getInstance();
+    final db = await dbService.getDatabase();
+
+    final invoices = await db.query(
+      'invoices',
+      where: 'id = ?',
+      whereArgs: [invoiceId],
+      limit: 1,
+    );
+    if (invoices.isEmpty) return null;
+    final invoice = Map<String, dynamic>.from(invoices.first);
+    if (hint != null) {
+      invoice.addAll(
+        Map<String, dynamic>.from(hint)
+          ..remove('lines')
+          ..remove('items'),
+      );
+    }
+    final customerCode =
+        await _resolveCustomerCode(invoice['customer_id']?.toString());
+
+    final itemRows = await db.query(
+      'invoice_items',
+      where: 'invoice_id = ?',
+      whereArgs: [invoiceId],
+    );
+    final lines = <Map<String, dynamic>>[];
+    for (final row in itemRows) {
+      final productId = row['product_id']?.toString();
+      String code = productId ?? '';
+      if (productId != null) {
+        final products = await db.query(
+          'products',
+          columns: ['code'],
+          where: 'id = ?',
+          whereArgs: [productId],
+          limit: 1,
+        );
+        if (products.isNotEmpty && products.first['code'] != null) {
+          code = products.first['code'].toString();
+        }
+      }
+      lines.add({
+        'product_code': code,
+        'quantity': row['quantity'],
+        'price': row['price'],
+        'vat_rate': row['vat_amount'],
+        'total_amount': row['total_amount'],
+        if (row['unit_name'] != null) 'unit_name': row['unit_name'],
+      });
+    }
+
+    final rawType = hint?['type']?.toString() ??
+        hint?['invoice_type']?.toString() ??
+        invoice['invoice_type']?.toString() ??
+        LogoPayloadMapper.invoiceQueueWholesale;
+
+    return LogoPayloadMapper.invoiceFromLocal(
+      invoice: invoice,
+      items: lines,
+      customerCode: customerCode,
+      type: rawType,
+    );
   }
 
   /// Banka / çek / senet master — Logo endpoint stub (normalize + skipped ok).
@@ -553,10 +865,16 @@ class JobQueueService {
       final dbService = await DatabaseService.getInstance();
       final db = await dbService.getDatabase();
       final values = <String, Object?>{'is_synced': 1};
+      // Sync approval: ONAY/approval_status = 2 (synced)
       if (table == 'supplier_purchase_requests') {
         values['status'] = 'synced';
         values['ONAY'] = 2;
         values['updated_at'] = DateTime.now().toIso8601String();
+      } else if (table == 'orders' ||
+          table == 'invoices' ||
+          table == 'collections' ||
+          table == 'waybills') {
+        values['approval_status'] = 2;
       }
       await db.update(
         table,
@@ -597,6 +915,92 @@ class JobQueueService {
       }
     } catch (e) {
       debugPrint('warehouse_transfers is_synced update failed: $e');
+    }
+  }
+
+  /// sync_queue.sync_phase + entity logo_ref / pg_synced kolonları.
+  Future<void> _ensureOutboundQueueSchema(dynamic db) async {
+    await db.execute(SqlQuerys.createSyncQueueTable);
+    try {
+      await db.execute(
+        'ALTER TABLE sync_queue ADD COLUMN sync_phase TEXT',
+      );
+    } catch (_) {}
+    for (final table in const [
+      'orders',
+      'invoices',
+      'collections',
+      'waybills',
+      'supplier_purchase_requests',
+    ]) {
+      try {
+        await db.execute('ALTER TABLE $table ADD COLUMN logo_ref TEXT');
+      } catch (_) {}
+      try {
+        await db.execute(
+          'ALTER TABLE $table ADD COLUMN pg_synced INTEGER DEFAULT 0',
+        );
+      } catch (_) {}
+    }
+  }
+
+  Future<String?> _readLogoRef(String type, String entityId) async {
+    final table = jobQueueEntityTable(type);
+    if (table == null || table == 'warehouse_transfers') return null;
+    try {
+      final dbService = await DatabaseService.getInstance();
+      final db = await dbService.getDatabase();
+      final rows = await db.query(
+        table,
+        columns: ['logo_ref'],
+        where: 'id = ?',
+        whereArgs: [entityId],
+        limit: 1,
+      );
+      if (rows.isEmpty) return null;
+      final ref = rows.first['logo_ref']?.toString().trim();
+      if (ref == null || ref.isEmpty) return null;
+      return ref;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _saveLogoRef(
+    String type,
+    String entityId,
+    String logoRef,
+  ) async {
+    final table = jobQueueEntityTable(type);
+    if (table == null || table == 'warehouse_transfers') return;
+    try {
+      final dbService = await DatabaseService.getInstance();
+      final db = await dbService.getDatabase();
+      await db.update(
+        table,
+        {'logo_ref': logoRef},
+        where: 'id = ?',
+        whereArgs: [entityId],
+      );
+    } catch (e) {
+      debugPrint('logo_ref update failed ($table): $e');
+    }
+  }
+
+  Future<void> _markPgSynced(String type, String entityId) async {
+    final table = jobQueueEntityTable(type);
+    if (table == null || table == 'warehouse_transfers') return;
+    try {
+      final dbService = await DatabaseService.getInstance();
+      final db = await dbService.getDatabase();
+      await db.update(
+        table,
+        {'pg_synced': 1},
+        where: 'id = ?',
+        whereArgs: [entityId],
+      );
+    } catch (e) {
+      debugPrint('pg_synced update failed ($table): $e');
     }
   }
 }

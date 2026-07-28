@@ -15,6 +15,12 @@ subprojects {
                 if (namespace == null) {
                     namespace project.group
                 }
+                // isar_flutter_libs vb. eski compileSdk → lStar hatası
+                if (project.android.hasProperty('compileSdk')) {
+                    project.android.compileSdk = 36
+                } else if (project.android.hasProperty('compileSdkVersion')) {
+                    project.android.compileSdkVersion = 36
+                }
                 compileOptions {
                     sourceCompatibility JavaVersion.VERSION_11
                     targetCompatibility JavaVersion.VERSION_11

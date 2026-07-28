@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
+import '../core/logo/logo_server_url_bridge.dart';
 import '../model/api_config.dart';
 import 'database_service.dart';
 
@@ -121,6 +123,17 @@ class SettingsService {
       timeout: timeout,
       useHttps: useHttps,
     );
+
+    // Logo API: sunucu linki → Tiger / Logo REST (çekim kaynağı)
+    try {
+      await LogoServerUrlBridge.syncFromServerSettings(
+        baseUrl: baseUrl,
+        apiKey: apiKey,
+        useHttps: useHttps ?? true,
+      );
+    } catch (e) {
+      debugPrint('LogoServerUrlBridge sync: $e');
+    }
   }
 
   /// Save a setting
