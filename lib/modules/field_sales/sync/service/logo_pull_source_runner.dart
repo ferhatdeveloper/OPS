@@ -17,6 +17,10 @@ typedef LogoTigerPullAllFn = Future<LogoTigerSyncResult> Function({
   bool warehouses,
   bool orders,
   bool salesmen,
+  bool cash,
+  bool banks,
+  bool currencies,
+  bool unitSets,
 });
 
 /// {@template logo_pull_outcome}
@@ -40,11 +44,14 @@ class LogoPullOutcome {
   /// [error]: Ham hata metni (çeviri yok)
   final String? error;
 
-  /// [errorKey]: Çevrilebilir hata anahtarı
+  /// [errorKey]: Çevrilebilir hata / bilgilendirme anahtarı
   final String? errorKey;
 
   /// [message]: Kaynak bazlı bilgilendirme metni (ham)
   final String? message;
+
+  /// [comingSoon]: Kaynak henüz bağlanmadı — hata değil, bekleyen satır
+  final bool comingSoon;
 
   /// {@macro logo_pull_outcome}
   const LogoPullOutcome({
@@ -54,12 +61,31 @@ class LogoPullOutcome {
     this.error,
     this.errorKey,
     this.message,
+    this.comingSoon = false,
   });
 
   /// Seçili bağlantı türünde desteklenmeyen kaynak sonucu.
   factory LogoPullOutcome.unsupported() => const LogoPullOutcome(
         ok: false,
         errorKey: LogoPullSourceCatalog.unsupportedKey,
+      );
+
+  /// {@template logo_pull_outcome_coming_soon}
+  /// Kaynağı henüz bağlanmamış (veya yerel tablosu olmayan) satır sonucu.
+  ///
+  /// Parametreler:
+  /// - [messageKey]: Gösterilecek l10n anahtarı
+  /// - [message]: Varsa pull katmanının ham açıklaması
+  /// {@endtemplate}
+  factory LogoPullOutcome.comingSoon({
+    String messageKey = LogoPullSourceCatalog.comingSoonKey,
+    String? message,
+  }) =>
+      LogoPullOutcome(
+        ok: false,
+        comingSoon: true,
+        errorKey: messageKey,
+        message: message,
       );
 }
 
@@ -68,7 +94,8 @@ class LogoPullOutcome {
 /// çağrılmasıdır (satır bazlı durum + doğru genel ilerleme).
 ///
 /// Mevcut `LogoTigerPullSync.pullAll` bayrakları yeniden kullanılır; yeni
-/// senkron mimarisi yazılmaz.
+/// senkron mimarisi yazılmaz. MBT "GENEL BİLGİLER" satırı ambar + plasiyer +
+/// birim seti tek çağrıda çeker ve sayaçları toplar.
 ///
 /// Kullanım örneği:
 /// ```dart
@@ -98,22 +125,37 @@ class LogoPullSourceRunner {
   /// - [source]: İndirilecek veri türü
   ///
   /// Dönüş değeri:
-  /// - [LogoPullOutcome]: Sayaçlar + hata bilgisi (exception fırlatmaz)
+  /// - [LogoPullOutcome]: Sayaçlar + hata / bekleme bilgisi (exception yok)
   /// {@endtemplate}
   Future<LogoPullOutcome> run(LogoPullSource source) async {
+    if (LogoPullSourceCatalog.isComingSoon(source)) {
+      return LogoPullOutcome.comingSoon(
+        messageKey: LogoPullSourceCatalog.pendingMessageKey(source),
+      );
+    }
     if (!LogoPullSourceCatalog.supportsTiger(source)) {
       return LogoPullOutcome.unsupported();
     }
 
+    final isGeneral = source == LogoPullSource.general;
     final result = await pullAll(
       products: source == LogoPullSource.products,
       customers: source == LogoPullSource.customers,
-      warehouses: source == LogoPullSource.warehouses,
+      warehouses: isGeneral || source == LogoPullSource.warehouses,
       orders: source == LogoPullSource.orders,
-      salesmen: source == LogoPullSource.salesmen,
+      salesmen: isGeneral || source == LogoPullSource.salesmen,
+      cash: source == LogoPullSource.cash,
+      banks: source == LogoPullSource.banks,
+      currencies: source == LogoPullSource.currency,
+      unitSets: isGeneral,
     );
 
     final entity = _entityOf(result, source);
+    if (_isEmptySource(result, entity)) {
+      // Yerel tablo / uç nokta yok: hata değil, bekleyen satır.
+      return LogoPullOutcome.comingSoon(message: entity.message);
+    }
+
     final ok = result.ok && entity.errors == 0;
     final outcome = LogoPullOutcome(
       ok: ok,
@@ -132,6 +174,18 @@ class LogoPullSourceRunner {
     return outcome;
   }
 
+  /// [_isEmptySource]: Pull başarılı ama kaynak/yerel tablo yok mu?
+  static bool _isEmptySource(
+    LogoTigerSyncResult result,
+    LogoTigerEntitySyncResult entity,
+  ) {
+    return result.ok &&
+        entity.fetched == 0 &&
+        entity.upserted == 0 &&
+        entity.errors == 0 &&
+        (entity.message?.trim().isNotEmpty ?? false);
+  }
+
   /// [_entityOf]: Toplu sonuçtan ilgili kaynağın özetini seçer.
   static LogoTigerEntitySyncResult _entityOf(
     LogoTigerSyncResult result,
@@ -142,6 +196,18 @@ class LogoPullSourceRunner {
         return result.products;
       case LogoPullSource.customers:
         return result.customers;
+      case LogoPullSource.cash:
+        return result.cash;
+      case LogoPullSource.banks:
+        return result.banks;
+      case LogoPullSource.currency:
+        return result.currencies;
+      case LogoPullSource.general:
+        return _merge([
+          result.warehouses,
+          result.salesmen,
+          result.unitSets,
+        ]);
       case LogoPullSource.warehouses:
         return result.warehouses;
       case LogoPullSource.orders:
@@ -150,7 +216,36 @@ class LogoPullSourceRunner {
         return result.salesmen;
       case LogoPullSource.stock:
       case LogoPullSource.balances:
+      case LogoPullSource.variants:
+      case LogoPullSource.routes:
+      case LogoPullSource.announcements:
         return const LogoTigerEntitySyncResult();
     }
+  }
+
+  /// [_merge]: Composite satır (GENEL) için sayaç ve mesaj toplama.
+  static LogoTigerEntitySyncResult _merge(
+    List<LogoTigerEntitySyncResult> parts,
+  ) {
+    var fetched = 0;
+    var upserted = 0;
+    var errors = 0;
+    var usersCreated = 0;
+    final messages = <String>[];
+    for (final part in parts) {
+      fetched += part.fetched;
+      upserted += part.upserted;
+      errors += part.errors;
+      usersCreated += part.usersCreated;
+      final message = part.message?.trim();
+      if (message != null && message.isNotEmpty) messages.add(message);
+    }
+    return LogoTigerEntitySyncResult(
+      fetched: fetched,
+      upserted: upserted,
+      errors: errors,
+      usersCreated: usersCreated,
+      message: messages.isEmpty ? null : messages.join(' · '),
+    );
   }
 }

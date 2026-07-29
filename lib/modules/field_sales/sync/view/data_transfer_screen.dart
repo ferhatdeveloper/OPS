@@ -82,6 +82,7 @@ class _DataTransferScreenState extends State<DataTransferScreen> {
   static const String _stDone = 'done';
   static const String _stError = 'error';
   static const String _stSkipped = 'skipped';
+  static const String _stComingSoon = 'coming_soon';
 
   /// [syncItems]: Aktarım satırları (titleKey + status kodu)
   late List<Map<String, dynamic>> syncItems;
@@ -110,6 +111,13 @@ class _DataTransferScreenState extends State<DataTransferScreen> {
     LogoPullSource.warehouses: Icons.warehouse,
     LogoPullSource.salesmen: Icons.badge,
     LogoPullSource.orders: Icons.receipt_long,
+    LogoPullSource.cash: Icons.point_of_sale,
+    LogoPullSource.banks: Icons.account_balance,
+    LogoPullSource.currency: Icons.currency_exchange,
+    LogoPullSource.general: Icons.tune,
+    LogoPullSource.variants: Icons.category,
+    LogoPullSource.routes: Icons.route,
+    LogoPullSource.announcements: Icons.campaign,
   };
 
   @override
@@ -196,16 +204,25 @@ class _DataTransferScreenState extends State<DataTransferScreen> {
 
   /// {@template _build_source_item}
   /// Tek Logo veri türü için satır haritası üretir (durum + son güncelleme).
+  ///
+  /// Kaynağı henüz bağlanmamış satırlar "Bekliyor" yerine yakında / merkez
+  /// kaynaklı bilgilendirmesi ile açılır.
   /// {@endtemplate}
   Map<String, dynamic> _buildSourceItem(LogoPullSource source) {
     final state = _pullStates[source];
+    final comingSoon = LogoPullSourceCatalog.isComingSoon(source);
     return <String, dynamic>{
       'key': LogoPullSourceCatalog.storageKey(source),
       'source': source,
-      'titleKey': LogoPullSourceCatalog.titleKey(source),
+      'titleKey': LogoPullSourceCatalog.titleKey(
+        source,
+        tigerEnabled: _tigerEnabled,
+      ),
       'icon': _sourceIcons[source] ?? Icons.cloud_download,
       'progress': 0.0,
-      'status': _stPending,
+      'status': comingSoon ? _stComingSoon : _stPending,
+      'statusKey':
+          comingSoon ? LogoPullSourceCatalog.pendingMessageKey(source) : null,
       'count': state?.recordCount,
       'lastAt': state?.lastSuccessAt,
       'error': state?.lastOk == false ? state?.lastError : null,
@@ -350,11 +367,13 @@ class _DataTransferScreenState extends State<DataTransferScreen> {
       final source = syncItems[i]['source'] as LogoPullSource?;
       if (source == null) continue;
       if (!mounted) return;
-      setState(() {
-        syncItems[i]['status'] = _stTransferring;
-        syncItems[i]['progress'] = 0.2;
-        syncItems[i]['error'] = null;
-      });
+      if (!LogoPullSourceCatalog.isComingSoon(source)) {
+        setState(() {
+          syncItems[i]['status'] = _stTransferring;
+          syncItems[i]['progress'] = 0.2;
+          syncItems[i]['error'] = null;
+        });
+      }
 
       final outcome = await _pullRunner.run(source);
       if (!mounted) return;
@@ -391,7 +410,10 @@ class _DataTransferScreenState extends State<DataTransferScreen> {
     });
 
     try {
-      if (_tigerEnabled && LogoPullSourceCatalog.supportsTiger(source)) {
+      // Kaynağı bağlanmamış satır da koşucudan geçer: uydurma uç nokta yok.
+      final useRunner = LogoPullSourceCatalog.isComingSoon(source) ||
+          (_tigerEnabled && LogoPullSourceCatalog.supportsTiger(source));
+      if (useRunner) {
         final outcome = await _pullRunner.run(source);
         if (!mounted) return;
         setState(() => _applyOutcome(index, outcome));
@@ -440,6 +462,14 @@ class _DataTransferScreenState extends State<DataTransferScreen> {
   void _applyOutcome(int index, LogoPullOutcome outcome) {
     final l10n = AppLocalization.of(context);
     final item = syncItems[index];
+    if (outcome.comingSoon) {
+      item['status'] = _stComingSoon;
+      item['statusKey'] =
+          outcome.errorKey ?? LogoPullSourceCatalog.comingSoonKey;
+      item['progress'] = 1.0;
+      item['error'] = null;
+      return;
+    }
     item['status'] = outcome.ok ? _stDone : _stError;
     item['progress'] = 1.0;
     if (outcome.ok) {
@@ -793,6 +823,11 @@ class _DataTransferScreenState extends State<DataTransferScreen> {
   /// Satır durumu + kayıt sayısı metni.
   /// {@endtemplate}
   String _rowStatusLine(AppLocalization l10n, Map<String, dynamic> item) {
+    if (item['status'] == _stComingSoon) {
+      return l10n.translate(
+        (item['statusKey'] as String?) ?? LogoPullSourceCatalog.comingSoonKey,
+      );
+    }
     final status = _statusLabel(l10n, item['status'] as String);
     final count = item['count'];
     if (count is! int) return status;
@@ -827,7 +862,8 @@ class _DataTransferScreenState extends State<DataTransferScreen> {
     Map<String, dynamic> item,
     int index,
   ) {
-    if (item['source'] is! LogoPullSource) return null;
+    final source = item['source'];
+    if (source is! LogoPullSource) return null;
     if (_busyRowIndex == index) {
       return const SizedBox(
         width: 20,
@@ -835,12 +871,31 @@ class _DataTransferScreenState extends State<DataTransferScreen> {
         child: CircularProgressIndicator(strokeWidth: 2),
       );
     }
+    final comingSoon = LogoPullSourceCatalog.isComingSoon(source);
     return IconButton(
       iconSize: 20,
       visualDensity: VisualDensity.compact,
-      tooltip: l10n.translate('field_sales.logo_pull_download_one'),
+      tooltip: comingSoon
+          ? l10n.translate(LogoPullSourceCatalog.pendingMessageKey(source))
+          : l10n.translate('field_sales.logo_pull_download_one'),
       icon: const Icon(Icons.cloud_download_outlined),
-      onPressed: isSyncing ? null : () => _downloadOne(index),
+      onPressed: isSyncing
+          ? null
+          : () => comingSoon ? _notifyComingSoon(source) : _downloadOne(index),
+    );
+  }
+
+  /// {@template _notify_coming_soon}
+  /// Kaynağı bağlanmamış satıra dokununca bilgilendirme gösterir.
+  /// {@endtemplate}
+  void _notifyComingSoon(LogoPullSource source) {
+    final l10n = AppLocalization.of(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          l10n.translate(LogoPullSourceCatalog.pendingMessageKey(source)),
+        ),
+      ),
     );
   }
 
