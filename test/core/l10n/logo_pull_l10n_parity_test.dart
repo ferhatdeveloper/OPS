@@ -50,6 +50,26 @@ const List<String> _requiredKeys = [
   'logo_tiger_auth_missing',
 ];
 
+/// [_mbtRowKeys]: MBT Veri Güncelleme ekranındaki 9 alınacak satır başlığı
+const List<String> _mbtRowKeys = [
+  'logo_pull_mbt_stock',
+  'logo_pull_mbt_customers',
+  'logo_pull_mbt_cash',
+  'logo_pull_mbt_banks',
+  'logo_pull_mbt_currency',
+  'logo_pull_mbt_general',
+  'logo_pull_mbt_variants',
+  'logo_pull_mbt_routes',
+  'logo_pull_mbt_announcements',
+];
+
+/// [_mbtStatusKeys]: Desteklenmeyen / merkez kaynaklı satırların durum metinleri
+const List<String> _mbtStatusKeys = [
+  'logo_pull_coming_soon',
+  'logo_pull_center_source',
+  'logo_pull_mbt_select_all',
+];
+
 Map<String, dynamic> _fieldSales(File file) {
   final decoded = jsonDecode(file.readAsStringSync());
   expect(decoded, isA<Map>(), reason: '${file.path} geçerli JSON değil');
@@ -85,6 +105,74 @@ void main() {
         }
       }
       expect(missing, isEmpty, reason: 'eksik çeviri: ${missing.join(', ')}');
+    });
+
+    test('MBT alınacak veri satır başlıkları tüm dillerde tanımlı', () {
+      final missing = <String>[];
+      for (final file in files) {
+        final section = _fieldSales(file);
+        for (final key in _mbtRowKeys) {
+          final value = section[key];
+          if (value == null || '$value'.trim().isEmpty) {
+            missing.add('${file.uri.pathSegments.last}: $key');
+          }
+        }
+      }
+      expect(
+        missing,
+        isEmpty,
+        reason: 'eksik MBT satır başlığı: ${missing.join(', ')}',
+      );
+    });
+
+    test('MBT durum ve yardım anahtarları tüm dillerde tanımlı', () {
+      final missing = <String>[];
+      for (final file in files) {
+        final section = _fieldSales(file);
+        for (final key in _mbtStatusKeys) {
+          final value = section[key];
+          if (value == null || '$value'.trim().isEmpty) {
+            missing.add('${file.uri.pathSegments.last}: $key');
+          }
+        }
+      }
+      expect(
+        missing,
+        isEmpty,
+        reason: 'eksik MBT durum metni: ${missing.join(', ')}',
+      );
+    });
+
+    test('MBT satır başlıkları her dilde birbirinden farklı', () {
+      for (final file in files) {
+        final section = _fieldSales(file);
+        final values =
+            _mbtRowKeys.map((key) => '${section[key]}'.trim()).toList();
+        expect(
+          values.toSet().length,
+          values.length,
+          reason: '${file.uri.pathSegments.last} → MBT başlıkları tekrar ediyor',
+        );
+      }
+    });
+
+    test('tr.json MBT başlıkları MBT ekranıyla birebir aynı', () {
+      final tr = _fieldSales(File('assets/translations/tr.json'));
+      const expected = {
+        'logo_pull_mbt_stock': 'STOK BİLGİLERİ',
+        'logo_pull_mbt_customers': 'CARİ BİLGİLERİ',
+        'logo_pull_mbt_cash': 'KASA BİLGİLERİ',
+        'logo_pull_mbt_banks': 'BANKA BİLGİLERİ',
+        'logo_pull_mbt_currency': 'DÖVİZ BİLGİLERİ',
+        'logo_pull_mbt_general': 'GENEL BİLGİLER',
+        'logo_pull_mbt_variants': 'VARYANT BİLGİLERİ',
+        'logo_pull_mbt_routes': 'ROTA BİLGİLERİ',
+        'logo_pull_mbt_announcements': 'DUYURULAR',
+        'logo_pull_mbt_select_all': 'TÜMÜNÜ SEÇ',
+      };
+      expected.forEach((key, value) {
+        expect(tr[key], value, reason: 'tr.json → $key beklenen metin değil');
+      });
     });
 
     test('yer tutucu içeren anahtarlar her dilde yer tutucuyu korur', () {
