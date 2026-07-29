@@ -144,7 +144,11 @@ class _DataTransferScreenState extends State<DataTransferScreen> {
     setState(() {
       _tigerEnabled = enabled;
       _pullStates = states;
-      syncItems = _buildItems(activeAction ?? DataTransferAction.receive);
+      // Aktarım sürerken satır durumları korunur.
+      if (!isSyncing) {
+        overallProgress = 0.0;
+        syncItems = _buildItems(activeAction ?? DataTransferAction.receive);
+      }
     });
   }
 
