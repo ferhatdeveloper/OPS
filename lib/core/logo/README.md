@@ -16,7 +16,8 @@ Detay: `docs/plans/2026-07-28-logo-then-postgrest-outbound.md`.
 ## Dosyalar
 - `logo_tiger_urls.dart`: URL normalize, help URI, header
 - `logo_tiger_config.dart`: Bağlantı modeli (`canPush`)
-- `logo_tiger_settings_store.dart`: Obfuscated SharedPreferences
+- `logo_tiger_settings_store.dart`: Obfuscated SharedPreferences (+ manuel override / registry seed işareti)
+- `logo_tenant_config_seeder.dart`: Tenant registry Logo cache → Tiger seed politikası
 - `logo_tiger_rest_client.dart`: token, CompanyLogin, list/paginate, **create/POST**, `findByNumber`
 - `logo_tiger_pull_sync.dart`: SQLite upsert (products/customers/warehouses/orders)
 - `logo_tiger_push_adapter.dart`: LogoPayloadMapper → Tiger `restRecord` (+ idempotent NUMBER)
@@ -25,9 +26,23 @@ Detay: `docs/plans/2026-07-28-logo-then-postgrest-outbound.md`.
 - `../sync/outbound_sync_phases.dart`: `logo` | `postgrest`
 - `../sync/postgrest_document_mirror.dart`: 2. aşama kiracı upsert
 
+## Base URL kaynak önceliği
+1. Kullanıcının **manuel** Tiger ayarı — `LogoUrlSource.tigerStore`
+2. Aktif kiracının **tenant registry** seed'i — `LogoUrlSource.tenantRegistry`
+3. Logo REST prefs — `LogoUrlSource.logoRestSettings`
+4. Sunucu `api_config` — `LogoUrlSource.serverSettings`
+
+Registry seed `LogoTigerSettingsStore.save(..., markManualOverride: false)`
+kullanır; **manuel ayarı ezmez**. Registry `api_key`, parola, `client_secret`
+ve access token sağlamaz, mevcut secret'ları da temizlemez.
+`logo_firm_nr` / `logo_period_nr` yalnızca bootstrap varsayılanıdır; etkin
+firma/dönem `ActiveCompanyStore` seçimidir. Offline: tenant'a bağlı cache
+(TTL 15 dk) `PostgrestTenantService` üzerinden yeniden uygulanır.
+Detay: `docs/plans/2026-07-26-postgrest-tenant-login.md` §2b.
+
 ## Pull (çek)
 1. Tiger açıkken **Al** / **Tiger’dan çek** → `LogoTigerPullSync`
-2. Base URL sırası: Tiger store → Logo REST prefs → **Sunucu ayarları** (`api_config`)
+2. Base URL sırası: yukarıdaki kaynak önceliği
 3. `LogoServerUrlBridge` — Ayarlar’da kaydedilen link Logo çekimine yazılır
 4. **Düz adres yeterli:** `212.237.124.147` + Port `32001` → otomatik `http://…/api/v1`
 5. **Plasiyer → kullanıcı:** Logo `salesmen` çekilince OPS’ta yoksa

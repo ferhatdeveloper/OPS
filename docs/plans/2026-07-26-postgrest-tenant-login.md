@@ -34,7 +34,12 @@
 | `lib/core/tenant/tenant_connection_resolver.dart` | Saf çözümleme (RetailEX parity) |
 | `lib/core/tenant/tenant_context.dart` | Bağlam modeli |
 | `lib/core/tenant/tenant_store.dart` | SharedPreferences kalıcılık |
-| `lib/core/tenant/postgrest_tenant_service.dart` | Login apply + opsiyonel registry probe |
+| `lib/core/tenant/postgrest_tenant_service.dart` | Login apply + registry fetch + Logo bootstrap |
+| `lib/core/tenant/tenant_registry_row.dart` | Merkez satırının tipli modeli (secret yok) |
+| `lib/core/tenant/merkez_tenant_registry_service.dart` | Merkez HTTP okuma (best-effort) |
+| `lib/core/tenant/tenant_logo_config_cache.dart` | Tenant Logo başlangıç değerleri modeli |
+| `lib/core/tenant/tenant_logo_config_store.dart` | Tek anahtarlı prefs cache |
+| `lib/core/logo/logo_tenant_config_seeder.dart` | Registry → Tiger seed politikası |
 | `lib/core/tenant/postgrest_tenant_defaults.dart` | SaaS kök / şema sabitleri |
 | `lib/service/postgres_service.dart` | `setActiveTenantContext` / `postgrestHeaders` |
 | `lib/core/tenant/saas_origin_override_dialog.dart` | Gelişmiş SaaS kök override (prefs) |
@@ -69,6 +74,90 @@ SQLite offline satış verisi kiracıdan bağımsız çalışmaya devam eder; uz
 
 ---
 
+## 2b. Merkez registry Logo yapılandırması (2026-07-29)
+
+Tasarım: `docs/plans/2026-07-29-tenant-registry-logo-config-design.md`
+
+### Kesin merkez sorgusu
+
+```text
+GET {saasOrigin}/merkez/tenant_registry
+  ?code=eq.{uriEncodedTenantCode}
+  &select=code,rest_base_url,display_name,is_active,logo_rest_api_url,
+          logo_firm_nr,logo_period_nr,logo_db,updated_at
+  &limit=1
+```
+
+Header: `Accept: application/json`, `Accept-Profile: public`.
+`select` sabiti: `MerkezTenantRegistryService.selectColumns`. Regex parse
+tamamen kaldırıldı; yanıt `jsonDecode` ile tipli modele çevrilir.
+
+**Güvenlik riski:** Merkez endpoint şu an anonimdir. Production'da RLS,
+sınırlı view veya merkez `apikey`/JWT ile yalnızca gerekli kolonların
+okunması gerekir. Kiracı kodu `Uri.replace(queryParameters:)` ile encode
+edilir; şema adı ve header sabittir.
+
+### Logo endpoint kaynak önceliği
+
+1. Kullanıcının **manuel** Tiger ayarı (`LogoUrlSource.tigerStore`)
+2. Aktif kiracının **tenant registry** seed'i (`LogoUrlSource.tenantRegistry`)
+3. Logo REST prefs (`LogoUrlSource.logoRestSettings`)
+4. Genel `api_config` (`LogoUrlSource.serverSettings`)
+5. Yapılandırılmamış (`LogoUrlSource.none`)
+
+Manuel kayıt `LogoTigerSettingsStore.save(...)` varsayılanı ile
+`logo_tiger_manual_override = true` işaretler. Registry seed
+`markManualOverride: false` gönderir; bu nedenle **registry manuel ayarı
+ezmez**.
+
+### TTL ve offline cache
+
+- Logo değerleri `TenantLogoConfigStore` içinde tek JSON anahtarında
+  (`ops_tenant_logo_registry_cache_v1`) tenant'a bağlı saklanır.
+- Varsayılan TTL **15 dakika** (`PostgrestTenantService.registryCacheTtl`).
+- Cache tazeyse merkez isteği yapılmaz, cache seed edilir.
+- TTL dolduğunda yenileme best-effort'tur; hata halinde **son geçerli cache
+  korunur** ve yeniden uygulanır.
+- Kayıtlı `remoteRestUrl` kısa devresi Logo bootstrap'ını **atlatmaz**.
+- `restoreActiveContext()` ağ beklemeden aynı kiracının cache'ini seed eder.
+- Farklı kiracının cache'i aktif kiracıya uygulanmaz.
+
+### Firma / dönem sınırı
+
+`logo_firm_nr` ve `logo_period_nr` yalnızca **bootstrap varsayılanıdır**.
+Etkin çalışma bağlamı kullanıcının `ActiveCompanyStore` seçimidir; registry
+seed bu seçimi değiştirmez. `LogoTigerRestClient.companyLogin(firmNr:,
+periodNr:)` açık parametre aldığında config varsayılanını ezer.
+
+### Secret sınırı
+
+Registry `api_key`, parola, OAuth `client_id`/`client_secret` ve access token
+sağlamaz; mevcut secret'ları da temizlemez. `TenantRegistryRow` ve
+`TenantLogoConfigCache` bu alanları taşımaz. Loglar yalnızca hata tipini
+yazar; response body / URL query loglanmaz.
+
+### Fallback tablosu
+
+| Durum | Davranış |
+|---|---|
+| Merkez timeout / ağ yok | Son tenant Logo cache'i; yoksa mevcut Logo ayarları |
+| HTTP 4xx / 5xx | Mevcut SaaS slug ve Logo fallback zinciri |
+| Boş registry dizisi | Registry uygulanmaz |
+| `is_active=false` | Tenant ve Logo registry değerleri uygulanmaz |
+| Geçersiz JSON / tip | Son geçerli cache korunur |
+| Geçersiz Logo URL | Logo seed atlanır |
+| Eksik firma/dönem/`logo_db` | Mevcut değerler silinmez |
+| Eski / eşit `updated_at` | Daha yeni yerel seed ezilmez |
+| Manuel override | Registry mevcut manuel ayarı ezmez |
+| Tenant değişimi | Önceki tenant'ın Logo cache'i kullanılmaz |
+
+**Bilinen sınır:** `LogoTigerSettingsStore.save` mevcut mimaride URL'i
+`LogoTigerUrls.parseUserInput` ile host:port'a indirger ve port yoksa
+`32001` ekler. Registry'de `https` + standart port kullanılıyorsa bu davranış
+şemayı `http`'ye düşürür. Registry değerleri açık port ile girilmelidir.
+
+---
+
 ## 3. Panel çıktısı
 
 | Rol | Durum | Risk | TODO |
@@ -91,4 +180,5 @@ SQLite offline satış verisi kiracıdan bağımsız çalışmaya devam eder; uz
 
 ```bash
 flutter test test/core/tenant/
+flutter test test/core/logo/
 ```
