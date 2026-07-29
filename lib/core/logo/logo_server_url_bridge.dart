@@ -15,9 +15,10 @@ import 'logo_tiger_urls.dart';
 /// {@template logo_server_url_bridge}
 /// Logo API veriyi **sunucu ayarlarında** (veya Logo REST ekranında)
 /// girilen linkten alır. Öncelik:
-/// 1) Tiger store (açıkça kaydedilmiş)
-/// 2) Logo REST prefs (`logo_rest_base_url`)
-/// 3) Ayarlar → API `base_url` (+ api_key)
+/// 1) Kullanıcının manuel Tiger ayarı
+/// 2) Aktif kiracıya ait tenant registry seed'i
+/// 3) Logo REST prefs (`logo_rest_base_url`)
+/// 4) Ayarlar → API `base_url` (+ api_key)
 ///
 /// Kullanım örneği:
 /// ```dart
@@ -35,12 +36,17 @@ class LogoServerUrlBridge {
   static Future<LogoResolvedEndpoint> resolve({
     LogoTigerConfig? tigerOverride,
   }) async {
-    final tiger = tigerOverride ?? await LogoTigerSettingsStore().loadRaw();
+    final tigerStore = LogoTigerSettingsStore();
+    final tiger = tigerOverride ?? await tigerStore.loadRaw();
     if (tiger.baseUrl.trim().isNotEmpty) {
+      // Override doğrudan çağıranın manuel değeridir; store okumaya gerek yok.
+      final manual =
+          tigerOverride != null || await tigerStore.hasManualOverride();
       return LogoResolvedEndpoint(
         baseUrl: LogoTigerUrls.normalizeBaseUrl(tiger.baseUrl),
         apiKey: tiger.apiKey,
-        source: LogoUrlSource.tigerStore,
+        source:
+            manual ? LogoUrlSource.tigerStore : LogoUrlSource.tenantRegistry,
       );
     }
 
@@ -209,9 +215,19 @@ class LogoServerUrlBridge {
 
 /// URL çözüm kaynağı.
 enum LogoUrlSource {
+  /// Kullanıcının elle kaydettiği Tiger ayarı
   tigerStore,
+
+  /// Aktif kiracının merkez registry seed'i
+  tenantRegistry,
+
+  /// Logo REST ayar ekranı prefs kaydı
   logoRestSettings,
+
+  /// Genel sunucu `api_config` kaydı
   serverSettings,
+
+  /// Yapılandırılmamış
   none,
 }
 
