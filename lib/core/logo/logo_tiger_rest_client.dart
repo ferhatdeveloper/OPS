@@ -2,7 +2,7 @@
 // Açıklama: Logo Tiger Objects REST istemcisi (token, help, list, create)
 // Oluşturulma Tarihi: 2026-07-28
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-28
+// Son Güncelleme: 2026-07-29
 
 import 'dart:convert';
 
@@ -102,6 +102,37 @@ class LogoTigerRestClient {
     'Salesmen',
     'salesMan',
     'SLSMAN',
+  ];
+
+  /// Kasa / safe resource adayları (404’te sessizce sonraki).
+  static const List<String> cashResourceCandidates = [
+    'safeDeposits',
+    'safes',
+    'cashSafes',
+    'SafeDeposits',
+    'Safes',
+  ];
+
+  /// Banka hesap / bank resource adayları.
+  static const List<String> bankResourceCandidates = [
+    'bankAccounts',
+    'banks',
+    'BankAccounts',
+    'Banks',
+  ];
+
+  /// Döviz / kur resource adayları.
+  static const List<String> currencyResourceCandidates = [
+    'currencies',
+    'currencyRates',
+    'Currencies',
+    'CurrencyRates',
+  ];
+
+  /// Birim seti resource adayları.
+  static const List<String> unitSetResourceCandidates = [
+    'unitSets',
+    'UnitSets',
   ];
 
   final LogoTigerSettingsStore _store;
@@ -477,27 +508,93 @@ class LogoTigerRestClient {
   /// {@endtemplate}
   Future<List<Map<String, dynamic>>> fetchSalesmen({
     int maxPages = 100,
+  }) =>
+      fetchWithResourceCandidates(
+        salesmanResourceCandidates,
+        maxPages: maxPages,
+      );
+
+  /// {@template logo_tiger_rest_client_fetch_cash}
+  /// Kasa kartları — safeDeposits / safes / cashSafes adayları.
+  /// Yoksa veya 404 → boş liste (exception yok).
+  /// {@endtemplate}
+  Future<List<Map<String, dynamic>>> fetchCash({int maxPages = 50}) =>
+      fetchWithResourceCandidates(
+        cashResourceCandidates,
+        maxPages: maxPages,
+      );
+
+  /// {@template logo_tiger_rest_client_fetch_banks}
+  /// Banka kartları — bankAccounts / banks adayları.
+  /// {@endtemplate}
+  Future<List<Map<String, dynamic>>> fetchBanks({int maxPages = 50}) =>
+      fetchWithResourceCandidates(
+        bankResourceCandidates,
+        maxPages: maxPages,
+      );
+
+  /// {@template logo_tiger_rest_client_fetch_currencies}
+  /// Döviz / kur — currencies / currencyRates adayları.
+  /// {@endtemplate}
+  Future<List<Map<String, dynamic>>> fetchCurrencies({
+    int maxPages = 50,
+  }) =>
+      fetchWithResourceCandidates(
+        currencyResourceCandidates,
+        maxPages: maxPages,
+      );
+
+  /// {@template logo_tiger_rest_client_fetch_unit_sets}
+  /// Birim setleri — unitSets.
+  /// {@endtemplate}
+  Future<List<Map<String, dynamic>>> fetchUnitSets({int maxPages = 50}) =>
+      fetchWithResourceCandidates(
+        unitSetResourceCandidates,
+        maxPages: maxPages,
+      );
+
+  /// {@template logo_tiger_rest_client_fetch_with_candidates}
+  /// Aday resource listesini sırayla dener; 404/405 ve hata stringlerinde
+  /// sessizce sonraki adaya geçer. Hiçbiri yoksa boş liste.
+  ///
+  /// Parametreler:
+  /// - [candidates]: Denenecek resource adları (sıra önemli)
+  /// - [maxPages]: Sayfa tavanı
+  ///
+  /// Dönüş değeri:
+  /// - [List]: İlk başarılı kaynaktan satırlar (veya boş)
+  /// {@endtemplate}
+  Future<List<Map<String, dynamic>>> fetchWithResourceCandidates(
+    List<String> candidates, {
+    int maxPages = 100,
   }) async {
-    for (final name in salesmanResourceCandidates) {
+    if (candidates.isEmpty) return const [];
+    for (final name in candidates) {
       try {
         final probe = await listResource(name, limit: 1);
-        // Ham hata stringi varsa sonraki adayı dene
-        if (probe.raw is String &&
-            (probe.raw as String).toLowerCase().contains('404')) {
+        if (_isMissingResourceProbe(probe)) {
           continue;
         }
         final all = await fetchAllPaginated(name, maxPages: maxPages);
-        if (all.isNotEmpty || probe.items.isEmpty) {
-          // Boş ama 200 kabul — firma plasiyersiz olabilir; yine de bu kaynağı kullan
-          if (all.isNotEmpty || name == salesmanResourceCandidates.first) {
-            return all;
-          }
+        // Boş ama 200: ilk adayı kabul (firma kayıtsız olabilir);
+        // sonraki adaylar yalnızca doluysa veya tek aday kaldıysa
+        if (all.isNotEmpty || name == candidates.first) {
+          return all;
         }
       } catch (e) {
-        debugPrint('LogoTiger fetchSalesmen($name): $e');
+        debugPrint('LogoTiger fetchCandidates($name): $e');
       }
     }
     return const [];
+  }
+
+  /// Probe sonucu kaynak yok / yetkisiz mi?
+  static bool _isMissingResourceProbe(LogoTigerListPage probe) {
+    if (probe.raw is! String) return false;
+    final err = (probe.raw as String).toLowerCase();
+    return err.contains('404') ||
+        err.contains('405') ||
+        err.contains('not found');
   }
 
   // ---------------------------------------------------------------------------

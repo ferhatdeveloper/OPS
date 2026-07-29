@@ -1,8 +1,8 @@
 // Dosya Adı: logo_tiger_pull_sync.dart
-// Açıklama: Logo Tiger REST → SQLite offline-first upsert (ürün/cari/ambar/sipariş)
+// Açıklama: Logo Tiger REST → SQLite offline-first upsert (ürün/cari/ambar/sipariş/kasa/banka)
 // Oluşturulma Tarihi: 2026-07-28
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-28
+// Son Güncelleme: 2026-07-29
 
 import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
@@ -42,6 +42,10 @@ class LogoTigerSyncResult {
   final LogoTigerEntitySyncResult warehouses;
   final LogoTigerEntitySyncResult orders;
   final LogoTigerEntitySyncResult salesmen;
+  final LogoTigerEntitySyncResult cash;
+  final LogoTigerEntitySyncResult banks;
+  final LogoTigerEntitySyncResult currencies;
+  final LogoTigerEntitySyncResult unitSets;
   final String? error;
   final List<String> messages;
 
@@ -52,6 +56,10 @@ class LogoTigerSyncResult {
     this.warehouses = const LogoTigerEntitySyncResult(),
     this.orders = const LogoTigerEntitySyncResult(),
     this.salesmen = const LogoTigerEntitySyncResult(),
+    this.cash = const LogoTigerEntitySyncResult(),
+    this.banks = const LogoTigerEntitySyncResult(),
+    this.currencies = const LogoTigerEntitySyncResult(),
+    this.unitSets = const LogoTigerEntitySyncResult(),
     this.error,
     this.messages = const [],
   });
@@ -63,7 +71,7 @@ class LogoTigerSyncResult {
 /// Kullanım örneği:
 /// ```dart
 /// final sync = LogoTigerPullSync();
-/// final r = await sync.pullAll();
+/// final r = await sync.pullAll(cash: true, banks: true);
 /// ```
 /// {@endtemplate}
 class LogoTigerPullSync {
@@ -89,7 +97,9 @@ class LogoTigerPullSync {
   }
 
   /// {@template logo_tiger_pull_sync_all}
-  /// Ürün + cari + ambar + sipariş + plasiyer (+ OPS kullanıcı).
+  /// Ürün + cari + ambar + sipariş + plasiyer (+ kasa/banka/döviz/birim set).
+  ///
+  /// Yeni bayraklar varsayılan `false` — mevcut çağrılar değişmez.
   /// {@endtemplate}
   Future<LogoTigerSyncResult> pullAll({
     bool products = true,
@@ -97,6 +107,10 @@ class LogoTigerPullSync {
     bool warehouses = true,
     bool orders = true,
     bool salesmen = true,
+    bool cash = false,
+    bool banks = false,
+    bool currencies = false,
+    bool unitSets = false,
     int maxPages = 100,
   }) async {
     final messages = <String>[];
@@ -115,6 +129,10 @@ class LogoTigerPullSync {
       var warehousesR = const LogoTigerEntitySyncResult();
       var ordersR = const LogoTigerEntitySyncResult();
       var salesmenR = const LogoTigerEntitySyncResult();
+      var cashR = const LogoTigerEntitySyncResult();
+      var banksR = const LogoTigerEntitySyncResult();
+      var currenciesR = const LogoTigerEntitySyncResult();
+      var unitSetsR = const LogoTigerEntitySyncResult();
 
       if (products) {
         productsR = await _syncProducts(db, maxPages: maxPages);
@@ -143,12 +161,44 @@ class LogoTigerPullSync {
           '${salesmenR.message != null ? ' (${salesmenR.message})' : ''}',
         );
       }
+      if (cash) {
+        cashR = await _syncCash(db, maxPages: maxPages);
+        messages.add(
+          'Kasa: ${cashR.upserted}/${cashR.fetched}'
+          '${cashR.message != null ? ' (${cashR.message})' : ''}',
+        );
+      }
+      if (banks) {
+        banksR = await _syncBanks(db, maxPages: maxPages);
+        messages.add(
+          'Banka: ${banksR.upserted}/${banksR.fetched}'
+          '${banksR.message != null ? ' (${banksR.message})' : ''}',
+        );
+      }
+      if (currencies) {
+        currenciesR = await _syncCurrencies(db, maxPages: maxPages);
+        messages.add(
+          'Döviz: ${currenciesR.upserted}/${currenciesR.fetched}'
+          '${currenciesR.message != null ? ' (${currenciesR.message})' : ''}',
+        );
+      }
+      if (unitSets) {
+        unitSetsR = await _syncUnitSets(db, maxPages: maxPages);
+        messages.add(
+          'Birim set: ${unitSetsR.upserted}/${unitSetsR.fetched}'
+          '${unitSetsR.message != null ? ' (${unitSetsR.message})' : ''}',
+        );
+      }
 
       final anyError = productsR.errors +
               customersR.errors +
               warehousesR.errors +
               ordersR.errors +
-              salesmenR.errors >
+              salesmenR.errors +
+              cashR.errors +
+              banksR.errors +
+              currenciesR.errors +
+              unitSetsR.errors >
           0;
       return LogoTigerSyncResult(
         ok: !anyError,
@@ -157,6 +207,10 @@ class LogoTigerPullSync {
         warehouses: warehousesR,
         orders: ordersR,
         salesmen: salesmenR,
+        cash: cashR,
+        banks: banksR,
+        currencies: currenciesR,
+        unitSets: unitSetsR,
         messages: messages,
         error: anyError ? 'Bazı kayıtlar atlandı/hatalı' : null,
       );
@@ -448,6 +502,265 @@ class LogoTigerPullSync {
       errors: errors,
       usersCreated: usersCreated,
     );
+  }
+
+  /// Kasa kartları → `cash_cards`.
+  Future<LogoTigerEntitySyncResult> _syncCash(
+    Database db, {
+    required int maxPages,
+  }) async {
+    List<Map<String, dynamic>> rows;
+    try {
+      rows = await _client.fetchCash(maxPages: maxPages);
+    } catch (e) {
+      return LogoTigerEntitySyncResult(
+        message: 'cash okunamadı: $e',
+      );
+    }
+    if (rows.isEmpty) {
+      return const LogoTigerEntitySyncResult(
+        message: 'cash boş veya kaynak yok',
+      );
+    }
+    var upserted = 0;
+    var errors = 0;
+    final now = DateTime.now().toIso8601String();
+    for (final row in rows) {
+      try {
+        final code = _str(row, ['CODE', 'code', 'SAFECODE']);
+        if (code.isEmpty) continue;
+        final name = _str(
+          row,
+          ['NAME', 'name', 'DEFINITION_', 'DEFINITION', 'DESCRIPTION'],
+          fallback: code,
+        );
+        await db.insert(
+          'cash_cards',
+          {
+            'id': code,
+            'code': code,
+            'name': name,
+            'name_key': 'logo_cash_$code',
+            'is_active': 1,
+            'is_synced': 1,
+            'created_at': now,
+            'updated_at': now,
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+        upserted++;
+      } catch (e) {
+        errors++;
+        debugPrint('LogoTiger cash upsert: $e');
+      }
+    }
+    return LogoTigerEntitySyncResult(
+      fetched: rows.length,
+      upserted: upserted,
+      errors: errors,
+    );
+  }
+
+  /// Banka kartları → `bank_cards`.
+  Future<LogoTigerEntitySyncResult> _syncBanks(
+    Database db, {
+    required int maxPages,
+  }) async {
+    List<Map<String, dynamic>> rows;
+    try {
+      rows = await _client.fetchBanks(maxPages: maxPages);
+    } catch (e) {
+      return LogoTigerEntitySyncResult(
+        message: 'banks okunamadı: $e',
+      );
+    }
+    if (rows.isEmpty) {
+      return const LogoTigerEntitySyncResult(
+        message: 'banks boş veya kaynak yok',
+      );
+    }
+    var upserted = 0;
+    var errors = 0;
+    final now = DateTime.now().toIso8601String();
+    for (final row in rows) {
+      try {
+        final code = _str(row, ['CODE', 'code', 'BANKCODE', 'ACCOUNTCODE']);
+        if (code.isEmpty) continue;
+        final name = _str(
+          row,
+          ['NAME', 'name', 'DEFINITION_', 'DEFINITION', 'DESCRIPTION'],
+          fallback: code,
+        );
+        final balance = _num(
+          row,
+          ['BALANCE', 'balance', 'BALANCE_TL', 'DEBIT'],
+        );
+        await db.insert(
+          'bank_cards',
+          {
+            'id': code,
+            'code': code,
+            'name': name,
+            'name_key': 'logo_bank_$code',
+            'balance_tl': balance,
+            'balance_usd': 0,
+            'balance_iqd': 0,
+            'is_active': 1,
+            'is_synced': 1,
+            'is_deleted': 0,
+            'created_at': now,
+            'updated_at': now,
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+        upserted++;
+      } catch (e) {
+        errors++;
+        debugPrint('LogoTiger bank upsert: $e');
+      }
+    }
+    return LogoTigerEntitySyncResult(
+      fetched: rows.length,
+      upserted: upserted,
+      errors: errors,
+    );
+  }
+
+  /// Döviz — yerel kalıcı kur tablosu yok; tablo uydurma.
+  Future<LogoTigerEntitySyncResult> _syncCurrencies(
+    Database db, {
+    required int maxPages,
+  }) async {
+    // Yerel FX şeması yok → fetch edilmez, tablo yaratılmaz.
+    // db/maxPages imza tutarlılığı (ileride tablo eklenirse kullanılır).
+    if (!db.isOpen || maxPages < 0) {
+      return const LogoTigerEntitySyncResult(message: 'no local table');
+    }
+    return const LogoTigerEntitySyncResult(
+      fetched: 0,
+      upserted: 0,
+      errors: 0,
+      message: 'no local table',
+    );
+  }
+
+  /// Birim setleri → `unit_sets` + `unit_set_lines`.
+  Future<LogoTigerEntitySyncResult> _syncUnitSets(
+    Database db, {
+    required int maxPages,
+  }) async {
+    List<Map<String, dynamic>> rows;
+    try {
+      rows = await _client.fetchUnitSets(maxPages: maxPages);
+    } catch (e) {
+      return LogoTigerEntitySyncResult(
+        message: 'unitSets okunamadı: $e',
+      );
+    }
+    if (rows.isEmpty) {
+      return const LogoTigerEntitySyncResult(
+        message: 'unitSets boş veya kaynak yok',
+      );
+    }
+    var upserted = 0;
+    var errors = 0;
+    final now = DateTime.now().toIso8601String();
+    for (final row in rows) {
+      try {
+        final id = _str(
+          row,
+          ['CODE', 'code', 'LOGICALREF', 'INTERNAL_REFERENCE'],
+        );
+        if (id.isEmpty) continue;
+        final name = _str(
+          row,
+          ['DESCRIPTION', 'NAME', 'name', 'DEFINITION_', 'DEFINITION'],
+          fallback: id,
+        );
+        await db.insert(
+          'unit_sets',
+          {
+            'id': id,
+            'name': name,
+            'is_active': 1,
+            'is_synced': 1,
+            'created_at': now,
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+        await _upsertUnitSetLines(db, unitSetId: id, row: row);
+        upserted++;
+      } catch (e) {
+        errors++;
+        debugPrint('LogoTiger unitSet upsert: $e');
+      }
+    }
+    return LogoTigerEntitySyncResult(
+      fetched: rows.length,
+      upserted: upserted,
+      errors: errors,
+    );
+  }
+
+  Future<void> _upsertUnitSetLines(
+    Database db, {
+    required String unitSetId,
+    required Map<String, dynamic> row,
+  }) async {
+    final lines = _extractUnitLines(row);
+    if (lines.isEmpty) return;
+    await db.delete(
+      'unit_set_lines',
+      where: 'unit_set_id = ?',
+      whereArgs: [unitSetId],
+    );
+    for (var i = 0; i < lines.length; i++) {
+      final line = lines[i];
+      final unitName = _str(
+        line,
+        ['UNIT_CODE', 'unit_code', 'CODE', 'code', 'UNIT', 'name'],
+      );
+      if (unitName.isEmpty) continue;
+      final factor = _num(
+        line,
+        ['CONV_FACT', 'conversion_factor', 'FACTOR', 'conv_fact'],
+        fallback: 1,
+      );
+      final isMain = _num(
+        line,
+        ['MAIN_UNIT', 'is_main_unit', 'MAIN'],
+      );
+      await db.insert(
+        'unit_set_lines',
+        {
+          'id': '${unitSetId}_$unitName',
+          'unit_set_id': unitSetId,
+          'unit_name': unitName,
+          'conversion_factor': factor,
+          'is_main_unit': isMain != 0 ? 1 : (i == 0 ? 1 : 0),
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    }
+  }
+
+  static List<Map<String, dynamic>> _extractUnitLines(
+    Map<String, dynamic> row,
+  ) {
+    for (final key in ['UNITS', 'units', 'LINES', 'lines', 'ITEMS']) {
+      final v = row[key];
+      if (v is List) {
+        return v
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList();
+      }
+      if (v is Map) {
+        final nested = LogoTigerRestClient.extractItems(v);
+        if (nested.isNotEmpty) return nested;
+      }
+    }
+    return const [];
   }
 
   static String _str(

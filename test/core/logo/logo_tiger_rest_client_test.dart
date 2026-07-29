@@ -2,7 +2,7 @@
 // Açıklama: Logo Tiger client parse + mock HTTP birim testleri
 // Oluşturulma Tarihi: 2026-07-28
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-28
+// Son Güncelleme: 2026-07-29
 
 import 'dart:convert';
 import 'dart:typed_data';
@@ -401,6 +401,141 @@ void main() {
       await client.companyLogin(firmNr: 12, periodNr: 5);
 
       expect(loginPath, '/methods/CompanyLogin/12/5');
+    });
+
+    test('fetchCash 404 adayı atlar, safes 200 satır döner', () async {
+      dio.httpClientAdapter = _MockAdapter((options) async {
+        if (options.path == '/token') {
+          return ResponseBody.fromString(
+            jsonEncode({'access_token': 'tok', 'expires_in': 3600}),
+            200,
+            headers: {
+              Headers.contentTypeHeader: [Headers.jsonContentType],
+            },
+          );
+        }
+        if (options.path.contains('CompanyLogin')) {
+          return ResponseBody.fromString('true', 200);
+        }
+        if (options.path == '/safeDeposits' ||
+            options.path == '/services/safeDeposits') {
+          return ResponseBody.fromString('Not Found', 404);
+        }
+        if (options.path == '/safes' || options.path == '/services/safes') {
+          return ResponseBody.fromString(
+            jsonEncode({
+              'items': [
+                {'CODE': 'K01', 'NAME': 'Kasa 1'},
+              ],
+              'count': 1,
+            }),
+            200,
+            headers: {
+              Headers.contentTypeHeader: [Headers.jsonContentType],
+            },
+          );
+        }
+        return ResponseBody.fromString('Not Found', 404);
+      });
+
+      final rows = await client.fetchCash(maxPages: 2);
+      expect(rows, hasLength(1));
+      expect(rows.first['CODE'], 'K01');
+    });
+
+    test('fetchBanks tüm adaylar 404 → boş liste (exception yok)', () async {
+      dio.httpClientAdapter = _MockAdapter((options) async {
+        if (options.path == '/token') {
+          return ResponseBody.fromString(
+            jsonEncode({'access_token': 'tok', 'expires_in': 3600}),
+            200,
+            headers: {
+              Headers.contentTypeHeader: [Headers.jsonContentType],
+            },
+          );
+        }
+        if (options.path.contains('CompanyLogin')) {
+          return ResponseBody.fromString('true', 200);
+        }
+        return ResponseBody.fromString('Not Found', 404);
+      });
+
+      final rows = await client.fetchBanks(maxPages: 1);
+      expect(rows, isEmpty);
+    });
+
+    test('fetchUnitSets unitSets kaynağından satır okur', () async {
+      dio.httpClientAdapter = _MockAdapter((options) async {
+        if (options.path == '/token') {
+          return ResponseBody.fromString(
+            jsonEncode({'access_token': 'tok', 'expires_in': 3600}),
+            200,
+            headers: {
+              Headers.contentTypeHeader: [Headers.jsonContentType],
+            },
+          );
+        }
+        if (options.path.contains('CompanyLogin')) {
+          return ResponseBody.fromString('true', 200);
+        }
+        if (options.path == '/unitSets' ||
+            options.path == '/services/unitSets') {
+          return ResponseBody.fromString(
+            jsonEncode({
+              'items': [
+                {'CODE': '05', 'DESCRIPTION': 'ADET'},
+              ],
+              'count': 1,
+            }),
+            200,
+            headers: {
+              Headers.contentTypeHeader: [Headers.jsonContentType],
+            },
+          );
+        }
+        return ResponseBody.fromString('Not Found', 404);
+      });
+
+      final rows = await client.fetchUnitSets(maxPages: 2);
+      expect(rows, hasLength(1));
+      expect(rows.first['CODE'], '05');
+    });
+
+    test('fetchCurrencies currencies adayından satır okur', () async {
+      dio.httpClientAdapter = _MockAdapter((options) async {
+        if (options.path == '/token') {
+          return ResponseBody.fromString(
+            jsonEncode({'access_token': 'tok', 'expires_in': 3600}),
+            200,
+            headers: {
+              Headers.contentTypeHeader: [Headers.jsonContentType],
+            },
+          );
+        }
+        if (options.path.contains('CompanyLogin')) {
+          return ResponseBody.fromString('true', 200);
+        }
+        if (options.path == '/currencies' ||
+            options.path == '/services/currencies') {
+          return ResponseBody.fromString(
+            jsonEncode({
+              'items': [
+                {'CODE': 'USD', 'NAME': 'Dollar'},
+              ],
+              'count': 1,
+            }),
+            200,
+            headers: {
+              Headers.contentTypeHeader: [Headers.jsonContentType],
+            },
+          );
+        }
+        return ResponseBody.fromString('Not Found', 404);
+      });
+
+      final rows = await client.fetchCurrencies(maxPages: 2);
+      expect(rows, hasLength(1));
+      expect(rows.first['CODE'], 'USD');
     });
   });
 }

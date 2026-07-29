@@ -19,7 +19,7 @@ Detay: `docs/plans/2026-07-28-logo-then-postgrest-outbound.md`.
 - `logo_tiger_settings_store.dart`: Obfuscated SharedPreferences (+ manuel override / registry seed işareti)
 - `logo_tenant_config_seeder.dart`: Tenant registry Logo cache → Tiger seed politikası
 - `logo_tiger_rest_client.dart`: token, CompanyLogin, list/paginate, **create/POST**, `findByNumber`
-- `logo_tiger_pull_sync.dart`: SQLite upsert (products/customers/warehouses/orders)
+- `logo_tiger_pull_sync.dart`: SQLite upsert (products/customers/warehouses/orders/salesmen + opsiyonel cash/banks/unitSets; currencies yerel tablo yoksa skip)
 - `logo_tiger_push_adapter.dart`: LogoPayloadMapper → Tiger `restRecord` (+ idempotent NUMBER)
 - `logo_tiger.dart`: barrel
 - `../sync/outbound_idempotency.dart`: kararlı fiş no
@@ -47,6 +47,12 @@ Detay: `docs/plans/2026-07-26-postgrest-tenant-login.md` §2b.
 4. **Düz adres yeterli:** `212.237.124.147` + Port `32001` → otomatik `http://…/api/v1`
 5. **Plasiyer → kullanıcı:** Logo `salesmen` çekilince OPS’ta yoksa
    `username=CODE`, `password=1234`, `role=salesperson` oluşturulur (mevcut şifre ezilmez)
+6. **Opsiyonel master pull** (`pullAll` bayrakları, varsayılan `false`):
+   - `cash` → `safeDeposits`/`safes`/`cashSafes` → `cash_cards`
+   - `banks` → `bankAccounts`/`banks` → `bank_cards`
+   - `unitSets` → `unitSets` → `unit_sets` + `unit_set_lines`
+   - `currencies` → yerel kur tablosu yoksa `message: no local table` (0 kayıt)
+   - Kaynak 404/yoksa sessizce 0 kayıt; tüm pull düşmez
 
 ## Push akışı (gönder)
 1. Saha belgesi SQLite’a yazılır → `JobQueueService.enqueue` (`sync_phase=logo`)
