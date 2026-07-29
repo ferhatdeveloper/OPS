@@ -42,12 +42,15 @@ class LogoTenantConfigSeeder {
   ///
   /// Parametreler:
   /// - [cache]: Aktif kiracıya ait Logo registry cache kaydı
+  /// - [force]: Kullanıcı açıkça "kiracı kaydından çek" dediğinde `true`;
+  ///   manuel override ve tazelik kontrolü atlanır. Secret alanlar yine
+  ///   korunur.
   ///
   /// Dönüş değeri:
   /// - [bool]: Ayarlar güncellendiyse `true`, atlandıysa `false`
   /// {@endtemplate}
-  Future<bool> apply(TenantLogoConfigCache cache) async {
-    if (await tigerStore.hasManualOverride()) {
+  Future<bool> apply(TenantLogoConfigCache cache, {bool force = false}) async {
+    if (!force && await tigerStore.hasManualOverride()) {
       debugPrint('LogoTenantConfigSeeder: manuel override korundu');
       return false;
     }
@@ -58,7 +61,7 @@ class LogoTenantConfigSeeder {
       return false;
     }
 
-    if (!await _isNewerThanLastSeed(cache)) {
+    if (!force && !await _isNewerThanLastSeed(cache)) {
       debugPrint('LogoTenantConfigSeeder: registry seed güncel, atlandı');
       return false;
     }

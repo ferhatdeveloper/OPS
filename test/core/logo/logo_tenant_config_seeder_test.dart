@@ -300,6 +300,66 @@ void main() {
       expect((await tigerStore.loadRaw()).firmNr, 999);
     });
 
+    test('force manuel overrideı kullanıcı onayıyla ezer', () async {
+      final tigerStore = await _seedSecrets();
+      await tigerStore.save(
+        const LogoTigerConfig(
+          baseUrl: 'http://manual.example:32001/api/v1',
+          apiKey: 'api-secret',
+          username: 'logo-user',
+          password: 'password-secret',
+          clientId: 'client-id',
+          clientSecret: 'client-secret',
+          firmNr: 999,
+        ),
+      );
+
+      final applied = await LogoTenantConfigSeeder(
+        tigerStore: tigerStore,
+      ).apply(_registryCache(), force: true);
+      final loaded = await tigerStore.loadRaw();
+
+      expect(applied, isTrue);
+      expect(loaded.normalizedBaseUrl, 'http://logo.example:32001/api/v1');
+      expect(loaded.firmNr, 401);
+      expect(loaded.periodNr, 2);
+      expect(await tigerStore.hasManualOverride(), isFalse);
+      expect(loaded.apiKey, 'api-secret');
+      expect(loaded.password, 'password-secret');
+      expect(loaded.clientSecret, 'client-secret');
+    });
+
+    test('force aynı updated_at ile tekrar uygulanır', () async {
+      final tigerStore = await _seedSecrets();
+      final seeder = LogoTenantConfigSeeder(tigerStore: tigerStore);
+      final at = DateTime.utc(2026, 7, 29, 8);
+      await seeder.apply(_registryCache(updatedAt: at));
+
+      final applied = await seeder.apply(
+        _registryCache(
+          updatedAt: at,
+          url: 'http://tekrar.example:32001/api/v1',
+        ),
+        force: true,
+      );
+
+      expect(applied, isTrue);
+      expect(
+        (await tigerStore.loadRaw()).normalizedBaseUrl,
+        'http://tekrar.example:32001/api/v1',
+      );
+    });
+
+    test('force geçersiz Logo URLi yine uygulamaz', () async {
+      final tigerStore = await _seedSecrets(baseUrl: 'http://var.example:32001');
+
+      final applied = await LogoTenantConfigSeeder(
+        tigerStore: tigerStore,
+      ).apply(_registryCache(url: '://'), force: true);
+
+      expect(applied, isFalse);
+    });
+
     test('registry seed safe snapshotta secret sızdırmaz', () async {
       final tigerStore = await _seedSecrets();
 
