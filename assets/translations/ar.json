@@ -688,9 +688,11 @@
     "logo_registry_secrets_helper": "يوفر سجل المستأجر عنوان Logo والشركة والفترة فقط. أدخل client_id وclient_secret واسم مستخدم Logo وكلمة المرور يدوياً.",
     "logo_tiger_required_field": "هذا الحقل مطلوب لنقل بيانات Tiger",
     "logo_tiger_auth_missing": "الحقول الناقصة لجلب البيانات: {fields}",
-    "logo_tiger_base_url_hint": "e.g. 212.237.124.147",
+    "logo_tiger_base_url_hint": "e.g. 212.237.124.14",
     "logo_tiger_base_url_helper": "Host/IP only. Port is separate (default 32001).",
-    "logo_tiger_port": "Port"
+    "logo_tiger_port": "Port",
+    "logo_tiger_client_id_helper": "قيمة لوحة Logo «مالك مفتاح خدمة Rest (ClientId)» (مثل ARZEN).",
+    "logo_tiger_client_secret_helper": "لا تلصق Base64 اللوحة بالكامل. فك التشفير؛ استخدم السر بعد فاصل CLIENTID (~ أو +). التطبيق يرسل السر خامًا في جسم نموذج الرمز."
   },
   "customer": {
     "edit_title": "تعديل بطاقة العميل",

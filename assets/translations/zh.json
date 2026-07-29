@@ -2139,13 +2139,15 @@
       "fg_notif_title": "EXFINOPS ziyaret kaydı",
       "fg_notif_body": "Ziyaret konuşması kaydediliyor…"
     },
-    "logo_tiger_base_url_hint": "e.g. 212.237.124.147",
+    "logo_tiger_base_url_hint": "e.g. 212.237.124.14",
     "logo_tiger_base_url_helper": "Host/IP only. Port is separate (default 32001).",
     "logo_tiger_port": "Port",
     "logo_connection_credentials_missing": "Logo 可访问；缺少获取数据所需的凭据",
     "logo_registry_secrets_helper": "租户记录仅提供 Logo 地址、公司和期间。请手动输入 client_id、client_secret、Logo 用户名和密码。",
     "logo_tiger_required_field": "Tiger 数据传输需要此字段",
-    "logo_tiger_auth_missing": "获取数据缺少以下字段：{fields}"
+    "logo_tiger_auth_missing": "获取数据缺少以下字段：{fields}",
+    "logo_tiger_client_id_helper": "Logo 面板中的“Rest 服务密钥所有者 (ClientId)”（例如 ARZEN）。",
+    "logo_tiger_client_secret_helper": "请勿粘贴完整的面板 Base64。解码后使用 CLIENTID 分隔符（~ 或 +）之后的 secret。应用在 token 表单正文中发送原始 secret。"
   },
   "submodules": {
     "donem_karsilastirma": "期间对比",

@@ -181,15 +181,22 @@ void main() {
       expect(r.asMap()['swagger'], '2.0');
     });
 
-    test('obtainToken Authorization Bearer saklanır', () async {
+    test('obtainToken form-urlencoded body + client_secret ham değer', () async {
       dio.httpClientAdapter = _MockAdapter((options) async {
         expect(options.path, '/token');
         expect(options.method, 'POST');
+        expect(
+          options.contentType,
+          Headers.formUrlEncodedContentType,
+        );
         final data = options.data;
         expect(data, isA<Map>());
         final map = Map<String, dynamic>.from(data as Map);
         expect(map['grant_type'], 'password');
         expect(map['client_id'], 'CID');
+        // Secret olduğu gibi form alanına gider; panel Base64 decode edilmez.
+        expect(map['client_secret'], 'SEC');
+        expect(options.headers['Authorization'], isNull);
         return ResponseBody.fromString(
           jsonEncode({
             'access_token': 'abc.token',
@@ -205,6 +212,36 @@ void main() {
       final r = await client.obtainToken();
       expect(r.success, isTrue);
       expect(r.asMap()['access_token'], 'abc.token');
+    });
+
+    test('obtainToken başarısızsa Basic client_id:client_secret dener', () async {
+      var attempt = 0;
+      dio.httpClientAdapter = _MockAdapter((options) async {
+        attempt++;
+        if (attempt == 1) {
+          expect(options.data, isA<Map>());
+          final map = Map<String, dynamic>.from(options.data as Map);
+          expect(map['client_secret'], 'SEC');
+          return ResponseBody.fromString('unauthorized', 401);
+        }
+        final expectedBasic = base64Encode(utf8.encode('CID:SEC'));
+        expect(options.headers['Authorization'], 'Basic $expectedBasic');
+        final map = Map<String, dynamic>.from(options.data as Map);
+        expect(map.containsKey('client_id'), isFalse);
+        expect(map.containsKey('client_secret'), isFalse);
+        return ResponseBody.fromString(
+          jsonEncode({'access_token': 'basic.tok', 'expires_in': 60}),
+          200,
+          headers: {
+            Headers.contentTypeHeader: [Headers.jsonContentType],
+          },
+        );
+      });
+
+      final r = await client.obtainToken();
+      expect(r.success, isTrue);
+      expect(attempt, 2);
+      expect(r.asMap()['access_token'], 'basic.tok');
     });
 
     test('listResource Bearer header + items parse', () async {

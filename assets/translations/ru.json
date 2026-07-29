@@ -2173,13 +2173,15 @@
     "logo_config_source_registry": "Запись арендатора",
     "logo_config_source_legacy": "Старая запись",
     "logo_config_source_none": "Не задано",
-    "logo_tiger_base_url_hint": "e.g. 212.237.124.147",
+    "logo_tiger_base_url_hint": "e.g. 212.237.124.14",
     "logo_tiger_base_url_helper": "Host/IP only. Port is separate (default 32001).",
     "logo_tiger_port": "Port",
     "logo_connection_credentials_missing": "Логотип доступен; отсутствуют учетные данные для получения данных",
     "logo_registry_secrets_helper": "При регистрации арендатора возвращается только адрес логотипа, компания и период. Введите client_id, client_secret, логотип пользователя и пароль вручную.",
     "logo_tiger_required_field": "Это поле необходимо для передачи данных Tiger.",
-    "logo_tiger_auth_missing": "Отсутствуют поля для получения данных: {fields}"
+    "logo_tiger_auth_missing": "Отсутствуют поля для получения данных: {fields}",
+    "logo_tiger_client_id_helper": "Значение панели Logo «Владелец ключа Rest-сервиса (ClientId)» (напр. ARZEN).",
+    "logo_tiger_client_secret_helper": "Не вставляйте весь Base64 панели. Декодируйте; используйте secret после разделителя CLIENTID (~ или +). Приложение отправляет raw secret в теле формы токена."
   },
   "submodules": {
     "donem_karsilastirma": "Сравнение периодов",

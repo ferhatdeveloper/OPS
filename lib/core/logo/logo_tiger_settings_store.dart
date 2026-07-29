@@ -2,7 +2,7 @@
 // Açıklama: Logo Tiger REST ayarları — obfuscated SharedPreferences store
 // Oluşturulma Tarihi: 2026-07-28
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-28
+// Son Güncelleme: 2026-07-29
 
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -50,8 +50,9 @@ class LogoTigerSettingsStore {
   /// [keyRegistryUpdatedAt]: Son registry seed'inin `updated_at` değeri
   static const String keyRegistryUpdatedAt = 'logo_tiger_registry_updated_at';
 
-  /// Dev örnek host:port — api_key koda yazılmaz.
-  static const String devExampleHostPort = 'http://127.0.0.1:32001';
+  /// Örnek host:port — api_key / secret koda yazılmaz.
+  static String get devExampleHostPort =>
+      'http://${LogoTigerUrls.defaultHost}:${LogoTigerUrls.defaultPort}';
 
   /// {@macro logo_tiger_settings_store}
   LogoTigerSettingsStore({

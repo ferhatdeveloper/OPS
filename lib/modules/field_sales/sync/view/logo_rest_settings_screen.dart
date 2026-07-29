@@ -2,7 +2,7 @@
 // Açıklama: Logo REST (ExfinApi + Tiger Objects) bağlantı ayarları dens ekranı
 // Oluşturulma Tarihi: 2026-07-15
 // Geliştirici: EXFINOPS Team
-// Son Güncelleme: 2026-07-28
+// Son Güncelleme: 2026-07-29
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -122,8 +122,9 @@ class _LogoRestSettingsScreenState extends State<LogoRestSettingsScreen> {
       final t = await _tigerStore.load();
       final split = t.baseUrl.isNotEmpty
           ? LogoTigerUrls.splitHostPort(t.baseUrl)
-          : (host: '', port: LogoTigerUrls.defaultPort);
-      _tigerBaseCtrl.text = split.host;
+          : (host: LogoTigerUrls.defaultHost, port: LogoTigerUrls.defaultPort);
+      _tigerBaseCtrl.text =
+          split.host.isEmpty ? LogoTigerUrls.defaultHost : split.host;
       _tigerPortCtrl.text = '${split.port}';
       _tigerApiKeyCtrl.text = t.apiKey;
       _tigerClientIdCtrl.text = t.clientId;
@@ -630,6 +631,10 @@ class _LogoRestSettingsScreenState extends State<LogoRestSettingsScreen> {
                           labelText: l10n.translate(
                             'field_sales.logo_tiger_client_id',
                           ),
+                          helperText: l10n.translate(
+                            'field_sales.logo_tiger_client_id_helper',
+                          ),
+                          helperMaxLines: 3,
                           contentPadding: const EdgeInsets.symmetric(
                             horizontal: 10,
                             vertical: 8,
@@ -651,6 +656,10 @@ class _LogoRestSettingsScreenState extends State<LogoRestSettingsScreen> {
                           labelText: l10n.translate(
                             'field_sales.logo_tiger_client_secret',
                           ),
+                          helperText: l10n.translate(
+                            'field_sales.logo_tiger_client_secret_helper',
+                          ),
+                          helperMaxLines: 4,
                           contentPadding: const EdgeInsets.symmetric(
                             horizontal: 10,
                             vertical: 8,

@@ -2081,7 +2081,7 @@
     "logo_tiger_enabled": "Pull/push via Tiger REST",
     "logo_tiger_enabled_hint": "When on, pull + JobQueue push go to Logo Objects REST (orders/invoices)",
     "logo_tiger_base_url": "Logo API host",
-    "logo_tiger_base_url_hint": "e.g. 212.237.124.147",
+    "logo_tiger_base_url_hint": "e.g. 212.237.124.14",
     "logo_tiger_base_url_helper": "Host/IP only. Port is separate (default 32001). Pasting a help URL also fills api_key.",
     "logo_tiger_port": "Port",
     "logo_tiger_api_key": "api_key",
@@ -2144,7 +2144,9 @@
     "logo_config_source_none": "Undefined",
     "logo_registry_secrets_helper": "The tenant registry only provides the Logo address, firm and period. Enter client_id, client_secret, Logo username and password manually.",
     "logo_tiger_required_field": "This field is required for Tiger data transfer",
-    "logo_tiger_auth_missing": "Missing fields for data retrieval: {fields}"
+    "logo_tiger_auth_missing": "Missing fields for data retrieval: {fields}",
+    "logo_tiger_client_id_helper": "Logo panel value for “Rest Service Key Owner (ClientId)” (e.g. ARZEN).",
+    "logo_tiger_client_secret_helper": "Do not paste the full panel Base64. Decode it; use the secret after the CLIENTID separator (~ or +). The app sends the raw secret in the token form body."
   },
   "customer": {
     "edit_title": "Edit Customer Card",

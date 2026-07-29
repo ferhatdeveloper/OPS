@@ -1215,9 +1215,11 @@
     "logo_registry_secrets_helper": "تۆماری کرێچی تەنها ناونیشانی Logo، کۆمپانیا و ماوە دەهێنێت. client_id، client_secret، بەکارهێنەر و وشەی نهێنی Logo بە دەست بنووسە.",
     "logo_tiger_required_field": "ئەم خانەیە بۆ گواستنەوەی داتای Tiger پێویستە",
     "logo_tiger_auth_missing": "خانە کەمەکان بۆ وەرگرتنی داتا: {fields}",
-    "logo_tiger_base_url_hint": "e.g. 212.237.124.147",
+    "logo_tiger_base_url_hint": "e.g. 212.237.124.14",
     "logo_tiger_base_url_helper": "Host/IP only. Port is separate (default 32001).",
-    "logo_tiger_port": "Port"
+    "logo_tiger_port": "Port",
+    "logo_tiger_client_id_helper": "نرخی پانێڵی Logo «خاوەنی کلیلی Rest Service (ClientId)» (وەک ARZEN).",
+    "logo_tiger_client_secret_helper": "هەموو Base64ی پانێڵ مەلکێنە. Decode بکە؛ نهێنی دوای جیاکەرەوەی CLIENTID (~ یان +) بنووسە. ئەپ نهێنی خاو لە جەستەی فۆرمی تۆکن دەنێرێت."
   },
   "customer": {
     "edit_title": "دەستکاریکردنی کارتی کڕیار",

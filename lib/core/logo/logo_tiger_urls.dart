@@ -2,7 +2,7 @@
 // Açıklama: Logo Tiger Objects REST URL normalize ve query build
 // Oluşturulma Tarihi: 2026-07-28
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-28
+// Son Güncelleme: 2026-07-29
 
 /// {@template logo_tiger_parsed_input}
 /// Kullanıcı girişinden ayrıştırılmış Logo endpoint.
@@ -34,12 +34,17 @@ class LogoTigerParsedInput {
 ///
 /// Kullanım örneği:
 /// ```dart
-/// final base = LogoTigerUrls.normalizeBaseUrl('212.237.124.147:32001');
-/// // http://212.237.124.147:32001/api/v1
+/// final base = LogoTigerUrls.normalizeBaseUrl(
+///   '${LogoTigerUrls.defaultHost}:${LogoTigerUrls.defaultPort}',
+/// );
+/// // http://212.237.124.14:32001/api/v1
 /// ```
 /// {@endtemplate}
 class LogoTigerUrls {
   LogoTigerUrls._();
+
+  /// Logo Objects REST varsayılan host (IP). Secret / api_key içermez.
+  static const String defaultHost = '212.237.124.14';
 
   /// Logo Objects REST varsayılan port.
   static const int defaultPort = 32001;

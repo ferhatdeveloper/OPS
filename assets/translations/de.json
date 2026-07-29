@@ -2173,13 +2173,15 @@
     "logo_config_source_registry": "Mandantendatensatz",
     "logo_config_source_legacy": "Alter Datensatz",
     "logo_config_source_none": "Nicht definiert",
-    "logo_tiger_base_url_hint": "e.g. 212.237.124.147",
+    "logo_tiger_base_url_hint": "e.g. 212.237.124.14",
     "logo_tiger_base_url_helper": "Host/IP only. Port is separate (default 32001).",
     "logo_tiger_port": "Port",
     "logo_connection_credentials_missing": "Das Logo ist zugänglich; Es fehlen Anmeldeinformationen zum Abrufen von Daten",
     "logo_registry_secrets_helper": "Bei der Mieterregistrierung werden nur die Logo-Adresse, das Unternehmen und der Zeitraum zurückgegeben. Geben Sie client_id, client_secret, Logo-Benutzer und Passwort manuell ein.",
     "logo_tiger_required_field": "Dieses Feld ist für die Tiger-Datenübertragung erforderlich",
-    "logo_tiger_auth_missing": "Fehlende Felder zum Abrufen von Daten: {fields}"
+    "logo_tiger_auth_missing": "Fehlende Felder zum Abrufen von Daten: {fields}",
+    "logo_tiger_client_id_helper": "Logo-Panelwert „Rest-Service-Schlüsselinhaber (ClientId)“ (z. B. ARZEN).",
+    "logo_tiger_client_secret_helper": "Fügen Sie nicht die gesamte Panel-Base64 ein. Dekodieren; Secret nach CLIENTID-Trenner (~ oder +) verwenden. Die App sendet das Secret roh im Token-Formular."
   },
   "submodules": {
     "donem_karsilastirma": "Periodenvergleich",

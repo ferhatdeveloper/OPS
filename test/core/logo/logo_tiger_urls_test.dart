@@ -8,6 +8,17 @@ import 'package:exfin_ops/core/logo/logo_tiger_urls.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  group('LogoTigerUrls defaults', () {
+    test('varsayılan host 212.237.124.14, port 32001', () {
+      expect(LogoTigerUrls.defaultHost, '212.237.124.14');
+      expect(LogoTigerUrls.defaultPort, 32001);
+      expect(
+        LogoTigerUrls.composeBaseUrl(LogoTigerUrls.defaultHost),
+        'http://212.237.124.14:32001/api/v1',
+      );
+    });
+  });
+
   group('LogoTigerUrls.normalizeBaseUrl', () {
     test('host:port → /api/v1', () {
       expect(
@@ -34,15 +45,15 @@ void main() {
 
     test('port yoksa varsayılan 32001', () {
       expect(
-        LogoTigerUrls.normalizeBaseUrl('212.237.124.147'),
-        'http://212.237.124.147:32001/api/v1',
+        LogoTigerUrls.normalizeBaseUrl(LogoTigerUrls.defaultHost),
+        'http://212.237.124.14:32001/api/v1',
       );
     });
 
     test('düz IP:port yeterli', () {
       expect(
-        LogoTigerUrls.normalizeBaseUrl('212.237.124.147:32001'),
-        'http://212.237.124.147:32001/api/v1',
+        LogoTigerUrls.normalizeBaseUrl('212.237.124.14:32001'),
+        'http://212.237.124.14:32001/api/v1',
       );
     });
 
@@ -63,8 +74,8 @@ void main() {
   group('LogoTigerUrls host/port', () {
     test('composeBaseUrl host + varsayılan port', () {
       expect(
-        LogoTigerUrls.composeBaseUrl('212.237.124.147'),
-        'http://212.237.124.147:32001/api/v1',
+        LogoTigerUrls.composeBaseUrl(LogoTigerUrls.defaultHost),
+        'http://212.237.124.14:32001/api/v1',
       );
     });
 
@@ -83,12 +94,12 @@ void main() {
 
     test('parseUserInput düz adres + help linkinden api_key', () {
       final p = LogoTigerUrls.parseUserInput(
-        '212.237.124.147:32001/api/v1/services/help'
+        '212.237.124.14:32001/api/v1/services/help'
         '?expandLevel=full&api_key=logotigerrestservice',
       );
-      expect(p.baseUrl, 'http://212.237.124.147:32001/api/v1');
+      expect(p.baseUrl, 'http://212.237.124.14:32001/api/v1');
       expect(p.apiKey, 'logotigerrestservice');
-      expect(p.host, '212.237.124.147');
+      expect(p.host, '212.237.124.14');
       expect(p.port, 32001);
     });
 

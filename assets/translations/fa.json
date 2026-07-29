@@ -688,9 +688,11 @@
     "logo_registry_secrets_helper": "رکورد مستأجر فقط آدرس Logo، شرکت و دوره را می‌دهد. client_id، client_secret، نام کاربری و گذرواژه Logo را دستی وارد کنید.",
     "logo_tiger_required_field": "این فیلد برای انتقال داده Tiger الزامی است",
     "logo_tiger_auth_missing": "فیلدهای ناقص برای دریافت داده: {fields}",
-    "logo_tiger_base_url_hint": "e.g. 212.237.124.147",
+    "logo_tiger_base_url_hint": "e.g. 212.237.124.14",
     "logo_tiger_base_url_helper": "Host/IP only. Port is separate (default 32001).",
-    "logo_tiger_port": "Port"
+    "logo_tiger_port": "Port",
+    "logo_tiger_client_id_helper": "مقدار پنل Logo «صاحب کلید سرویس Rest (ClientId)» (مثلاً ARZEN).",
+    "logo_tiger_client_secret_helper": "کل Base64 پنل را جای‌گذاری نکنید. Decode کنید؛ secret بعد از جداکننده CLIENTID (~ یا +) را بنویسید. برنامه secret خام را در بدنه فرم توکن می‌فرستد."
   },
   "customer": {
     "edit_title": "ویرایش کارت مشتری",
