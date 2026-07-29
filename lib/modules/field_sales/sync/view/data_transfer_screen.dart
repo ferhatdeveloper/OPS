@@ -5,15 +5,21 @@
 // Son Güncelleme: 2026-07-26
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/localization/app_localization.dart';
+import '../../../../core/logo/logo_connection_health.dart';
 import '../../../../core/logo/logo_tiger.dart';
 import '../../../../core/services/logo_api_service.dart';
 import '../../../../service/database_service.dart';
 import '../../../../service/job_queue_service.dart';
 import '../model/data_transfer_triad.dart';
+import '../model/logo_pull_source.dart';
+import '../service/logo_pull_source_runner.dart';
+import '../service/logo_pull_state_store.dart';
 import '../service/product_images_service.dart';
+import 'logo_connection_status_icon.dart';
 import 'logo_rest_settings_screen.dart';
 
 /// {@template data_transfer_screen}
@@ -29,10 +35,26 @@ class DataTransferScreen extends StatefulWidget {
   const DataTransferScreen({
     Key? key,
     this.productImagesService,
+    this.pullRunner,
+    this.pullStateStore,
+    this.tigerEnabledOverride,
+    this.healthChecker,
   }) : super(key: key);
 
   /// [productImagesService]: Ürün resmi servisi (test enjeksiyonu)
   final ProductImagesService? productImagesService;
+
+  /// [pullRunner]: Kaynak bazlı Logo indirme koşucusu (test enjeksiyonu)
+  final LogoPullSourceRunner? pullRunner;
+
+  /// [pullStateStore]: Satır durumu deposu (test enjeksiyonu)
+  final LogoPullStateStore? pullStateStore;
+
+  /// [tigerEnabledOverride]: Tiger REST modu (test enjeksiyonu)
+  final bool? tigerEnabledOverride;
+
+  /// [healthChecker]: Bağlantı sağlık denetleyicisi (test enjeksiyonu)
+  final LogoConnectionHealthChecker? healthChecker;
 
   @override
   State<DataTransferScreen> createState() => _DataTransferScreenState();
@@ -64,37 +86,82 @@ class _DataTransferScreenState extends State<DataTransferScreen> {
   /// [syncItems]: Aktarım satırları (titleKey + status kodu)
   late List<Map<String, dynamic>> syncItems;
 
+  /// [_tigerEnabled]: Tiger Objects REST modu açık mı
+  bool _tigerEnabled = false;
+
+  /// [_pullStateStore]: Kaynak bazlı son indirme durumu
+  late final LogoPullStateStore _pullStateStore;
+
+  /// [_pullRunner]: Tek kaynak indirme koşucusu
+  late final LogoPullSourceRunner _pullRunner;
+
+  /// [_pullStates]: Kaynak → son indirme durumu
+  Map<LogoPullSource, LogoPullSourceState> _pullStates = {};
+
+  /// [_busyRowIndex]: Tek satır indirilirken aktif satır
+  int? _busyRowIndex;
+
+  /// [_sourceIcons]: Kaynak → satır ikonu (mevcut görsel dil)
+  static const Map<LogoPullSource, IconData> _sourceIcons = {
+    LogoPullSource.customers: Icons.people,
+    LogoPullSource.products: Icons.shopping_bag,
+    LogoPullSource.stock: Icons.inventory,
+    LogoPullSource.balances: Icons.account_balance_wallet,
+    LogoPullSource.warehouses: Icons.warehouse,
+    LogoPullSource.salesmen: Icons.badge,
+    LogoPullSource.orders: Icons.receipt_long,
+  };
+
   @override
   void initState() {
     super.initState();
+    _pullStateStore = widget.pullStateStore ?? const LogoPullStateStore();
+    _pullRunner =
+        widget.pullRunner ?? LogoPullSourceRunner(stateStore: _pullStateStore);
     syncItems = _buildItems(DataTransferAction.receive);
+    _bootstrap();
+  }
+
+  /// {@template _bootstrap}
+  /// Bağlantı modunu ve kaynak bazlı son indirme durumlarını yükler.
+  /// {@endtemplate}
+  Future<void> _bootstrap() async {
+    var enabled = widget.tigerEnabledOverride ?? false;
+    if (widget.tigerEnabledOverride == null) {
+      try {
+        enabled = await LogoTigerSettingsStore().isEnabled();
+      } catch (e) {
+        debugPrint('DataTransferScreen tiger modu okunamadı: $e');
+      }
+    }
+    Map<LogoPullSource, LogoPullSourceState> states = {};
+    try {
+      states = await _pullStateStore.loadAll();
+    } catch (e) {
+      debugPrint('DataTransferScreen indirme durumu okunamadı: $e');
+    }
+    if (!mounted) return;
+    setState(() {
+      _tigerEnabled = enabled;
+      _pullStates = states;
+      syncItems = _buildItems(activeAction ?? DataTransferAction.receive);
+    });
   }
 
   /// {@template _build_items}
   /// Aksiyon için dens liste satırlarını üretir.
+  ///
+  /// "Al" aksiyonunda her Logo veri türü ayrı satır olur; satırlar aktif
+  /// bağlantı türünün gerçekten desteklediği kaynaklardan üretilir.
   /// {@endtemplate}
   List<Map<String, dynamic>> _buildItems(DataTransferAction action) {
+    if (action == DataTransferAction.receive) {
+      return LogoPullSourceCatalog.forMode(tigerEnabled: _tigerEnabled)
+          .map(_buildSourceItem)
+          .toList();
+    }
+
     final defs = <String, Map<String, dynamic>>{
-      'customers': {
-        'key': 'customers',
-        'titleKey': 'field_sales.customer_list',
-        'icon': Icons.people,
-      },
-      'products': {
-        'key': 'products',
-        'titleKey': 'field_sales.product_list',
-        'icon': Icons.shopping_bag,
-      },
-      'stock': {
-        'key': 'stock',
-        'titleKey': 'field_sales.stock',
-        'icon': Icons.inventory,
-      },
-      'balances': {
-        'key': 'balances',
-        'titleKey': 'field_sales.balance',
-        'icon': Icons.account_balance_wallet,
-      },
       'upload': {
         'key': 'upload',
         'titleKey': 'field_sales.pending_documents_title',
@@ -107,14 +174,36 @@ class _DataTransferScreenState extends State<DataTransferScreen> {
       },
     };
 
-    return DataTransferTriad.itemKeys(action).map((key) {
+    return DataTransferTriad.itemKeys(action)
+        .where(defs.containsKey)
+        .map((key) {
       final def = defs[key]!;
       return <String, dynamic>{
         ...def,
+        'source': null,
         'progress': 0.0,
         'status': _stPending,
+        'count': null,
+        'lastAt': null,
       };
     }).toList();
+  }
+
+  /// {@template _build_source_item}
+  /// Tek Logo veri türü için satır haritası üretir (durum + son güncelleme).
+  /// {@endtemplate}
+  Map<String, dynamic> _buildSourceItem(LogoPullSource source) {
+    final state = _pullStates[source];
+    return <String, dynamic>{
+      'key': LogoPullSourceCatalog.storageKey(source),
+      'source': source,
+      'titleKey': LogoPullSourceCatalog.titleKey(source),
+      'icon': _sourceIcons[source] ?? Icons.cloud_download,
+      'progress': 0.0,
+      'status': _stPending,
+      'count': state?.recordCount,
+      'lastAt': state?.lastSuccessAt,
+    };
   }
 
   /// {@template _status_label}
@@ -152,8 +241,14 @@ class _DataTransferScreenState extends State<DataTransferScreen> {
     });
 
     final logo = LogoApiService();
-    final tigerStore = LogoTigerSettingsStore();
-    final useTiger = await tigerStore.isEnabled();
+    final useTiger = _tigerEnabled;
+
+    // Tiger REST açıkken Al → her veri türü sırayla, satır bazlı durum ile
+    if (useTiger && action == DataTransferAction.receive) {
+      await _runTigerReceive();
+      return;
+    }
+
     if (action != DataTransferAction.productImages) {
       if (useTiger) {
         await LogoTigerRestClient().ensureReady();
@@ -162,84 +257,32 @@ class _DataTransferScreenState extends State<DataTransferScreen> {
       }
     }
 
-    // Tiger REST açıkken Al → tek seferde items/Arps/locationCodes/salesOrders
-    if (useTiger &&
-        action == DataTransferAction.receive &&
-        syncItems.any((e) => e['key'] == 'customers' || e['key'] == 'products')) {
-      setState(() {
-        for (final item in syncItems) {
-          if (item['key'] == 'upload' || item['key'] == 'product_images') {
-            continue;
-          }
-          item['status'] = _stTransferring;
-          item['progress'] = 0.2;
-        }
-      });
-      try {
-        final sync = LogoTigerPullSync();
-        final result = await sync.pullAll();
-        if (!mounted) return;
-        setState(() {
-          for (final item in syncItems) {
-            final key = item['key'];
-            if (key == 'upload' || key == 'product_images') continue;
-            item['status'] = result.ok ? _stDone : _stError;
-            item['progress'] = 1.0;
-          }
-          overallProgress = 1.0;
-          if (!result.ok) {
-            lastError = result.error;
-          }
-          isSyncing = false;
-          activeAction = null;
-        });
-      } catch (e) {
-        if (!mounted) return;
-        setState(() {
-          lastError = e.toString();
-          isSyncing = false;
-          activeAction = null;
-        });
-      }
-      return;
-    }
-
     for (int i = 0; i < syncItems.length; i++) {
       final item = syncItems[i];
+      final source = item['source'] as LogoPullSource?;
       setState(() {
         item['status'] = _stTransferring;
         item['progress'] = 0.1;
       });
 
       try {
-        switch (item['key']) {
-          case 'customers':
-            await _syncCustomers(logo, i);
-            break;
-          case 'products':
-            await _syncProducts(logo, i);
-            break;
-          case 'stock':
-            await _syncStock(logo, i);
-            break;
-          case 'balances':
-            await _syncBalances(logo, i);
-            break;
-          case 'upload':
-            await _uploadPending(i);
-            break;
-          case 'product_images':
-            await _syncProductImages(i);
-            break;
-        }
+        final count = await _runLegacyItem(logo, i);
         if (!mounted) return;
+        final skipped = item['status'] == _stSkipped;
         setState(() {
-          if (item['status'] != _stSkipped) {
+          if (!skipped) {
             item['status'] = _stDone;
             item['progress'] = 1.0;
+            if (count != null) {
+              item['count'] = count;
+              item['lastAt'] = DateTime.now().toUtc();
+            }
           }
           overallProgress = (i + 1) / syncItems.length;
         });
+        if (!skipped && source != null) {
+          await _recordState(source, ok: true, count: count);
+        }
       } catch (e) {
         if (!mounted) return;
         setState(() {
@@ -247,6 +290,9 @@ class _DataTransferScreenState extends State<DataTransferScreen> {
           lastError = e.toString();
           overallProgress = (i + 1) / syncItems.length;
         });
+        if (source != null) {
+          await _recordState(source, ok: false, error: e.toString());
+        }
       }
     }
 
@@ -257,7 +303,171 @@ class _DataTransferScreenState extends State<DataTransferScreen> {
     });
   }
 
-  Future<void> _syncCustomers(LogoApiService logo, int index) async {
+  /// {@template _run_legacy_item}
+  /// ExfinApi middleware satırını çalıştırır.
+  ///
+  /// Parametreler:
+  /// - [logo]: ExfinApi servis örneği
+  /// - [index]: Satır indeksi
+  ///
+  /// Dönüş değeri:
+  /// - [int]: İşlenen kayıt sayısı; sayılamıyor / atlandıysa `null`
+  /// {@endtemplate}
+  Future<int?> _runLegacyItem(LogoApiService logo, int index) async {
+    switch (syncItems[index]['key']) {
+      case 'customers':
+        return _syncCustomers(logo, index);
+      case 'products':
+        return _syncProducts(logo, index);
+      case 'stock':
+        return _syncStock(logo, index);
+      case 'balances':
+        return _syncBalances(logo, index);
+      case 'upload':
+        await _uploadPending(index);
+        return null;
+      case 'product_images':
+        await _syncProductImages(index);
+        return null;
+    }
+    return null;
+  }
+
+  /// {@template _run_tiger_receive}
+  /// Tiger REST modunda her veri türünü sırayla indirir.
+  ///
+  /// Genel ilerleme satır sayısına göre ilerler; bir satırın hatası diğer
+  /// satırları durdurmaz.
+  /// {@endtemplate}
+  Future<void> _runTigerReceive() async {
+    for (int i = 0; i < syncItems.length; i++) {
+      final source = syncItems[i]['source'] as LogoPullSource?;
+      if (source == null) continue;
+      if (!mounted) return;
+      setState(() {
+        syncItems[i]['status'] = _stTransferring;
+        syncItems[i]['progress'] = 0.2;
+      });
+
+      final outcome = await _pullRunner.run(source);
+      if (!mounted) return;
+      setState(() {
+        _applyOutcome(i, outcome);
+        overallProgress = (i + 1) / syncItems.length;
+      });
+    }
+
+    if (!mounted) return;
+    setState(() {
+      isSyncing = false;
+      activeAction = null;
+    });
+  }
+
+  /// {@template _download_one}
+  /// Tek veri türünü kendi başına indirir (satır aksiyonu).
+  /// {@endtemplate}
+  Future<void> _downloadOne(int index) async {
+    if (isSyncing) return;
+    final source = syncItems[index]['source'] as LogoPullSource?;
+    if (source == null) return;
+
+    setState(() {
+      isSyncing = true;
+      activeAction = DataTransferAction.receive;
+      _busyRowIndex = index;
+      lastError = null;
+      _sendEmptyMessageKey = null;
+      syncItems[index]['status'] = _stTransferring;
+      syncItems[index]['progress'] = 0.2;
+    });
+
+    try {
+      if (_tigerEnabled && LogoPullSourceCatalog.supportsTiger(source)) {
+        final outcome = await _pullRunner.run(source);
+        if (!mounted) return;
+        setState(() => _applyOutcome(index, outcome));
+      } else {
+        final logo = LogoApiService();
+        await logo.ensureReady();
+        final count = await _runLegacyItem(logo, index);
+        if (!mounted) return;
+        final skipped = syncItems[index]['status'] == _stSkipped;
+        setState(() {
+          if (!skipped) {
+            syncItems[index]['status'] = _stDone;
+            syncItems[index]['progress'] = 1.0;
+            if (count != null) {
+              syncItems[index]['count'] = count;
+              syncItems[index]['lastAt'] = DateTime.now().toUtc();
+            }
+          }
+        });
+        if (!skipped) {
+          await _recordState(source, ok: true, count: count);
+        }
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        syncItems[index]['status'] = _stError;
+        syncItems[index]['progress'] = 1.0;
+        lastError = e.toString();
+      });
+      await _recordState(source, ok: false, error: e.toString());
+    } finally {
+      if (mounted) {
+        setState(() {
+          isSyncing = false;
+          activeAction = null;
+          _busyRowIndex = null;
+        });
+      }
+    }
+  }
+
+  /// {@template _apply_outcome}
+  /// Koşucu sonucunu satıra yazar (setState içinde çağrılır).
+  /// {@endtemplate}
+  void _applyOutcome(int index, LogoPullOutcome outcome) {
+    final l10n = AppLocalization.of(context);
+    final item = syncItems[index];
+    item['status'] = outcome.ok ? _stDone : _stError;
+    item['progress'] = 1.0;
+    if (outcome.ok) {
+      item['count'] = outcome.upserted;
+      item['lastAt'] = DateTime.now().toUtc();
+    } else {
+      final key = outcome.errorKey;
+      lastError = key != null
+          ? l10n.translate(key)
+          : (outcome.error ?? outcome.message ?? '');
+    }
+  }
+
+  /// {@template _record_state}
+  /// ExfinApi satırının son durumunu kalıcı depoya yazar.
+  /// {@endtemplate}
+  Future<void> _recordState(
+    LogoPullSource source, {
+    required bool ok,
+    int? count,
+    String? error,
+  }) async {
+    try {
+      await _pullStateStore.record(
+        source,
+        ok: ok,
+        recordCount: count,
+        error: error,
+      );
+    } catch (e) {
+      debugPrint('DataTransferScreen indirme durumu yazılamadı: $e');
+    }
+  }
+
+  /// Cari indirir; yazılan kayıt sayısını döndürür.
+  Future<int> _syncCustomers(LogoApiService logo, int index) async {
     final l10n = AppLocalization.of(context);
     final result = await logo.getCustomers();
     if (!result.success) {
@@ -319,9 +529,11 @@ class _DataTransferScreenState extends State<DataTransferScreen> {
         });
       }
     }
+    return done;
   }
 
-  Future<void> _syncProducts(LogoApiService logo, int index) async {
+  /// Ürün indirir; yazılan kayıt sayısını döndürür.
+  Future<int> _syncProducts(LogoApiService logo, int index) async {
     final l10n = AppLocalization.of(context);
     final result = await logo.getItems();
     if (!result.success) {
@@ -369,17 +581,20 @@ class _DataTransferScreenState extends State<DataTransferScreen> {
         });
       }
     }
+    return done;
   }
 
-  Future<void> _syncStock(LogoApiService logo, int index) async {
+  /// Stok günceller; kaynak yoksa satır atlanır (`null`).
+  Future<int?> _syncStock(LogoApiService logo, int index) async {
     final result = await logo.getInventoryReport();
     if (!result.success) {
-      if (!mounted) return;
+      if (!mounted) return null;
       setState(() => syncItems[index]['status'] = _stSkipped);
-      return;
+      return null;
     }
     final list = result.asMapList();
     final db = await (await DatabaseService.getInstance()).getDatabase();
+    var updated = 0;
     for (final row in list) {
       final code = (row['CODE'] ?? row['code'] ?? row['item_code'] ?? '')
           .toString();
@@ -394,18 +609,22 @@ class _DataTransferScreenState extends State<DataTransferScreen> {
         where: 'code = ? OR id = ?',
         whereArgs: [code, code],
       );
+      updated++;
     }
+    return updated;
   }
 
-  Future<void> _syncBalances(LogoApiService logo, int index) async {
+  /// Bakiye günceller; kaynak yoksa satır atlanır (`null`).
+  Future<int?> _syncBalances(LogoApiService logo, int index) async {
     final result = await logo.getBalances();
     if (!result.success) {
-      if (!mounted) return;
+      if (!mounted) return null;
       setState(() => syncItems[index]['status'] = _stSkipped);
-      return;
+      return null;
     }
     final list = result.asMapList();
     final db = await (await DatabaseService.getInstance()).getDatabase();
+    var updated = 0;
     for (final row in list) {
       final code = (row['CODE'] ?? row['code'] ?? row['ARP_CODE'] ?? '')
           .toString();
@@ -420,7 +639,9 @@ class _DataTransferScreenState extends State<DataTransferScreen> {
         where: 'code = ? OR id = ?',
         whereArgs: [code, code],
       );
+      updated++;
     }
+    return updated;
   }
 
   Future<void> _uploadPending(int index) async {
@@ -558,6 +779,61 @@ class _DataTransferScreenState extends State<DataTransferScreen> {
     );
   }
 
+  /// {@template _row_status_line}
+  /// Satır durumu + kayıt sayısı metni.
+  /// {@endtemplate}
+  String _rowStatusLine(AppLocalization l10n, Map<String, dynamic> item) {
+    final status = _statusLabel(l10n, item['status'] as String);
+    final count = item['count'];
+    if (count is! int) return status;
+    final countLabel = l10n.translate(
+      'field_sales.logo_pull_record_count',
+      args: {'count': '$count'},
+    );
+    return '$status · $countLabel';
+  }
+
+  /// {@template _row_last_update_line}
+  /// Satırın son başarılı güncelleme zamanı metni.
+  /// {@endtemplate}
+  String _rowLastUpdateLine(AppLocalization l10n, Map<String, dynamic> item) {
+    final lastAt = item['lastAt'];
+    if (lastAt is! DateTime) {
+      return l10n.translate('field_sales.logo_pull_never');
+    }
+    return l10n.translate(
+      'field_sales.logo_pull_last_update',
+      args: {
+        'time': DateFormat('dd.MM.yyyy HH:mm').format(lastAt.toLocal()),
+      },
+    );
+  }
+
+  /// {@template _row_action}
+  /// Satır bazlı indirme aksiyonu (yalnızca Logo veri türü satırları).
+  /// {@endtemplate}
+  Widget? _rowAction(
+    AppLocalization l10n,
+    Map<String, dynamic> item,
+    int index,
+  ) {
+    if (item['source'] is! LogoPullSource) return null;
+    if (_busyRowIndex == index) {
+      return const SizedBox(
+        width: 20,
+        height: 20,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      );
+    }
+    return IconButton(
+      iconSize: 20,
+      visualDensity: VisualDensity.compact,
+      tooltip: l10n.translate('field_sales.logo_pull_download_one'),
+      icon: const Icon(Icons.cloud_download_outlined),
+      onPressed: isSyncing ? null : () => _downloadOne(index),
+    );
+  }
+
   /// {@template _triad_button}
   /// Dens triad aksiyon butonu (mevcut stil token'ları).
   /// {@endtemplate}
@@ -602,15 +878,17 @@ class _DataTransferScreenState extends State<DataTransferScreen> {
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
+          LogoConnectionStatusIcon(checker: widget.healthChecker),
           IconButton(
             icon: const Icon(Icons.settings),
             tooltip: l10n.translate('common.settings'),
-            onPressed: () {
-              Navigator.of(context).push(
+            onPressed: () async {
+              await Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => const LogoRestSettingsScreen(),
                 ),
               );
+              if (mounted) await _bootstrap();
             },
           ),
         ],
@@ -736,14 +1014,22 @@ class _DataTransferScreenState extends State<DataTransferScreen> {
                           subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(_statusLabel(l10n, status)),
-                              const SizedBox(height: 6),
+                              Text(_rowStatusLine(l10n, item)),
+                              Text(
+                                _rowLastUpdateLine(l10n, item),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
                               LinearProgressIndicator(
                                 value: (item['progress'] as num).toDouble(),
                                 backgroundColor: Colors.grey.shade200,
                               ),
                             ],
                           ),
+                          trailing: _rowAction(l10n, item, index),
                         ),
                       );
                     },
