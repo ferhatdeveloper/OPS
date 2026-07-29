@@ -181,8 +181,7 @@ void main() {
         if (options.path.contains('CompanyLogin')) {
           return ResponseBody.fromString('true', 200);
         }
-        sawAuth =
-            options.headers['Authorization']?.toString() == 'Bearer tok';
+        sawAuth = options.headers['Authorization']?.toString() == 'Bearer tok';
         expect(options.path, '/items');
         expect(options.queryParameters['limit'], isNotNull);
         return ResponseBody.fromString(
@@ -294,6 +293,73 @@ void main() {
       expect(r.success, isFalse);
       expect(r.statusCode, 400);
       expect(r.error, contains('required'));
+    });
+
+    test('companyLogin registry bootstrap firma/dönemini kullanır', () async {
+      String? loginPath;
+      dio.httpClientAdapter = _MockAdapter((options) async {
+        if (options.path == '/token') {
+          return ResponseBody.fromString(
+            jsonEncode({'access_token': 'tok', 'expires_in': 3600}),
+            200,
+            headers: {
+              Headers.contentTypeHeader: [Headers.jsonContentType],
+            },
+          );
+        }
+        loginPath = options.path;
+        return ResponseBody.fromString('true', 200);
+      });
+      client.applyConfig(
+        const LogoTigerConfig(
+          baseUrl: 'http://logo.test:32001',
+          apiKey: 'test-api-key',
+          username: 'LOGO',
+          password: 'x',
+          clientId: 'CID',
+          clientSecret: 'SEC',
+          firmNr: 401,
+          periodNr: 1,
+        ),
+      );
+
+      await client.companyLogin();
+
+      expect(loginPath, '/methods/CompanyLogin/401/1');
+    });
+
+    test('etkin firma/dönem seçimi registry varsayılanını ezer', () async {
+      String? loginPath;
+      dio.httpClientAdapter = _MockAdapter((options) async {
+        if (options.path == '/token') {
+          return ResponseBody.fromString(
+            jsonEncode({'access_token': 'tok', 'expires_in': 3600}),
+            200,
+            headers: {
+              Headers.contentTypeHeader: [Headers.jsonContentType],
+            },
+          );
+        }
+        loginPath = options.path;
+        return ResponseBody.fromString('true', 200);
+      });
+      client.applyConfig(
+        const LogoTigerConfig(
+          baseUrl: 'http://logo.test:32001',
+          apiKey: 'test-api-key',
+          username: 'LOGO',
+          password: 'x',
+          clientId: 'CID',
+          clientSecret: 'SEC',
+          firmNr: 401,
+          periodNr: 1,
+        ),
+      );
+
+      // Kullanıcının ActiveCompanyStore seçimi etkin bağlamdır.
+      await client.companyLogin(firmNr: 12, periodNr: 5);
+
+      expect(loginPath, '/methods/CompanyLogin/12/5');
     });
   });
 }

@@ -18,6 +18,8 @@ import 'package:exfin_ops/core/tenant/tenant_context.dart';
 import 'package:exfin_ops/core/tenant/tenant_logo_config_cache.dart';
 import 'package:exfin_ops/core/tenant/tenant_logo_config_store.dart';
 import 'package:exfin_ops/core/tenant/tenant_store.dart';
+import 'package:exfin_ops/modules/field_sales/companies/model/active_company_session.dart';
+import 'package:exfin_ops/modules/field_sales/companies/viewmodel/active_company_store.dart';
 
 const String _logoRow = '[{"code":"lovan",'
     '"rest_base_url":"https://pg.example.com/lovan",'
@@ -415,6 +417,71 @@ void main() {
       expect(tiger.apiKey, isEmpty);
       expect(tiger.password, isEmpty);
       expect(tiger.clientSecret, isEmpty);
+    });
+  });
+
+  group('PostgrestTenantService firma / dönem sınırları', () {
+    test('registry seed aktif firma/dönem seçimini değiştirmez', () async {
+      const companyStore = ActiveCompanyStore(
+        syncLogoPrefs: false,
+        syncPostgresContext: false,
+      );
+      await companyStore.save(
+        const ActiveCompanySession(
+          companyId: 'c-12',
+          companyName: 'Kullanıcı Firması',
+          companyNo: '12',
+          periodNo: '5',
+        ),
+      );
+      final client = MockClient((_) async => http.Response(_logoRow, 200));
+
+      await PostgrestTenantService(
+        syncPostgres: false,
+        httpClient: client,
+      ).applyTenantCode('lovan');
+      final session = await companyStore.load();
+
+      // Registry yalnızca bootstrap varsayılanı verir.
+      expect(session.companyNo, '12');
+      expect(session.periodNo, '5');
+      expect((await LogoTigerSettingsStore().loadRaw()).firmNr, 401);
+    });
+
+    test('offline restore aktif firma/dönem seçimini değiştirmez', () async {
+      const companyStore = ActiveCompanyStore(
+        syncLogoPrefs: false,
+        syncPostgresContext: false,
+      );
+      await companyStore.save(
+        const ActiveCompanySession(
+          companyId: 'c-12',
+          companyName: 'Kullanıcı Firması',
+          companyNo: '12',
+          periodNo: '5',
+        ),
+      );
+      await const TenantStore().save(
+        const TenantContext(
+          tenantCode: 'lovan',
+          remoteRestUrl: 'https://api.retailex.app/lovan',
+        ),
+      );
+      await const TenantLogoConfigStore().save(
+        TenantLogoConfigCache(
+          tenantCode: 'lovan',
+          logoRestApiUrl: 'http://logo.example:32001/api/v1',
+          logoFirmNr: 401,
+          logoPeriodNr: 1,
+          fetchedAt: DateTime.utc(2026, 7, 29, 9),
+        ),
+      );
+
+      await PostgrestTenantService(syncPostgres: false).restoreActiveContext();
+      final session = await companyStore.load();
+
+      expect(session.companyNo, '12');
+      expect(session.periodNo, '5');
     });
   });
 }
