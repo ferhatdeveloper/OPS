@@ -5,13 +5,18 @@
 // Son Güncelleme: 2026-07-28
 
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
 import '../../../../core/localization/app_localization.dart';
+import '../../../../core/logo/logo_tenant_config_seeder.dart';
 import '../../../../core/logo/logo_tiger.dart';
 import '../../../../core/services/logo_api_service.dart';
 import '../../../../core/services/logo_rest_settings_service.dart';
+import '../../../../core/tenant/tenant_logo_config_fetcher.dart';
+import '../../../../core/tenant/tenant_logo_config_source.dart';
 import '../../shared/view/field_sales_dens_app_bar.dart';
 import '../../shared/view/field_sales_dens_theme.dart';
+import 'logo_connection_status_icon.dart';
 
 /// {@template logo_rest_settings_screen}
 /// Logo REST ayarları — ExfinApi middleware + opsiyonel Tiger Objects REST.
@@ -55,6 +60,15 @@ class _LogoRestSettingsScreenState extends State<LogoRestSettingsScreen> {
   bool _tigerEnabled = false;
   String? _testMessage;
   bool? _testOk;
+
+  /// [_logoDb]: Kiracı kaydından gelen Logo veritabanı adı (UI'da alan yok)
+  String? _logoDb;
+
+  /// [_configSource]: Etkin ayarın kaynağı (elle / kiracı kaydı / eski prefs)
+  TenantLogoConfigSource _configSource = TenantLogoConfigSource.none;
+
+  /// [_fetchingRegistry]: Kiracı kaydı okuma sürüyor mu
+  bool _fetchingRegistry = false;
 
   final _settingsService = LogoRestSettingsService();
   final _api = LogoApiService();
@@ -117,6 +131,10 @@ class _LogoRestSettingsScreenState extends State<LogoRestSettingsScreen> {
       _tigerPassCtrl.text = t.password;
       _tigerFirmCtrl.text = '${t.firmNr}';
       _tigerPeriodCtrl.text = '${t.periodNr}';
+      _logoDb = t.logoDb;
+      _configSource = await TenantLogoConfigSourceResolver(
+        tigerStore: _tigerStore,
+      ).resolve();
     } catch (e) {
       debugPrint('Logo REST ayarları yüklenemedi: $e');
     } finally {
@@ -179,8 +197,10 @@ class _LogoRestSettingsScreenState extends State<LogoRestSettingsScreen> {
         password: _tigerPassCtrl.text,
         firmNr: int.tryParse(_tigerFirmCtrl.text.trim()) ?? 1,
         periodNr: int.tryParse(_tigerPeriodCtrl.text.trim()) ?? 1,
+        logoDb: _logoDb,
       );
       await _tigerStore.save(tiger);
+      _configSource = TenantLogoConfigSource.manual;
       await _tigerStore.setEnabled(_tigerEnabled);
       _tigerClient.applyConfig(await _tigerStore.loadRaw());
       final savedSplit = LogoTigerUrls.splitHostPort(tiger.baseUrl);
@@ -306,6 +326,112 @@ class _LogoRestSettingsScreenState extends State<LogoRestSettingsScreen> {
     }
   }
 
+  /// {@template _fetch_from_tenant_registry}
+  /// Merkez `tenant_registry` kaydından Logo ayarlarını çeker.
+  ///
+  /// Elle girilmiş ayar varsa kullanıcı onayı istenir; onay verilirse Logo
+  /// adresi, firma ve dönem numarası üzerine yazılır. api_key, kullanıcı,
+  /// parola ve client secret alanları registry'den gelmez ve korunur.
+  /// {@endtemplate}
+  Future<void> _fetchFromTenantRegistry() async {
+    final l10n = AppLocalization.of(context);
+    if (_configSource == TenantLogoConfigSource.manual) {
+      final confirmed = await _confirmRegistryOverwrite(l10n);
+      if (confirmed != true) return;
+    }
+
+    setState(() {
+      _fetchingRegistry = true;
+      _testMessage = null;
+      _testOk = null;
+    });
+    final client = http.Client();
+    try {
+      final outcome = await TenantLogoConfigFetcher(
+        client: client,
+      ).fetchForActiveTenant();
+      final cache = outcome.cache;
+      if (!outcome.ok || cache == null) {
+        _showRegistryMessage(
+          l10n.translate(
+            outcome.errorKey ?? 'field_sales.logo_registry_not_found',
+          ),
+          ok: false,
+        );
+        return;
+      }
+
+      final applied = await LogoTenantConfigSeeder(
+        tigerStore: _tigerStore,
+      ).apply(cache, force: true);
+      if (!applied) {
+        _showRegistryMessage(
+          l10n.translate('field_sales.logo_registry_apply_failed'),
+          ok: false,
+        );
+        return;
+      }
+
+      await _load();
+      _tigerClient.applyConfig(await _tigerStore.loadRaw());
+      _showRegistryMessage(
+        l10n.translate(
+          outcome.fromCache
+              ? 'field_sales.logo_registry_fetch_cached'
+              : 'field_sales.logo_registry_fetch_ok',
+        ),
+        ok: true,
+      );
+    } catch (e) {
+      _showRegistryMessage('$e', ok: false);
+    } finally {
+      client.close();
+      if (mounted) setState(() => _fetchingRegistry = false);
+    }
+  }
+
+  /// {@template _confirm_registry_overwrite}
+  /// Elle girilmiş ayarın üzerine yazma onayını sorar.
+  /// {@endtemplate}
+  Future<bool?> _confirmRegistryOverwrite(AppLocalization l10n) {
+    return showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(
+          l10n.translate('field_sales.logo_registry_overwrite_title'),
+          style: const TextStyle(fontSize: 15),
+        ),
+        content: Text(
+          l10n.translate('field_sales.logo_registry_overwrite_body'),
+          style: const TextStyle(fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(l10n.translate('common.cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(
+              l10n.translate('field_sales.logo_registry_overwrite_confirm'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// [_showRegistryMessage]: Kiracı kaydı sonucunu mevcut SnackBar dili ile gösterir.
+  void _showRegistryMessage(String message, {required bool ok}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: ok ? Colors.green : Colors.red,
+      ),
+    );
+  }
+
   Future<void> _pullTigerSync() async {
     final l10n = AppLocalization.of(context);
     setState(() => _syncing = true);
@@ -354,7 +480,8 @@ class _LogoRestSettingsScreenState extends State<LogoRestSettingsScreen> {
         title: l10n.translate('field_sales.logo_rest_settings_title'),
         useGradient: false,
         actions: [
-          if (_saving || _testing || _syncing)
+          const LogoConnectionStatusIcon(),
+          if (_saving || _testing || _syncing || _fetchingRegistry)
             const Padding(
               padding: EdgeInsetsDirectional.only(end: 12),
               child: SizedBox(
@@ -591,6 +718,41 @@ class _LogoRestSettingsScreenState extends State<LogoRestSettingsScreen> {
                         ],
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    l10n.translate(
+                      'field_sales.logo_config_source_label',
+                      args: {
+                        'source': l10n.translate(
+                          TenantLogoConfigSourceResolver.labelKey(
+                            _configSource,
+                          ),
+                        ),
+                      },
+                    ),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  SizedBox(
+                    height: 40,
+                    child: OutlinedButton.icon(
+                      onPressed: _fetchingRegistry || _saving || _testing
+                          ? null
+                          : _fetchFromTenantRegistry,
+                      icon: const Icon(Icons.cloud_sync_outlined, size: 18),
+                      label: Text(
+                        _fetchingRegistry
+                            ? l10n.translate(
+                                'field_sales.logo_registry_fetching',
+                              )
+                            : l10n.translate('field_sales.logo_registry_fetch'),
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 10),
                   _sectionCard(
