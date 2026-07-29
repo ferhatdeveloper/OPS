@@ -57,3 +57,7 @@ backup/
 .env
 .env.local
 .env.*.local
+
+# Yerel analiz çıktıları (ekran görüntüsü / UI dump)
+tmp_mbt_analysis/
+tmp_scrcpy_analysis/
