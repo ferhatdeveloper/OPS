@@ -8,9 +8,14 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../../service/postgres_service.dart';
-import 'postgrest_tenant_defaults.dart';
+import '../logo/logo_tenant_config_seeder.dart';
+import '../logo/logo_tiger_settings_store.dart';
+import 'merkez_tenant_registry_service.dart';
 import 'tenant_connection_resolver.dart';
 import 'tenant_context.dart';
+import 'tenant_logo_config_cache.dart';
+import 'tenant_logo_config_store.dart';
+import 'tenant_registry_row.dart';
 import 'tenant_store.dart';
 
 /// {@template tenant_apply_result}
@@ -74,6 +79,18 @@ class PostgrestTenantService {
   /// Registry probe zaman aşımı
   final Duration registryTimeout;
 
+  /// [logoConfigStore]: Tenant'a bağlı Logo registry cache deposu
+  final TenantLogoConfigStore logoConfigStore;
+
+  /// [logoSeeder]: Logo cache → Tiger ayarları seed politikası
+  final LogoTenantConfigSeeder logoSeeder;
+
+  /// [now]: Test edilebilir zaman kaynağı (TTL hesabı)
+  final DateTime Function() now;
+
+  /// [registryCacheTtl]: Logo cache yenileme süresi
+  final Duration registryCacheTtl;
+
   /// {@macro postgrest_tenant_service}
   PostgrestTenantService({
     this.store = const TenantStore(),
@@ -81,13 +98,23 @@ class PostgrestTenantService {
     this.httpClient,
     this.allowOfflineLastTenant = true,
     this.registryTimeout = const Duration(seconds: 4),
-  });
+    this.logoConfigStore = const TenantLogoConfigStore(),
+    LogoTenantConfigSeeder? logoSeeder,
+    DateTime Function()? now,
+    this.registryCacheTtl = const Duration(minutes: 15),
+  })  : logoSeeder = logoSeeder ??
+            LogoTenantConfigSeeder(tigerStore: LogoTigerSettingsStore()),
+        now = now ?? DateTime.now;
 
   /// Bellekteki / prefs'teki aktif bağlamı Postgres'e yeniden uygular.
+  ///
+  /// Ağ beklemesi yapmaz; aynı kiracıya ait Logo registry cache'i varsa
+  /// offline seed olarak yeniden uygulanır.
   Future<TenantContext?> restoreActiveContext() async {
     final ctx = await store.load();
     if (ctx.isEmpty) return null;
     _bindPostgres(ctx);
+    await _applyCachedLogoConfig(ctx.tenantCode);
     return ctx;
   }
 
@@ -124,27 +151,36 @@ class PostgrestTenantService {
         saasOrigin: saasOrigin,
       );
 
-      // Aynı kod için kayıtlı rest URL tercih et (özel deploy / registry).
-      // SaaS kök değişince TenantStore remoteRestUrl’yi zaten temizler;
-      // burada startsWith(origin) ile özel deploy URL’lerini düşürme.
-      if (cached.isNotEmpty &&
+      // Logo bootstrap kayıtlı rest URL kısa devresinden bağımsız çalışır.
+      final registryRow = await _fetchRegistryIfNeeded(
+        resolved.tenantCode,
+        saasOrigin: saasOrigin,
+      );
+
+      final registryRestUrl = registryRow?.restBaseUrl?.trim() ?? '';
+      if (registryRestUrl.isNotEmpty) {
+        final normalized = TenantConnectionResolver.normalizeBaseUrl(
+          registryRestUrl,
+        );
+        resolved = resolved.copyWith(
+          remoteRestUrl: TenantConnectionResolver.rewriteRestUrlForSaasOrigin(
+            normalized,
+            saasOrigin: saasOrigin,
+          ),
+          source: 'tenant_registry',
+        );
+      } else if (cached.isNotEmpty &&
           cached.tenantCode.toLowerCase() ==
               resolved.tenantCode.toLowerCase() &&
           cached.remoteRestUrl.trim().isNotEmpty) {
+        // Aynı kod için kayıtlı rest URL tercih et (özel deploy / registry).
+        // SaaS kök değişince TenantStore remoteRestUrl’yi zaten temizler;
+        // burada startsWith(origin) ile özel deploy URL’lerini düşürme.
         resolved = resolved.copyWith(
           remoteRestUrl: cached.remoteRestUrl.trim(),
           schema: cached.schema,
           source: 'cached',
         );
-      } else {
-        // İsteğe bağlı: merkez tenant_registry probe (başarısız olursa SaaS kalır)
-        final fromRegistry = await _tryResolveFromMerkezRegistry(
-          resolved.tenantCode,
-          saasOrigin: saasOrigin,
-        );
-        if (fromRegistry != null) {
-          resolved = fromRegistry;
-        }
       }
 
       final ctx = TenantContext.fromResolve(
@@ -242,64 +278,87 @@ class PostgrestTenantService {
     }
   }
 
-  /// Merkez `tenant_registry` satırından `rest_base_url` dener.
-  /// Başarısız / timeout → null (SaaS slug kalır).
-  Future<TenantResolveResult?> _tryResolveFromMerkezRegistry(
+  /// {@template postgrest_tenant_service_fetch_registry}
+  /// Merkez registry satırını TTL politikasıyla getirir ve Logo seed'ini
+  /// uygular.
+  ///
+  /// Algoritma:
+  /// 1. Aktif kiracının Logo cache'i taze ise HTTP yapılmaz, cache seed edilir.
+  /// 2. [httpClient] yoksa mevcut cache seed edilir.
+  /// 3. Fetch başarılıysa cache yazılır ve seed uygulanır.
+  /// 4. Fetch başarısızsa son geçerli cache korunur ve seed edilir.
+  ///
+  /// Dönüş değeri:
+  /// - [TenantRegistryRow]: Taze merkez satırı; yoksa `null`
+  /// {@endtemplate}
+  Future<TenantRegistryRow?> _fetchRegistryIfNeeded(
     String tenantCode, {
     required String saasOrigin,
   }) async {
-    final client = httpClient;
-    if (client == null) return null;
+    final code = tenantCode.trim().toLowerCase();
+    if (code.isEmpty) return null;
 
-    final merkez = TenantConnectionResolver.buildMerkezRestBaseUrl(
-      origin: saasOrigin,
-    );
-    final filter = Uri.encodeQueryComponent(tenantCode);
-    final uri = Uri.parse(
-      '$merkez/tenant_registry?code=eq.$filter&select=code,rest_base_url,display_name,is_active',
-    );
-
-    try {
-      final res = await client.get(
-        uri,
-        headers: const {
-          'Accept': 'application/json',
-          'Accept-Profile': PostgrestTenantDefaults.defaultSchema,
-        },
-      ).timeout(registryTimeout);
-
-      if (res.statusCode < 200 || res.statusCode >= 300) return null;
-      // Minimal parse without heavy JSON deps issues — http body is JSON array
-      final body = res.body.trim();
-      if (!body.startsWith('[') || body == '[]') return null;
-
-      // Lightweight extraction: look for rest_base_url
-      final urlMatch = RegExp(
-        r'"rest_base_url"\s*:\s*"([^"]+)"',
-      ).firstMatch(body);
-      final codeMatch = RegExp(r'"code"\s*:\s*"([^"]+)"').firstMatch(body);
-      final activeMatch = RegExp(r'"is_active"\s*:\s*(false)').firstMatch(body);
-      if (activeMatch != null) return null;
-
-      final restUrl = urlMatch?.group(1)?.trim() ?? '';
-      final code = codeMatch?.group(1)?.trim() ?? tenantCode;
-      if (restUrl.isEmpty) return null;
-
-      final normalized = TenantConnectionResolver.normalizeBaseUrl(restUrl);
-      final effective = TenantConnectionResolver.rewriteRestUrlForSaasOrigin(
-        normalized,
-        saasOrigin: saasOrigin,
-      );
-
-      return TenantResolveResult(
-        tenantCode: code,
-        remoteRestUrl: effective,
-        schema: PostgrestTenantDefaults.defaultSchema,
-        source: 'tenant_registry',
-      );
-    } catch (e) {
-      debugPrint('tenant_registry probe atlandı: $e');
+    final cached = await _loadLogoCache(code);
+    if (cached != null && cached.isFresh(now: now(), ttl: registryCacheTtl)) {
+      await _seedLogoCache(cached);
       return null;
+    }
+
+    final client = httpClient;
+    if (client == null) {
+      if (cached != null) await _seedLogoCache(cached);
+      return null;
+    }
+
+    final row = await MerkezTenantRegistryService(
+      client: client,
+      timeout: registryTimeout,
+    ).fetch(tenantCode: code, saasOrigin: saasOrigin);
+
+    if (row == null) {
+      // Ağ / registry hatası son geçerli cache'i bozmaz.
+      if (cached != null) await _seedLogoCache(cached);
+      return null;
+    }
+
+    if (row.hasLogoConfig) {
+      final fresh = TenantLogoConfigCache.fromRegistry(row, fetchedAt: now());
+      try {
+        await logoConfigStore.save(fresh);
+      } catch (e) {
+        debugPrint('tenant Logo cache kaydedilemedi: ${e.runtimeType}');
+      }
+      await _seedLogoCache(fresh);
+    } else if (cached != null) {
+      await _seedLogoCache(cached);
+    }
+
+    return row;
+  }
+
+  /// Aktif kiracıya ait Logo cache'ini offline seed olarak uygular.
+  Future<void> _applyCachedLogoConfig(String tenantCode) async {
+    final cached = await _loadLogoCache(tenantCode.trim().toLowerCase());
+    if (cached == null) return;
+    await _seedLogoCache(cached);
+  }
+
+  Future<TenantLogoConfigCache?> _loadLogoCache(String tenantCode) async {
+    if (tenantCode.isEmpty) return null;
+    try {
+      return await logoConfigStore.loadForTenant(tenantCode);
+    } catch (e) {
+      debugPrint('tenant Logo cache okunamadı: ${e.runtimeType}');
+      return null;
+    }
+  }
+
+  Future<void> _seedLogoCache(TenantLogoConfigCache cache) async {
+    if (!cache.hasLogoConfig) return;
+    try {
+      await logoSeeder.apply(cache);
+    } catch (e) {
+      debugPrint('tenant Logo seed uygulanamadı: ${e.runtimeType}');
     }
   }
 
