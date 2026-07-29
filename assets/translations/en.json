@@ -2111,6 +2111,7 @@
     "logo_pull_unsupported": "This data type is not supported by the selected Logo connection.",
     "logo_connection_online": "Logo connection established",
     "logo_connection_offline": "Logo connection failed",
+    "logo_connection_credentials_missing": "Logo is reachable; credentials are missing for data retrieval",
     "logo_connection_unknown": "Logo connection not checked",
     "logo_connection_checking": "Checking Logo connection",
     "logo_connection_refresh": "Refresh connection",
@@ -2122,13 +2123,16 @@
     "logo_registry_not_found": "No Logo settings found in the tenant record",
     "logo_registry_apply_failed": "The Logo address from the tenant record could not be applied",
     "logo_registry_overwrite_title": "Manually entered settings will change",
-    "logo_registry_overwrite_body": "The Logo address, firm and period number from the tenant record will overwrite the current values. api_key, username and password remain unchanged.",
+    "logo_registry_overwrite_body": "The Logo address, firm and period number from the tenant record will overwrite the current values. api_key, username, password, client_id and client_secret remain unchanged.",
     "logo_registry_overwrite_confirm": "Overwrite",
     "logo_config_source_label": "Settings source: {source}",
     "logo_config_source_manual": "Entered manually",
     "logo_config_source_registry": "Tenant record",
     "logo_config_source_legacy": "Legacy record",
-    "logo_config_source_none": "Undefined"
+    "logo_config_source_none": "Undefined",
+    "logo_registry_secrets_helper": "The tenant registry only provides the Logo address, firm and period. Enter client_id, client_secret, Logo username and password manually.",
+    "logo_tiger_required_field": "This field is required for Tiger data transfer",
+    "logo_tiger_auth_missing": "Missing fields for data retrieval: {fields}"
   },
   "customer": {
     "edit_title": "Edit Customer Card",

@@ -23,6 +23,9 @@ enum LogoConnectionStatus {
   /// Bağlantı kuruldu (yeşil)
   online,
 
+  /// Help erişilebilir ancak pull için OAuth kimliği eksik
+  credentialsMissing,
+
   /// Bağlantı kurulamadı (kırmızı)
   offline,
 }
@@ -37,12 +40,26 @@ class LogoHealthProbeResult {
   /// [detail]: Ham teknik detay (tooltip)
   final String? detail;
 
+  /// [authReady]: Pull için OAuth kimlik bilgileri hazır mı
+  final bool authReady;
+
   /// {@macro logo_health_probe_result}
-  const LogoHealthProbeResult({required this.ok, this.detail});
+  const LogoHealthProbeResult({
+    required this.ok,
+    this.detail,
+    this.authReady = true,
+  });
 
   /// Başarılı denetim.
-  factory LogoHealthProbeResult.online({String? detail}) =>
-      LogoHealthProbeResult(ok: true, detail: detail);
+  factory LogoHealthProbeResult.online({
+    String? detail,
+    bool authReady = true,
+  }) =>
+      LogoHealthProbeResult(
+        ok: true,
+        detail: detail,
+        authReady: authReady,
+      );
 
   /// Başarısız denetim.
   factory LogoHealthProbeResult.offline({String? detail}) =>
@@ -91,6 +108,8 @@ class LogoConnectionHealth {
     switch (status) {
       case LogoConnectionStatus.online:
         return 'field_sales.logo_connection_online';
+      case LogoConnectionStatus.credentialsMissing:
+        return 'field_sales.logo_connection_credentials_missing';
       case LogoConnectionStatus.offline:
         return 'field_sales.logo_connection_offline';
       case LogoConnectionStatus.checking:
@@ -179,9 +198,11 @@ class LogoConnectionHealthChecker {
     try {
       final result = await probe();
       _last = LogoConnectionHealth(
-        status: result.ok
-            ? LogoConnectionStatus.online
-            : LogoConnectionStatus.offline,
+        status: !result.ok
+            ? LogoConnectionStatus.offline
+            : result.authReady
+                ? LogoConnectionStatus.online
+                : LogoConnectionStatus.credentialsMissing,
         checkedAt: _now(),
         detail: result.detail,
       );
@@ -204,12 +225,17 @@ class LogoConnectionHealthChecker {
     try {
       final tigerEnabled = await LogoTigerSettingsStore().isEnabled();
       if (tigerEnabled) {
-        final result = await LogoTigerRestClient().pingHelp();
+        final store = LogoTigerSettingsStore();
+        final config = await store.load();
+        final result = await LogoTigerRestClient(store: store).pingHelp();
         return LogoHealthProbeResult(
           ok: result.success,
           detail: result.success
-              ? 'HTTP ${result.statusCode ?? 200}'
+              ? config.hasAuthCredentials
+                  ? 'HTTP ${result.statusCode ?? 200}'
+                  : config.missingAuthFields.join(', ')
               : result.error,
+          authReady: config.hasAuthCredentials,
         );
       }
 

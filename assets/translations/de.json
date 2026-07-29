@@ -2154,7 +2154,7 @@
     "logo_registry_not_found": "Im Mandantendatensatz wurden keine Logo-Einstellungen gefunden",
     "logo_registry_apply_failed": "Die Logo-Adresse aus dem Mandantendatensatz konnte nicht angewendet werden",
     "logo_registry_overwrite_title": "Manuell eingegebene Einstellungen werden geändert",
-    "logo_registry_overwrite_body": "Logo-Adresse, Firmen- und Periodennummer aus dem Mandantendatensatz überschreiben die aktuellen Werte. api_key, Benutzer und Passwort bleiben unverändert.",
+    "logo_registry_overwrite_body": "Logo-Adresse, Firmen- und Periodennummer aus dem Mandantendatensatz überschreiben die aktuellen Werte. api_key, Benutzer, Passwort, client_id und client_secret bleiben unverändert.",
     "logo_registry_overwrite_confirm": "Überschreiben",
     "logo_config_source_label": "Einstellungsquelle: {source}",
     "logo_config_source_manual": "Manuell eingegeben",
@@ -2163,7 +2163,11 @@
     "logo_config_source_none": "Nicht definiert",
     "logo_tiger_base_url_hint": "e.g. 212.237.124.147",
     "logo_tiger_base_url_helper": "Host/IP only. Port is separate (default 32001).",
-    "logo_tiger_port": "Port"
+    "logo_tiger_port": "Port",
+    "logo_connection_credentials_missing": "Das Logo ist zugänglich; Es fehlen Anmeldeinformationen zum Abrufen von Daten",
+    "logo_registry_secrets_helper": "Bei der Mieterregistrierung werden nur die Logo-Adresse, das Unternehmen und der Zeitraum zurückgegeben. Geben Sie client_id, client_secret, Logo-Benutzer und Passwort manuell ein.",
+    "logo_tiger_required_field": "Dieses Feld ist für die Tiger-Datenübertragung erforderlich",
+    "logo_tiger_auth_missing": "Fehlende Felder zum Abrufen von Daten: {fields}"
   },
   "submodules": {
     "donem_karsilastirma": "Periodenvergleich",

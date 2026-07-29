@@ -26,6 +26,7 @@ const List<String> _requiredKeys = [
   'logo_pull_unsupported',
   'logo_connection_online',
   'logo_connection_offline',
+  'logo_connection_credentials_missing',
   'logo_connection_unknown',
   'logo_connection_checking',
   'logo_connection_refresh',
@@ -44,6 +45,9 @@ const List<String> _requiredKeys = [
   'logo_config_source_registry',
   'logo_config_source_legacy',
   'logo_config_source_none',
+  'logo_registry_secrets_helper',
+  'logo_tiger_required_field',
+  'logo_tiger_auth_missing',
 ];
 
 Map<String, dynamic> _fieldSales(File file) {

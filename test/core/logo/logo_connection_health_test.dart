@@ -19,6 +19,7 @@ void main() {
 
   LogoConnectionHealthChecker buildChecker({
     bool ok = true,
+    bool authReady = true,
     String? detail,
     Object? throws,
     Duration minInterval = const Duration(seconds: 60),
@@ -30,7 +31,10 @@ void main() {
         probeCalls++;
         if (throws != null) throw throws;
         return ok
-            ? LogoHealthProbeResult.online(detail: detail)
+            ? LogoHealthProbeResult.online(
+                detail: detail,
+                authReady: authReady,
+              )
             : LogoHealthProbeResult.offline(detail: detail);
       },
     );
@@ -64,6 +68,23 @@ void main() {
       expect(health.status, LogoConnectionStatus.offline);
       expect(health.isOnline, isFalse);
       expect(health.detail, 'api_key gerekli');
+    });
+
+    test('help başarılı ama OAuth eksikse kimlik uyarısı döner', () async {
+      final checker = buildChecker(
+        authReady: false,
+        detail: 'client_id',
+      );
+
+      final health = await checker.check();
+
+      expect(health.status, LogoConnectionStatus.credentialsMissing);
+      expect(health.isOnline, isFalse);
+      expect(
+        health.labelKey,
+        'field_sales.logo_connection_credentials_missing',
+      );
+      expect(health.detail, 'client_id');
     });
 
     test('probe istisna fırlatırsa kırmızı durur, hata sızdırmaz', () async {

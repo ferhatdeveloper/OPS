@@ -58,6 +58,7 @@ class _LogoRestSettingsScreenState extends State<LogoRestSettingsScreen> {
   bool _obscurePassword = true;
   bool _obscureTigerPass = true;
   bool _tigerEnabled = false;
+  bool _showTigerAuthErrors = false;
   String? _testMessage;
   bool? _testOk;
 
@@ -142,8 +143,9 @@ class _LogoRestSettingsScreenState extends State<LogoRestSettingsScreen> {
     }
   }
 
-  Future<void> _save() async {
-    if (!_formKey.currentState!.validate()) return;
+  Future<bool> _save() async {
+    setState(() => _showTigerAuthErrors = true);
+    if (!_formKey.currentState!.validate()) return false;
     final l10n = AppLocalization.of(context);
     setState(() => _saving = true);
     try {
@@ -218,15 +220,16 @@ class _LogoRestSettingsScreenState extends State<LogoRestSettingsScreen> {
         );
       }
 
-      if (!mounted) return;
+      if (!mounted) return true;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(l10n.translate('field_sales.logo_rest_saved')),
           backgroundColor: Colors.green,
         ),
       );
+      return true;
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted) return false;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -238,6 +241,7 @@ class _LogoRestSettingsScreenState extends State<LogoRestSettingsScreen> {
           backgroundColor: Colors.red,
         ),
       );
+      return false;
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -252,7 +256,7 @@ class _LogoRestSettingsScreenState extends State<LogoRestSettingsScreen> {
       _testOk = null;
     });
     try {
-      await _save();
+      if (!await _save()) return;
       if (_tigerEnabled) {
         final result = await _tigerClient.testConnection();
         setState(() {
@@ -302,7 +306,6 @@ class _LogoRestSettingsScreenState extends State<LogoRestSettingsScreen> {
       _testOk = null;
     });
     try {
-      await _save();
       final result = await _tigerClient.pingHelp();
       setState(() {
         _testOk = result.success;
@@ -436,7 +439,7 @@ class _LogoRestSettingsScreenState extends State<LogoRestSettingsScreen> {
     final l10n = AppLocalization.of(context);
     setState(() => _syncing = true);
     try {
-      await _save();
+      if (!await _save()) return;
       final sync = LogoTigerPullSync(client: _tigerClient);
       final result = await sync.pullAll();
       if (!mounted) return;
@@ -467,6 +470,25 @@ class _LogoRestSettingsScreenState extends State<LogoRestSettingsScreen> {
     } finally {
       if (mounted) setState(() => _syncing = false);
     }
+  }
+
+  /// [_missingTigerAuthFields]: OAuth pull için boş zorunlu alanlar.
+  List<String> get _missingTigerAuthFields => [
+        if (_tigerUserCtrl.text.trim().isEmpty) 'username',
+        if (_tigerPassCtrl.text.isEmpty) 'password',
+        if (_tigerClientIdCtrl.text.trim().isEmpty) 'client_id',
+      ];
+
+  /// [_tigerRequiredValidator]: Tiger açıkken zorunlu OAuth alanını doğrular.
+  String? _tigerRequiredValidator(
+    String? value,
+    AppLocalization l10n,
+  ) {
+    if (!_tigerEnabled || !_showTigerAuthErrors) return null;
+    if (value == null || value.trim().isEmpty) {
+      return l10n.translate('field_sales.logo_tiger_required_field');
+    }
+    return null;
   }
 
   @override
@@ -601,6 +623,7 @@ class _LogoRestSettingsScreenState extends State<LogoRestSettingsScreen> {
                       const SizedBox(height: 8),
                       TextFormField(
                         controller: _tigerClientIdCtrl,
+                        onChanged: (_) => setState(() {}),
                         style: const TextStyle(fontSize: 13),
                         decoration: InputDecoration(
                           isDense: true,
@@ -612,6 +635,10 @@ class _LogoRestSettingsScreenState extends State<LogoRestSettingsScreen> {
                             vertical: 8,
                           ),
                           border: const OutlineInputBorder(),
+                        ),
+                        validator: (value) => _tigerRequiredValidator(
+                          value,
+                          l10n,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -634,6 +661,7 @@ class _LogoRestSettingsScreenState extends State<LogoRestSettingsScreen> {
                       const SizedBox(height: 8),
                       TextFormField(
                         controller: _tigerUserCtrl,
+                        onChanged: (_) => setState(() {}),
                         style: const TextStyle(fontSize: 13),
                         decoration: InputDecoration(
                           isDense: true,
@@ -646,10 +674,15 @@ class _LogoRestSettingsScreenState extends State<LogoRestSettingsScreen> {
                           ),
                           border: const OutlineInputBorder(),
                         ),
+                        validator: (value) => _tigerRequiredValidator(
+                          value,
+                          l10n,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       TextFormField(
                         controller: _tigerPassCtrl,
+                        onChanged: (_) => setState(() {}),
                         obscureText: _obscureTigerPass,
                         style: const TextStyle(fontSize: 13),
                         decoration: InputDecoration(
@@ -673,6 +706,10 @@ class _LogoRestSettingsScreenState extends State<LogoRestSettingsScreen> {
                               () => _obscureTigerPass = !_obscureTigerPass,
                             ),
                           ),
+                        ),
+                        validator: (value) => _tigerRequiredValidator(
+                          value,
+                          l10n,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -736,6 +773,27 @@ class _LogoRestSettingsScreenState extends State<LogoRestSettingsScreen> {
                       color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
                     ),
                   ),
+                  const SizedBox(height: 4),
+                  Text(
+                    l10n.translate('field_sales.logo_registry_secrets_helper'),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                    ),
+                  ),
+                  if (_tigerEnabled && _missingTigerAuthFields.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      l10n.translate(
+                        'field_sales.logo_tiger_auth_missing',
+                        args: {'fields': _missingTigerAuthFields.join(', ')},
+                      ),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.red.shade700,
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 6),
                   SizedBox(
                     height: 40,

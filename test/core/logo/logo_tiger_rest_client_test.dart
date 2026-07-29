@@ -35,6 +35,47 @@ class _MockAdapter implements HttpClientAdapter {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  group('LogoTigerConfig OAuth doğrulaması', () {
+    test('eksik OAuth alanlarını kullanıcıya gösterilecek sırada döndürür', () {
+      const config = LogoTigerConfig(
+        baseUrl: 'http://logo.test:32001',
+        username: 'LOGO',
+      );
+
+      expect(config.missingAuthFields, ['password', 'client_id']);
+      expect(config.hasAuthCredentials, isFalse);
+    });
+
+    test('ayar deposu OAuth alanlarını eksiksiz saklayıp geri yükler',
+        () async {
+      SharedPreferences.setMockInitialValues({});
+      final store = LogoTigerSettingsStore(
+        prefsFactory: SharedPreferences.getInstance,
+      );
+      const saved = LogoTigerConfig(
+        baseUrl: 'http://logo.test:32001',
+        apiKey: 'API',
+        username: 'LOGO',
+        password: 'PASSWORD',
+        clientId: 'CLIENT',
+        clientSecret: 'SECRET',
+        firmNr: 401,
+        periodNr: 1,
+      );
+
+      await store.save(saved);
+      final loaded = await store.loadRaw();
+
+      expect(loaded.apiKey, 'API');
+      expect(loaded.username, 'LOGO');
+      expect(loaded.password, 'PASSWORD');
+      expect(loaded.clientId, 'CLIENT');
+      expect(loaded.clientSecret, 'SECRET');
+      expect(loaded.firmNr, 401);
+      expect(loaded.periodNr, 1);
+    });
+  });
+
   group('LogoTigerRestClient.extractItems', () {
     test('items anahtarı', () {
       final list = LogoTigerRestClient.extractItems({

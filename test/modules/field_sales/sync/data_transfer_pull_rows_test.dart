@@ -38,7 +38,10 @@ void main() {
   }
 
   /// [buildRunner]: Hangi kaynağın istendiğini kaydeden sahte koşucu.
-  LogoPullSourceRunner buildRunner(LogoPullStateStore stateStore) {
+  LogoPullSourceRunner buildRunner(
+    LogoPullStateStore stateStore, {
+    LogoTigerSyncResult? result,
+  }) {
     return LogoPullSourceRunner(
       stateStore: stateStore,
       pullAll: ({
@@ -53,14 +56,15 @@ void main() {
         if (warehouses) pulled.add('warehouses');
         if (orders) pulled.add('orders');
         if (salesmen) pulled.add('salesmen');
-        return const LogoTigerSyncResult(
-          ok: true,
-          products: LogoTigerEntitySyncResult(fetched: 3, upserted: 3),
-          customers: LogoTigerEntitySyncResult(fetched: 5, upserted: 5),
-          warehouses: LogoTigerEntitySyncResult(fetched: 2, upserted: 2),
-          orders: LogoTigerEntitySyncResult(fetched: 1, upserted: 1),
-          salesmen: LogoTigerEntitySyncResult(fetched: 4, upserted: 4),
-        );
+        return result ??
+            const LogoTigerSyncResult(
+              ok: true,
+              products: LogoTigerEntitySyncResult(fetched: 3, upserted: 3),
+              customers: LogoTigerEntitySyncResult(fetched: 5, upserted: 5),
+              warehouses: LogoTigerEntitySyncResult(fetched: 2, upserted: 2),
+              orders: LogoTigerEntitySyncResult(fetched: 1, upserted: 1),
+              salesmen: LogoTigerEntitySyncResult(fetched: 4, upserted: 4),
+            );
       },
     );
   }
@@ -68,6 +72,7 @@ void main() {
   Future<void> pumpScreen(
     WidgetTester tester, {
     required bool tigerEnabled,
+    LogoTigerSyncResult? result,
   }) async {
     // Tüm satırlar tek ekranda görünsün (ListView lazy build sınırı)
     tester.view.physicalSize = const Size(1080, 2400);
@@ -81,7 +86,7 @@ void main() {
         home: DataTransferScreen(
           tigerEnabledOverride: tigerEnabled,
           pullStateStore: stateStore,
-          pullRunner: buildRunner(stateStore),
+          pullRunner: buildRunner(stateStore, result: result),
           healthChecker: buildChecker(),
         ),
       ),
@@ -150,5 +155,25 @@ void main() {
     await pumpScreen(tester, tigerEnabled: true);
 
     expect(find.byIcon(Icons.cloud_done), findsOneWidget);
+  });
+
+  testWidgets('pull hatası genel alanda ve ilgili satırda gösterilir',
+      (tester) async {
+    await pumpScreen(
+      tester,
+      tigerEnabled: true,
+      result: const LogoTigerSyncResult(
+        ok: false,
+        error: 'username, password ve client_id gerekli',
+      ),
+    );
+
+    await tester.tap(find.byIcon(Icons.cloud_download_outlined).first);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('username, password ve client_id gerekli'),
+      findsNWidgets(2),
+    );
   });
 }

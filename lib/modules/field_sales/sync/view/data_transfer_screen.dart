@@ -189,6 +189,7 @@ class _DataTransferScreenState extends State<DataTransferScreen> {
         'status': _stPending,
         'count': null,
         'lastAt': null,
+        'error': null,
       };
     }).toList();
   }
@@ -207,6 +208,7 @@ class _DataTransferScreenState extends State<DataTransferScreen> {
       'status': _stPending,
       'count': state?.recordCount,
       'lastAt': state?.lastSuccessAt,
+      'error': state?.lastOk == false ? state?.lastError : null,
     };
   }
 
@@ -351,6 +353,7 @@ class _DataTransferScreenState extends State<DataTransferScreen> {
       setState(() {
         syncItems[i]['status'] = _stTransferring;
         syncItems[i]['progress'] = 0.2;
+        syncItems[i]['error'] = null;
       });
 
       final outcome = await _pullRunner.run(source);
@@ -384,6 +387,7 @@ class _DataTransferScreenState extends State<DataTransferScreen> {
       _sendEmptyMessageKey = null;
       syncItems[index]['status'] = _stTransferring;
       syncItems[index]['progress'] = 0.2;
+      syncItems[index]['error'] = null;
     });
 
     try {
@@ -441,11 +445,13 @@ class _DataTransferScreenState extends State<DataTransferScreen> {
     if (outcome.ok) {
       item['count'] = outcome.upserted;
       item['lastAt'] = DateTime.now().toUtc();
+      item['error'] = null;
     } else {
       final key = outcome.errorKey;
       lastError = key != null
           ? l10n.translate(key)
           : (outcome.error ?? outcome.message ?? '');
+      item['error'] = lastError;
     }
   }
 
@@ -1019,6 +1025,17 @@ class _DataTransferScreenState extends State<DataTransferScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(_rowStatusLine(l10n, item)),
+                              if ((item['error'] as String?)?.isNotEmpty ==
+                                  true)
+                                Text(
+                                  item['error'] as String,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.red.shade700,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               Text(
                                 _rowLastUpdateLine(l10n, item),
                                 style: TextStyle(

@@ -2154,7 +2154,7 @@
     "logo_registry_not_found": "В записи арендатора настройки Logo не найдены",
     "logo_registry_apply_failed": "Не удалось применить адрес Logo из записи арендатора",
     "logo_registry_overwrite_title": "Введённые вручную настройки будут изменены",
-    "logo_registry_overwrite_body": "Адрес Logo, номер фирмы и периода из записи арендатора перезапишут текущие значения. api_key, пользователь и пароль не изменятся.",
+    "logo_registry_overwrite_body": "Адрес Logo, номер фирмы и периода из записи арендатора перезапишут текущие значения. api_key, пользователь, пароль, client_id и client_secret не изменятся.",
     "logo_registry_overwrite_confirm": "Перезаписать",
     "logo_config_source_label": "Источник настроек: {source}",
     "logo_config_source_manual": "Введено вручную",
@@ -2163,7 +2163,11 @@
     "logo_config_source_none": "Не задано",
     "logo_tiger_base_url_hint": "e.g. 212.237.124.147",
     "logo_tiger_base_url_helper": "Host/IP only. Port is separate (default 32001).",
-    "logo_tiger_port": "Port"
+    "logo_tiger_port": "Port",
+    "logo_connection_credentials_missing": "Логотип доступен; отсутствуют учетные данные для получения данных",
+    "logo_registry_secrets_helper": "При регистрации арендатора возвращается только адрес логотипа, компания и период. Введите client_id, client_secret, логотип пользователя и пароль вручную.",
+    "logo_tiger_required_field": "Это поле необходимо для передачи данных Tiger.",
+    "logo_tiger_auth_missing": "Отсутствуют поля для получения данных: {fields}"
   },
   "submodules": {
     "donem_karsilastirma": "Сравнение периодов",

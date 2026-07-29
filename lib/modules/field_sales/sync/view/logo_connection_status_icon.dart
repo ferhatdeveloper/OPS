@@ -13,7 +13,8 @@ import '../../../../core/logo/logo_connection_health.dart';
 /// Ayarlar simgesinin yanında duran dens bağlantı göstergesi.
 ///
 /// Yeşil = Logo REST bağlantısı kuruldu, kırmızı = kurulamadı. Dokunmak
-/// manuel yenileme yapar; otomatik denetim
+/// uyarı = help erişilebilir ancak pull kimliği eksik. Dokunmak manuel
+/// yenileme yapar; otomatik denetim
 /// [LogoConnectionHealthChecker.minInterval] ile sınırlıdır (pil koruması).
 ///
 /// Kullanım örneği:
@@ -114,6 +115,8 @@ class _LogoConnectionStatusIconState extends State<LogoConnectionStatusIcon> {
     switch (status) {
       case LogoConnectionStatus.online:
         return Icons.cloud_done;
+      case LogoConnectionStatus.credentialsMissing:
+        return Icons.warning_amber_rounded;
       case LogoConnectionStatus.offline:
         return Icons.cloud_off;
       case LogoConnectionStatus.checking:
@@ -127,6 +130,8 @@ class _LogoConnectionStatusIconState extends State<LogoConnectionStatusIcon> {
     switch (status) {
       case LogoConnectionStatus.online:
         return _greenColor;
+      case LogoConnectionStatus.credentialsMissing:
+        return Colors.white70;
       case LogoConnectionStatus.offline:
         return _redColor;
       case LogoConnectionStatus.checking:

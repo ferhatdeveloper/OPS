@@ -70,10 +70,16 @@ class LogoTigerConfig {
   String get normalizedBaseUrl => LogoTigerUrls.normalizeBaseUrl(baseUrl);
 
   /// OAuth için yeterli kimlik var mı?
-  bool get hasAuthCredentials =>
-      username.trim().isNotEmpty &&
-      password.isNotEmpty &&
-      clientId.trim().isNotEmpty;
+  bool get hasAuthCredentials => missingAuthFields.isEmpty;
+
+  /// {@template logo_tiger_config_missing_auth_fields}
+  /// OAuth token isteği için eksik zorunlu alan adları.
+  /// {@endtemplate}
+  List<String> get missingAuthFields => [
+        if (username.trim().isEmpty) 'username',
+        if (password.isEmpty) 'password',
+        if (clientId.trim().isEmpty) 'client_id',
+      ];
 
   /// Help ping için base + api_key yeterli mi?
   bool get canPingHelp =>
