@@ -43,7 +43,7 @@ jobs:
           fi
           VERSION_NAME="${VERSION_LINE%%+*}"
           VERSION_CODE="${VERSION_LINE##*+}"
-          APK_NAME="exfin-ops-${VERSION_NAME}-${VERSION_CODE}.apk"
+          APK_NAME="EXFINOPS-v${VERSION_NAME}-${VERSION_CODE}.apk"
           # GitHub tag'lerinde '+' sorun çıkarabilir; nokta kullan
           RELEASE_TAG="v${VERSION_NAME}.${VERSION_CODE}"
           {
