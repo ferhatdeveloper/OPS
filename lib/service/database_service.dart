@@ -2326,6 +2326,7 @@ class DatabaseService {
       await db.execute(SqlQuerys.createPlasiyerProfileTable);
       await db.execute(SqlQuerys.createCustomerMovementsTable);
       await db.execute(SqlQuerys.createPartialDeliveriesTable);
+      await db.execute(SqlQuerys.createPeriodCompareHistoryTable);
     }
     await db.execute(SqlQuerys.createMenuTable);
     await db.execute(SqlQuerys.createMenuPermissionsTable);

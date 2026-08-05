@@ -2,18 +2,22 @@
 // Açıklama: Gün sonu kapanış ekranı (MBT: bitiş KM, Tamamlandı?, Kaydet)
 // Oluşturulma Tarihi: 2026-07-26
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-26
+// Son Güncelleme: 2026-08-05
 
 import 'package:flutter/material.dart';
 import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/localization/app_localization.dart';
+import '../../invoices/view/invoices_untransferred_screen.dart';
 import '../../other/model/day_status_record.dart';
 import '../../other/viewmodel/day_status_store.dart';
 import '../../other/widgets/day_status_mbt_fields.dart';
 import '../../gps/viewmodel/live_location_session.dart';
 import '../viewmodel/day_close_sync_defaults.dart';
 import '../viewmodel/day_close_sync_service.dart';
+import '../viewmodel/pending_transfer_gate.dart';
+import '../viewmodel/pending_transfer_guard.dart';
+import 'pending_transfer_guard_dialog.dart';
 
 /// {@template day_close_screen}
 /// Plasiyer gün sonu kapanış (MBT bitiş KM + Tamamlandı?).
@@ -44,6 +48,9 @@ class _DayCloseScreenState extends State<DayCloseScreen> {
 
   /// [_syncService]: Gün sonu sync_queue + audit_log
   final DayCloseSyncService _syncService = createDefaultDayCloseSyncService();
+
+  /// [_pendingGuard]: Logo’ya aktarılmamış fatura kapısı
+  final PendingTransferGuard _pendingGuard = const PendingTransferGuard();
 
   /// [_plateController]: Plaka alanı
   final TextEditingController _plateController = TextEditingController();
@@ -97,12 +104,41 @@ class _DayCloseScreenState extends State<DayCloseScreen> {
     });
   }
 
+  /// {@template day_close_pending_gate}
+  /// Bekleyen fatura varsa uyarı dialog’u; false → kaydı durdur.
+  /// {@endtemplate}
+  Future<bool> _confirmPendingTransfers() async {
+    final decision = await _pendingGuard.evaluate(
+      PendingTransferAction.dayClose,
+    );
+    if (!decision.shouldInterrupt) return true;
+    if (!mounted) return false;
+    final result = await showPendingTransferGuardDialog(
+      context: context,
+      decision: decision,
+    );
+    if (!mounted) return false;
+    switch (result) {
+      case PendingTransferDialogResult.openList:
+        await Navigator.pushNamed(
+          context,
+          InvoicesUntransferredScreen.routeName,
+        );
+        return false;
+      case PendingTransferDialogResult.forceProceed:
+        return true;
+      case PendingTransferDialogResult.cancel:
+        return false;
+    }
+  }
+
   /// {@template day_close_save}
   /// Bitiş KM + Tamamlandı? ile günü kapatır.
   /// {@endtemplate}
   Future<void> _onSave() async {
     if (_saving) return;
     if (!_formKey.currentState!.validate()) return;
+    if (!await _confirmPendingTransfers()) return;
 
     setState(() => _saving = true);
     try {

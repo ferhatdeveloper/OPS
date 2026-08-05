@@ -2,11 +2,12 @@
 // Açıklama: Fatura SQLite satırı + e-Fatura dens + Logo kuyruk payload
 // Oluşturulma Tarihi: 2026-07-26
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-26
+// Son Güncelleme: 2026-08-05
 
 import 'package:uuid/uuid.dart';
 
 import '../../../../core/services/logo_payload_mapper.dart';
+import '../../../../core/sync/outbound_idempotency.dart';
 import 'einvoice_gib_status.dart';
 import 'einvoice_status_record.dart';
 import 'invoice_model.dart';
@@ -118,12 +119,14 @@ class InvoicePersist {
     final docSide = queueType == LogoPayloadMapper.invoiceQueuePurchase
         ? EinvoiceDocSide.purchase
         : EinvoiceDocSide.sales;
+    final opsId = OutboundIdempotency.opsDocId(prepared.id);
+    final number = OutboundIdempotency.ficheNumber('invoice', opsId);
 
     final now = DateTime.tryParse(nowIso);
     return EinvoiceStatusRecord(
       id: densId ?? const Uuid().v4(),
       invoiceId: prepared.id,
-      documentNo: prepared.id,
+      documentNo: number,
       ettn: ettn,
       gibStatus: EinvoiceGibStatus.fromCode(prepared.gibStatus),
       docSide: docSide,
@@ -167,8 +170,16 @@ class InvoicePersist {
         LogoPayloadMapper.resolveInvoiceQueueType(localType);
     final logoType =
         LogoPayloadMapper.resolveInvoiceLogoType(localType);
+    final opsId = OutboundIdempotency.opsDocId(invoice.id);
+    final number = OutboundIdempotency.ficheNumber('invoice', opsId);
     return {
       ...invoice.toMap(),
+      // Ortak id: invoices.id = ops_doc_id = client_doc_id (aynı UUID)
+      'ops_doc_id': opsId,
+      'client_doc_id': opsId,
+      'NUMBER': number,
+      'number': number,
+      'document_no': number,
       'customer_code': customerCode,
       'arp_code': customerCode,
       'type': queueType,

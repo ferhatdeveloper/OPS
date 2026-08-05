@@ -350,6 +350,8 @@ class SqlQuerys {
       gib_status TEXT,
       approval_status INTEGER DEFAULT 0,
       is_synced INTEGER DEFAULT 0,
+      logo_ref TEXT,
+      pg_synced INTEGER DEFAULT 0,
       created_at TEXT,
       updated_at TEXT,
       FOREIGN KEY (customer_id) REFERENCES customers(id)
@@ -1957,6 +1959,7 @@ class SqlQuerys {
       retry_count INTEGER DEFAULT 0,
       last_error TEXT,
       scheduled_at TEXT,
+      sync_phase TEXT, -- pg_pending | logo | postgrest
       created_at TEXT
     );
   ''';
@@ -2744,5 +2747,19 @@ class SqlQuerys {
       AND date(COALESCE(col.collection_date, col.created_at)) <= date(?)
       AND COALESCE(col.status, '') != 'Cancelled'
     ORDER BY col.collection_date DESC
+  ''';
+
+  /// Dönem karşılaştırma kayıtlı geçmiş (sorgu + sonuç snapshot).
+  static const String createPeriodCompareHistoryTable = '''
+    CREATE TABLE IF NOT EXISTS period_compare_history (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      template TEXT NOT NULL,
+      query_json TEXT NOT NULL,
+      result_json TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      is_deleted INTEGER NOT NULL DEFAULT 0
+    )
   ''';
 }

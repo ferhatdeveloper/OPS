@@ -147,6 +147,23 @@ class LogoTigerSettingsStore {
     return needsSave;
   }
 
+  /// {@template logo_tiger_settings_store_update_firm_period}
+  /// Yalnızca firma/dönem numaralarını günceller (secret / override dokunulmaz).
+  ///
+  /// Parametreler:
+  /// - [firmNr]: Logo firma no
+  /// - [periodNr]: Logo dönem no
+  /// {@endtemplate}
+  Future<void> updateFirmPeriod({
+    required int firmNr,
+    required int periodNr,
+  }) async {
+    if (firmNr <= 0 || periodNr <= 0) return;
+    final prefs = await _prefs();
+    await prefs.setInt(keyFirmNr, firmNr);
+    await prefs.setInt(keyPeriodNr, periodNr);
+  }
+
   /// {@template logo_tiger_settings_store_save}
   /// Yapılandırmayı kaydeder (secret obfuscate).
   ///

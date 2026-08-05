@@ -58,7 +58,7 @@ void main() {
       expect(wrote, isTrue);
 
       final raw = await store.loadRaw();
-      expect(raw.baseUrl, contains('185.206.80.132'));
+      expect(raw.baseUrl, contains('185.86.15.238'));
       expect(raw.apiKey, LogoTigerDefaults.apiKey);
       expect(raw.clientId, LogoTigerDefaults.clientId);
       expect(raw.username, LogoTigerDefaults.username);

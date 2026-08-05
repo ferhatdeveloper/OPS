@@ -89,15 +89,18 @@ jobs:
         run: flutter pub get
 
       - name: Build release APK
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
-          FLUTTER_DEFINES=()
-          if [ -n "${{ secrets.OPENROUTER_API_KEY }}" ]; then
-            FLUTTER_DEFINES+=(--dart-define=OPENROUTER_API_KEY=${{ secrets.OPENROUTER_API_KEY }})
+          set -euo pipefail
+          EXTRA_ARGS=()
+          if [ -n "${OPENROUTER_API_KEY:-}" ]; then
+            EXTRA_ARGS+=(--dart-define=OPENROUTER_API_KEY="${OPENROUTER_API_KEY}")
           fi
           flutter build apk --release \
             --build-name="${{ steps.version.outputs.version_name }}" \
             --build-number="${{ steps.version.outputs.version_code }}" \
-            "${FLUTTER_DEFINES[@]}"
+            "${EXTRA_ARGS[@]}"
 
       - name: Rename APK with version
         run: |

@@ -20,7 +20,7 @@ void main() {
   test('mergeIntoConfig: boş tiger → özel test default host', () async {
     const cfg = LogoTigerConfig(baseUrl: '');
     final merged = await LogoServerUrlBridge.mergeIntoConfig(cfg);
-    expect(merged.baseUrl, contains('185.206.80.132'));
+    expect(merged.baseUrl, contains('185.86.15.238'));
     expect(merged.apiKey, isNotEmpty);
   });
 
@@ -90,7 +90,7 @@ void main() {
         tigerOverride: const LogoTigerConfig(baseUrl: ''),
       );
 
-      expect(resolved.baseUrl, contains('185.206.80.132'));
+      expect(resolved.baseUrl, contains('185.86.15.238'));
       expect(resolved.source, LogoUrlSource.tigerStore);
       expect(resolved.apiKey, isNotEmpty);
     });

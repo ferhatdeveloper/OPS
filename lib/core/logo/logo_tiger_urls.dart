@@ -37,14 +37,14 @@ class LogoTigerParsedInput {
 /// final base = LogoTigerUrls.normalizeBaseUrl(
 ///   '${LogoTigerUrls.defaultHost}:${LogoTigerUrls.defaultPort}',
 /// );
-/// // http://185.206.80.132:32001/api/v1
+/// // http://185.86.15.238:32001/api/v1
 /// ```
 /// {@endtemplate}
 class LogoTigerUrls {
   LogoTigerUrls._();
 
   /// Logo Objects REST varsayılan host (IP). Secret / api_key içermez.
-  static const String defaultHost = '185.206.80.132';
+  static const String defaultHost = '185.86.15.238';
 
   /// Logo Objects REST varsayılan port.
   static const int defaultPort = 32001;

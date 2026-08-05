@@ -25,6 +25,7 @@ import '../service/language_service.dart';
 import '../core/tenant/postgrest_tenant_service.dart';
 import '../core/tenant/postgrest_http_client.dart';
 import '../core/tenant/postgrest_master_sync.dart';
+import '../core/logo/logo_tiger_startup_pull.dart';
 import '../core/tenant/postgrest_table_names.dart';
 import '../core/tenant/saas_origin_override_dialog.dart';
 import '../core/tenant/tenant_store.dart';
@@ -2605,6 +2606,9 @@ class _ExfinLoginFormState extends State<ExfinLoginForm> {
     } catch (e) {
       debugPrint('Login master sync: $e');
     }
+
+    // Logo henüz çekilmediyse arka planda master pull (spam/gate stateStore).
+    unawaited(LogoTigerStartupPull().runIfNeeded());
 
     await dbService.setUserSession({
       'id': loginResult['user_id'],

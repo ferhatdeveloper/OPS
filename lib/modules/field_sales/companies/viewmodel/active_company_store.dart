@@ -2,11 +2,13 @@
 // Açıklama: Aktif firma/dönem SharedPreferences + bellek oturumu
 // Oluşturulma Tarihi: 2026-07-26
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-26
+// Son Güncelleme: 2026-08-05
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../../core/logo/logo_active_firm_period.dart';
+import '../../../../core/logo/logo_tiger_settings_store.dart';
 import '../../../../core/services/logo_rest_settings_service.dart';
 import '../../../../service/postgres_service.dart';
 import '../model/active_company_session.dart';
@@ -89,6 +91,7 @@ class ActiveCompanyStore {
       endDate: prefs.getString(prefsEndDate) ?? '',
     );
     _current = session.isEmpty ? null : session;
+    _applyLogoFirmPeriodBridge(session);
     return session;
   }
 
@@ -109,12 +112,14 @@ class ActiveCompanyStore {
 
     _current = session.isEmpty ? null : session;
     _notify();
+    _applyLogoFirmPeriodBridge(session);
 
     if (syncLogoPrefs && session.isNotEmpty) {
       await LogoRestSettingsService().setFirmaPeriod(
         firma: session.companyNo.trim(),
         period: session.periodNo.trim(),
       );
+      await _persistTigerFirmPeriod(session);
     }
 
     if (syncPostgresContext && session.isNotEmpty) {
@@ -137,12 +142,39 @@ class ActiveCompanyStore {
     await prefs.remove(prefsStartDate);
     await prefs.remove(prefsEndDate);
     _current = null;
+    LogoActiveFirmPeriod.clear();
     _notify();
   }
 
   /// Test / sıcak reload için bellek oturumunu sıfırlar.
   static void resetMemory() {
     _current = null;
+    LogoActiveFirmPeriod.clear();
     revision.value = 0;
+  }
+
+  /// Bellek köprüsünü ActiveCompany oturumuna hizalar.
+  static void _applyLogoFirmPeriodBridge(ActiveCompanySession session) {
+    if (session.isEmpty) {
+      LogoActiveFirmPeriod.clear();
+      return;
+    }
+    LogoActiveFirmPeriod.applyFromCodes(
+      companyNo: session.companyNo,
+      periodNo: session.periodNo,
+    );
+  }
+
+  /// Tiger prefs firmNr/periodNr — registry bootstrap’ı etkin seçimle günceller.
+  Future<void> _persistTigerFirmPeriod(ActiveCompanySession session) async {
+    final firm = int.tryParse(session.companyNo.trim());
+    final period = int.tryParse(session.periodNo.trim());
+    if (firm == null || firm <= 0 || period == null || period <= 0) {
+      return;
+    }
+    await LogoTigerSettingsStore().updateFirmPeriod(
+      firmNr: firm,
+      periodNr: period,
+    );
   }
 }

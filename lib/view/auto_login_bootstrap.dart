@@ -2,12 +2,15 @@
 // Açıklama: Uygulama açılışında beni hatırla → dashboard veya login
 // Oluşturulma Tarihi: 2026-07-28
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-28
+// Son Güncelleme: 2026-08-05
+
+import 'dart:async';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import '../core/auth/remember_me_store.dart';
+import '../core/logo/logo_tiger_startup_pull.dart';
 import '../core/tenant/postgrest_tenant_service.dart';
 import '../modules/field_sales/companies/viewmodel/active_company_store.dart';
 import '../modules/field_sales/stock/viewmodel/active_warehouse_store.dart';
@@ -68,6 +71,8 @@ class _AutoLoginBootstrapState extends State<AutoLoginBootstrap> {
             username: session.username,
             sessionId: session.sessionToken,
           );
+          // Auto-login sonrası: henüz Logo master yoksa arka planda çek.
+          unawaited(LogoTigerStartupPull().runIfNeeded());
           if (!mounted) return;
           final isMobile = !kIsWeb &&
               (Theme.of(context).platform == TargetPlatform.android ||

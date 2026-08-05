@@ -2,10 +2,12 @@
 // Açıklama: Aktif firma/dönem session/prefs kalıcılık testleri
 // Oluşturulma Tarihi: 2026-07-26
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-26
+// Son Güncelleme: 2026-08-05
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:exfin_ops/core/logo/logo_active_firm_period.dart';
+import 'package:exfin_ops/core/logo/logo_tiger_settings_store.dart';
 import 'package:exfin_ops/modules/field_sales/companies/model/active_company_session.dart';
 import 'package:exfin_ops/modules/field_sales/companies/viewmodel/active_company_store.dart';
 
@@ -89,8 +91,30 @@ void main() {
       );
       await store.clear();
       expect(ActiveCompanyStore.current, isNull);
+      expect(LogoActiveFirmPeriod.hasOverride, isFalse);
       final loaded = await store.load();
       expect(loaded.isEmpty, isTrue);
+    });
+
+    test('save Tiger firmNr/periodNr prefs’i ActiveCompany’ye hizalar', () async {
+      const store = ActiveCompanyStore(syncPostgresContext: false);
+      await store.save(
+        const ActiveCompanySession(
+          companyId: 'c12',
+          companyName: 'F12',
+          companyNo: '012',
+          periodNo: '05',
+        ),
+      );
+
+      expect(LogoActiveFirmPeriod.firmNr, 12);
+      expect(LogoActiveFirmPeriod.periodNr, 5);
+
+      final tiger = await LogoTigerSettingsStore(
+        prefsFactory: SharedPreferences.getInstance,
+      ).loadRaw();
+      expect(tiger.firmNr, 12);
+      expect(tiger.periodNr, 5);
     });
   });
 }

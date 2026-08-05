@@ -2,7 +2,7 @@
 // Açıklama: Transfer edilmeyen fatura dens — SQLite / sync_queue bağlama
 // Oluşturulma Tarihi: 2026-07-26
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-26
+// Son Güncelleme: 2026-08-05
 
 import 'dart:convert';
 
@@ -92,6 +92,8 @@ class InvoiceUntransferredQuery {
         ...payload,
         'id': payload['id'] ?? entityId,
         'queue_job_id': job['id']?.toString(),
+        'retry_count': job['retry_count'],
+        'last_error': job['last_error'],
         'is_synced': 0,
       };
       out.add(InvoiceUntransferredRecord.fromMap(merged));
@@ -124,6 +126,8 @@ class InvoiceUntransferredQuery {
       } else {
         byId[r.id] = existing.copyWith(
           queueJobId: r.queueJobId ?? existing.queueJobId,
+          retryCount: r.retryCount,
+          lastError: r.lastError ?? existing.lastError,
           customerCode: r.customerCode ?? existing.customerCode,
           customerName: r.customerName ?? existing.customerName,
           amount: r.amount != 0 ? r.amount : existing.amount,

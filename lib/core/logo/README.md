@@ -9,22 +9,26 @@ Kaynak of truth: yerel **SQLite** + **JobQueue** (`sync_queue`).
 Transport: Tiger açıkken Objects REST POST; kapalıysa Exfin middleware
 (`LogoApiService` → `/api/v1/logo/erp/*`).
 
-**Outbound sıra (zorunlu):** `Logo önce` → başarıda `PostgREST mirror`.
-Çift fatura: kararlı `NUMBER` + `findByNumber` + yerel `logo_ref`.
-Detay: `docs/plans/2026-07-28-logo-then-postgrest-outbound.md`.
+**Outbound sıra (zorunlu):** `PG pending` → `Logo` → `PG confirmed`.
+Çift fatura: ortak `ops_doc_id` (= yerel UUID / `client_doc_id`) + kararlı
+`NUMBER` (Tiger push’ta `force: true`) + `findByNumber` + yerel `logo_ref`.
+Logo fail olsa bile PG’de pending satır kalır (`logo_synced=0` ≠ muhasebe onayı).
+Detay: `docs/plans/2026-08-05-ops-doc-id-pg-pending-design.md`.
 
 ## Dosyalar
+- `logo_active_firm_period.dart`: ActiveCompany → Tiger firma/dönem bellek köprüsü
 - `logo_tiger_urls.dart`: URL normalize, help URI, header
 - `logo_tiger_config.dart`: Bağlantı modeli (`canPush`)
 - `logo_tiger_settings_store.dart`: Obfuscated SharedPreferences (+ manuel override / registry seed işareti)
 - `logo_tenant_config_seeder.dart`: Tenant registry Logo cache → Tiger seed politikası
 - `logo_tiger_rest_client.dart`: token, CompanyLogin, list/paginate, **create/POST**, `findByNumber`
 - `logo_tiger_pull_sync.dart`: SQLite upsert (products/customers/warehouses/orders/salesmen + opsiyonel cash/banks/unitSets; currencies yerel tablo yoksa skip)
+- `logo_tiger_startup_pull.dart`: İlk açılış / henüz senkronlanmamışken otomatik master pull (spam yok)
 - `logo_tiger_push_adapter.dart`: LogoPayloadMapper → Tiger `restRecord` (+ idempotent NUMBER)
 - `logo_tiger.dart`: barrel
-- `../sync/outbound_idempotency.dart`: kararlı fiş no
-- `../sync/outbound_sync_phases.dart`: `logo` | `postgrest`
-- `../sync/postgrest_document_mirror.dart`: 2. aşama kiracı upsert
+- `../sync/outbound_idempotency.dart`: kararlı fiş no + ops_doc_id
+- `../sync/outbound_sync_phases.dart`: `pg_pending` | `logo` | `postgrest`
+- `../sync/postgrest_document_mirror.dart`: pending + confirmed upsert
 
 ## Base URL kaynak önceliği
 1. Kullanıcının **manuel** Tiger ayarı — `LogoUrlSource.tigerStore`
@@ -36,7 +40,8 @@ Registry seed `LogoTigerSettingsStore.save(..., markManualOverride: false)`
 kullanır; **manuel ayarı ezmez**. Registry `api_key`, parola, `client_secret`
 ve access token sağlamaz, mevcut secret'ları da temizlemez.
 `logo_firm_nr` / `logo_period_nr` yalnızca bootstrap varsayılanıdır; etkin
-firma/dönem `ActiveCompanyStore` seçimidir. Offline: tenant'a bağlı cache
+firma/dönem `ActiveCompanyStore` seçimidir (`LogoActiveFirmPeriod` +
+`ensureSession`/`CompanyLogin`). Offline: tenant'a bağlı cache
 (TTL 15 dk) `PostgrestTenantService` üzerinden yeniden uygulanır.
 Detay: `docs/plans/2026-07-26-postgrest-tenant-login.md` §2b.
 
@@ -44,7 +49,7 @@ Detay: `docs/plans/2026-07-26-postgrest-tenant-login.md` §2b.
 1. Tiger açıkken **Al** / **Tiger’dan çek** → `LogoTigerPullSync`
 2. Base URL sırası: yukarıdaki kaynak önceliği
 3. `LogoServerUrlBridge` — Ayarlar’da kaydedilen link Logo çekimine yazılır
-4. **Düz adres yeterli:** `185.206.80.132` + Port `32001` → otomatik `http://…/api/v1`
+4. **Düz adres yeterli:** `185.86.15.238` + Port `32001` → otomatik `http://…/api/v1`
 5. **Plasiyer → kullanıcı:** Logo `salesmen` çekilince OPS’ta yoksa
    `username=CODE`, `password=1234`, `role=salesperson` oluşturulur (mevcut şifre ezilmez)
 6. **Opsiyonel master pull** (`pullAll` bayrakları, varsayılan `false`):
@@ -53,16 +58,22 @@ Detay: `docs/plans/2026-07-26-postgrest-tenant-login.md` §2b.
    - `unitSets` → `unitSets` → `unit_sets` + `unit_set_lines`
    - `currencies` → yerel kur tablosu yoksa `message: no local table` (0 kayıt)
    - Kaynak 404/yoksa sessizce 0 kayıt; tüm pull düşmez
+7. **İlk açılış otomatik pull** (`LogoTigerStartupPull`):
+   - `main` Logo API init sonrası arka planda; ayrıca auto-login / başarılı login
+   - Tiger kapalı, kimlik yok veya ürün+cari zaten çekilmişse **skip** (spam yok)
+   - Kapsam: ürün, cari, ambar, plasiyer, kasa, banka, birim set (sipariş/döviz yok)
+   - Ağ hatası UI kırmaz; `debugPrint` + `LogoPullStateStore` kaydı
 
 ## Push akışı (gönder)
-1. Saha belgesi SQLite’a yazılır → `JobQueueService.enqueue` (`sync_phase=logo`)
-2. `processQueue` → **aşama 1 Logo**
-3. Yerelde `logo_ref` doluysa POST atlanır (çift fiş yok)
+1. Saha belgesi SQLite’a yazılır → `JobQueueService.enqueue` (`sync_phase=pg_pending`)
+2. `processQueue` → **aşama 1 PostgREST pending** (`ops_doc_id`, `logo_synced=0`)
+3. **Aşama 2 Logo** — yerelde `logo_ref` doluysa POST atlanır (çift fiş yok)
 4. Tiger açıksa: kararlı NUMBER + `findByNumber` → varsa dedupe; yoksa POST
-5. Logo OK → `logo_ref` + `is_synced=1` → `sync_phase=postgrest` (kuyruk silinmez)
-6. **Aşama 2 PostgREST** mirror (`rex_{FF}_invoices` vb.); tenant yoksa skip ok
+5. Logo OK → `logo_ref` + `is_synced=1` → `sync_phase=postgrest`
+6. **Aşama 3 PostgREST confirmed** (`logo_ref`, `logo_synced=1`); tenant yoksa skip ok
 7. PG OK → `pg_synced=1` + kuyruk sil; PG fail → phase=postgrest’te retry (Logo tekrar yazılmaz)
-8. Tiger kapalı / desteklenmeyen entity → Exfin Logo yolu, sonra aynı PG aşaması
+8. Logo fail → phase=`logo`’da kalır; **PG pending satır merkezde durur** (cihaz yedeği)
+9. Tiger kapalı / desteklenmeyen entity → Exfin Logo yolu, sonra aynı confirmed aşaması
 
 ### Tiger’a yazılan entity’ler
 | Kuyruk tipi | REST kaynak |

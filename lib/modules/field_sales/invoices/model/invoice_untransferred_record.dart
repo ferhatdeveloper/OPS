@@ -2,7 +2,7 @@
 // Açıklama: Transfer edilmeyen fatura dens kuyruk satır modeli
 // Oluşturulma Tarihi: 2026-07-26
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-26
+// Son Güncelleme: 2026-08-05
 
 /// {@template InvoiceUntransferredDocSide}
 /// Dens kuyruk yönü: satış / alış.
@@ -87,6 +87,12 @@ class InvoiceUntransferredRecord {
   /// [queueJobId]: Opsiyonel sync_queue satır id
   final String? queueJobId;
 
+  /// [retryCount]: Kuyruk yeniden deneme sayısı
+  final int retryCount;
+
+  /// [lastError]: Son sync_queue hatası (yoksa null)
+  final String? lastError;
+
   /// [createdAt]: Oluşturma
   final DateTime? createdAt;
 
@@ -109,6 +115,8 @@ class InvoiceUntransferredRecord {
     this.isSynced = 0,
     this.isDeleted = 0,
     this.queueJobId,
+    this.retryCount = 0,
+    this.lastError,
     this.createdAt,
     this.updatedAt,
   });
@@ -133,6 +141,8 @@ class InvoiceUntransferredRecord {
       'is_synced': isSynced,
       'is_deleted': isDeleted,
       'queue_job_id': queueJobId,
+      'retry_count': retryCount,
+      'last_error': lastError,
       'created_at': createdAt?.toIso8601String(),
       'updated_at': updatedAt?.toIso8601String(),
     };
@@ -171,6 +181,8 @@ class InvoiceUntransferredRecord {
       isSynced: (map['is_synced'] as num?)?.toInt() ?? 0,
       isDeleted: (map['is_deleted'] as num?)?.toInt() ?? 0,
       queueJobId: map['queue_job_id']?.toString(),
+      retryCount: (map['retry_count'] as num?)?.toInt() ?? 0,
+      lastError: map['last_error']?.toString(),
       createdAt: map['created_at'] != null
           ? DateTime.tryParse(map['created_at'].toString())
           : null,
@@ -198,6 +210,8 @@ class InvoiceUntransferredRecord {
     int? isSynced,
     int? isDeleted,
     String? queueJobId,
+    int? retryCount,
+    String? lastError,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -216,6 +230,8 @@ class InvoiceUntransferredRecord {
       isSynced: isSynced ?? this.isSynced,
       isDeleted: isDeleted ?? this.isDeleted,
       queueJobId: queueJobId ?? this.queueJobId,
+      retryCount: retryCount ?? this.retryCount,
+      lastError: lastError ?? this.lastError,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

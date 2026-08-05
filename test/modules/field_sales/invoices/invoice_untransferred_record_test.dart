@@ -95,6 +95,8 @@ void main() {
           'id': 'job1',
           'entity_type': 'invoice',
           'entity_id': 'inv-q1',
+          'retry_count': 2,
+          'last_error': 'timeout',
           'payload':
               '{"id":"inv-q1","invoice_type":"field_sales.wholesale_invoice_8",'
               '"customer_code":"C9","total_amount":12.5,'
@@ -111,6 +113,9 @@ void main() {
       expect(rows.first.docSide, InvoiceUntransferredDocSide.sales);
       expect(rows.first.customerCode, 'C9');
       expect(rows.first.amount, 12.5);
+      expect(rows.first.queueJobId, 'job1');
+      expect(rows.first.retryCount, 2);
+      expect(rows.first.lastError, 'timeout');
     });
   });
 }

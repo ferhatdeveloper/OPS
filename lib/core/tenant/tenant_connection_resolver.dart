@@ -179,7 +179,7 @@ class TenantConnectionResolver {
       final last = pathParts.last;
       if (last == PostgrestTenantDefaults.merkezPath) {
         throw const FormatException(
-          'Bu adres merkez kayıt servisidir. Kiracı kodunu veya '
+          'Bu adres merkez kayıt servisidir. Bağlantı kodunu veya '
           'tam kiracı API adresini girin.',
         );
       }

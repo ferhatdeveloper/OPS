@@ -5,6 +5,7 @@
 // Son Güncelleme: 2026-07-26
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:exfin_ops/core/sync/outbound_idempotency.dart';
 import 'package:exfin_ops/modules/field_sales/invoices/model/einvoice_gib_status.dart';
 import 'package:exfin_ops/modules/field_sales/invoices/model/einvoice_status_record.dart';
 import 'package:exfin_ops/modules/field_sales/invoices/model/invoice_model.dart';
@@ -112,6 +113,10 @@ void main() {
 
       expect(dens, isNotNull);
       expect(dens!.invoiceId, 'inv-dens-1');
+      expect(
+        dens.documentNo,
+        OutboundIdempotency.ficheNumber('invoice', 'inv-dens-1'),
+      );
       expect(dens.ettn, prepared.ettn);
       expect(dens.gibStatus, EinvoiceGibStatus.queued);
       expect(dens.docSide, EinvoiceDocSide.sales);

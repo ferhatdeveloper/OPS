@@ -6,6 +6,7 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:exfin_ops/core/services/logo_payload_mapper.dart';
+import 'package:exfin_ops/core/sync/outbound_idempotency.dart';
 import 'package:exfin_ops/modules/field_sales/invoices/model/invoice_model.dart';
 import 'package:exfin_ops/modules/field_sales/invoices/model/invoice_persist.dart';
 
@@ -74,6 +75,13 @@ void main() {
       expect(payload['TRCODE'], isNot(8));
       expect(payload['customer_code'], 'TED-001');
       expect(payload['arp_code'], 'TED-001');
+      expect(payload['ops_doc_id'], 'inv-buy-2');
+      expect(payload['client_doc_id'], 'inv-buy-2');
+      expect(
+        payload['NUMBER'],
+        OutboundIdempotency.ficheNumber('invoice', 'inv-buy-2'),
+      );
+      expect(payload['document_no'], payload['NUMBER']);
       expect(payload['lines'], isA<List>());
       expect((payload['lines'] as List).length, 1);
     });

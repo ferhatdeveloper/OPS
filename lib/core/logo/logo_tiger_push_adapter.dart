@@ -2,7 +2,7 @@
 // Açıklama: LogoPayloadMapper → Tiger Objects REST restRecord uyarlayıcı
 // Oluşturulma Tarihi: 2026-07-28
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-28
+// Son Güncelleme: 2026-08-05
 
 import '../services/logo_payload_mapper.dart';
 import '../sync/outbound_idempotency.dart';
@@ -60,7 +60,10 @@ class LogoTigerPushAdapter {
 
   /// {@template logo_tiger_push_adapter_from_queue}
   /// JobQueue tip + mapper/local payload → Tiger hedefi.
-  /// [entityId] verilirse boş/`~` NUMBER → kararlı idempotency kodu.
+  ///
+  /// [entityId] (= `invoices.id` / ops_doc_id) verilirse NUMBER **zorunlu**
+  /// olarak [OutboundIdempotency.ficheNumber] olur (`force: true`).
+  /// Böylece findByNumber / logo_ref retry’da aynı anahtara bağlanır.
   /// Desteklenmeyen tip → null.
   /// {@endtemplate}
   static LogoTigerPushTarget? fromQueuePayload(
@@ -97,10 +100,12 @@ class LogoTigerPushAdapter {
         return null;
     }
     if (target != null && entityId != null && entityId.isNotEmpty) {
+      // Çift fiş engeli: ortak UUID → kararlı NUMBER (payload ezilir)
       OutboundIdempotency.applyToRecord(
         target.restRecord,
         entityType: type,
         entityId: entityId,
+        force: true,
       );
     }
     return target;

@@ -9,6 +9,8 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
+import '../sync/outbound_idempotency.dart';
+import 'logo_active_firm_period.dart';
 import 'logo_tiger_config.dart';
 import 'logo_tiger_settings_store.dart';
 import 'logo_tiger_urls.dart';
@@ -151,12 +153,29 @@ class LogoTigerRestClient {
 
   LogoTigerConfig get config => _config;
 
+  /// ActiveCompany override varsa onu, yoksa store/config varsayılanını kullanır.
+  ({int firmNr, int periodNr}) get _effectiveFirmPeriod {
+    final overrideFirm = LogoActiveFirmPeriod.firmNr;
+    final overridePeriod = LogoActiveFirmPeriod.periodNr;
+    if (overrideFirm != null && overridePeriod != null) {
+      return (firmNr: overrideFirm, periodNr: overridePeriod);
+    }
+    return (firmNr: _config.firmNr, periodNr: _config.periodNr);
+  }
+
   /// {@template logo_tiger_rest_client_ensure}
   /// Store’dan config yükler ve Dio hazırlar.
   /// {@endtemplate}
   Future<void> ensureReady() async {
     await _store.ensureDefaultsPersisted();
     _config = await _store.load();
+    final effective = _effectiveFirmPeriod;
+    if (LogoActiveFirmPeriod.hasOverride) {
+      _config = _config.copyWith(
+        firmNr: effective.firmNr,
+        periodNr: effective.periodNr,
+      );
+    }
     _accessToken = await _store.getAccessToken();
     _ensureDio();
   }
@@ -261,7 +280,7 @@ class LogoTigerRestClient {
       'grant_type': 'password',
       'username': _config.username.trim(),
       'password': _config.password,
-      'firmno': '${_config.firmNr}',
+      'firmno': '${_effectiveFirmPeriod.firmNr}',
       'client_id': _config.clientId.trim(),
       if (_config.clientSecret.isNotEmpty)
         'client_secret': _config.clientSecret,
@@ -293,7 +312,7 @@ class LogoTigerRestClient {
               'grant_type': 'password',
               'username': _config.username.trim(),
               'password': _config.password,
-              'firmno': '${_config.firmNr}',
+              'firmno': '${_effectiveFirmPeriod.firmNr}',
               if (_config.logoDb != null && _config.logoDb!.isNotEmpty)
                 'logodb': _config.logoDb!,
             },
@@ -354,9 +373,11 @@ class LogoTigerRestClient {
   }
 
   /// CompanyLogin — firma/dönem bağlamı.
+  /// Açık [firmNr]/[periodNr] yoksa ActiveCompany override, sonra config.
   Future<LogoTigerResult> companyLogin({int? firmNr, int? periodNr}) async {
-    final f = firmNr ?? _config.firmNr;
-    final p = periodNr ?? _config.periodNr;
+    final effective = _effectiveFirmPeriod;
+    final f = firmNr ?? effective.firmNr;
+    final p = periodNr ?? effective.periodNr;
     return _get('/methods/CompanyLogin/$f/$p', authRequired: true);
   }
 
@@ -665,25 +686,21 @@ class LogoTigerRestClient {
   }
 
   /// {@template logo_tiger_rest_client_find_by_number}
-  /// Aynı NUMBER ile mevcut fiş var mı? (çift fatura engeli).
-  /// `q` ile arar; eşleşen NUMBER satırını döner.
+  /// Aynı NUMBER ile mevcut fiş var mı? (çift fatura / çift POST engeli).
+  ///
+  /// Muhasebe: ortak anahtar `ops_doc_id` → kararlı NUMBER; SPECODE değil.
+  /// Boş/`~` NUMBER ile arama yapılmaz. Eşleşen satır → POST atlanır
+  /// (`logo_ref` = LOGICALREF).
   /// {@endtemplate}
   Future<Map<String, dynamic>?> findByNumber(
     String resource,
     String number,
   ) async {
     final n = number.trim();
-    if (n.isEmpty || n == '~') return null;
+    if (OutboundIdempotency.needsStableNumber(n)) return null;
     final page = await listResource(resource, limit: 25, q: n);
     for (final item in page.items) {
-      final candidate = (item['NUMBER'] ??
-              item['number'] ??
-              item['FICHENO'] ??
-              item['fiche_no'] ??
-              '')
-          .toString()
-          .trim();
-      if (candidate == n) return item;
+      if (OutboundIdempotency.itemMatchesNumber(item, n)) return item;
     }
     return null;
   }

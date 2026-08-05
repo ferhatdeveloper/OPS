@@ -9,12 +9,12 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('LogoTigerUrls defaults', () {
-    test('varsayılan host 185.206.80.132, port 32001', () {
-      expect(LogoTigerUrls.defaultHost, '185.206.80.132');
+    test('varsayılan host 185.86.15.238, port 32001', () {
+      expect(LogoTigerUrls.defaultHost, '185.86.15.238');
       expect(LogoTigerUrls.defaultPort, 32001);
       expect(
         LogoTigerUrls.composeBaseUrl(LogoTigerUrls.defaultHost),
-        'http://185.206.80.132:32001/api/v1',
+        'http://185.86.15.238:32001/api/v1',
       );
     });
   });
@@ -46,14 +46,14 @@ void main() {
     test('port yoksa varsayılan 32001', () {
       expect(
         LogoTigerUrls.normalizeBaseUrl(LogoTigerUrls.defaultHost),
-        'http://185.206.80.132:32001/api/v1',
+        'http://185.86.15.238:32001/api/v1',
       );
     });
 
     test('düz IP:port yeterli', () {
       expect(
-        LogoTigerUrls.normalizeBaseUrl('185.206.80.132:32001'),
-        'http://185.206.80.132:32001/api/v1',
+        LogoTigerUrls.normalizeBaseUrl('185.86.15.238:32001'),
+        'http://185.86.15.238:32001/api/v1',
       );
     });
 
@@ -75,7 +75,7 @@ void main() {
     test('composeBaseUrl host + varsayılan port', () {
       expect(
         LogoTigerUrls.composeBaseUrl(LogoTigerUrls.defaultHost),
-        'http://185.206.80.132:32001/api/v1',
+        'http://185.86.15.238:32001/api/v1',
       );
     });
 
@@ -94,12 +94,12 @@ void main() {
 
     test('parseUserInput düz adres + help linkinden api_key', () {
       final p = LogoTigerUrls.parseUserInput(
-        '185.206.80.132:32001/api/v1/services/help'
+        '185.86.15.238:32001/api/v1/services/help'
         '?expandLevel=full&api_key=logotigerrestservice',
       );
-      expect(p.baseUrl, 'http://185.206.80.132:32001/api/v1');
+      expect(p.baseUrl, 'http://185.86.15.238:32001/api/v1');
       expect(p.apiKey, 'logotigerrestservice');
-      expect(p.host, '185.206.80.132');
+      expect(p.host, '185.86.15.238');
       expect(p.port, 32001);
     });
 

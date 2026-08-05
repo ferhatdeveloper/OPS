@@ -76,6 +76,10 @@ import '../modules/field_sales/companies/widgets/active_company_dens_chip.dart';
 import '../modules/field_sales/stock/widgets/active_warehouse_dens_chip.dart';
 import '../core/tenant/widgets/tenant_dens_chip.dart';
 import '../modules/field_sales/eod/view/day_open_screen.dart';
+import '../modules/field_sales/eod/view/pending_transfer_guard_dialog.dart';
+import '../modules/field_sales/eod/viewmodel/pending_transfer_gate.dart';
+import '../modules/field_sales/eod/viewmodel/pending_transfer_guard.dart';
+import '../modules/field_sales/invoices/view/invoices_untransferred_screen.dart';
 import '../modules/field_sales/stock/view/warehouse_receipt_screen.dart';
 import '../modules/manager/reports/view/target_assignment_screen.dart';
 import '../modules/manager/reports/view/leaderboard_screen.dart';
@@ -3316,7 +3320,33 @@ class _MobileDashboardState extends ConsumerState<MobileDashboard> {
   }
 
   // Logout işlemini gerçekleştir
-  void _handleLogout(BuildContext context) {
+  Future<void> _handleLogout(BuildContext context) async {
+    final pendingGuard = const PendingTransferGuard();
+    final decision = await pendingGuard.evaluate(
+      PendingTransferAction.logout,
+    );
+    if (!context.mounted) return;
+
+    if (decision.shouldInterrupt) {
+      final pendingResult = await showPendingTransferGuardDialog(
+        context: context,
+        decision: decision,
+      );
+      if (!context.mounted) return;
+      switch (pendingResult) {
+        case PendingTransferDialogResult.openList:
+          await Navigator.pushNamed(
+            context,
+            InvoicesUntransferredScreen.routeName,
+          );
+          return;
+        case PendingTransferDialogResult.cancel:
+          return;
+        case PendingTransferDialogResult.forceProceed:
+          break;
+      }
+    }
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(

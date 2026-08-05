@@ -8,9 +8,12 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
+import 'package:exfin_ops/core/logo/logo_active_firm_period.dart';
 import 'package:exfin_ops/core/logo/logo_tiger_config.dart';
 import 'package:exfin_ops/core/logo/logo_tiger_rest_client.dart';
 import 'package:exfin_ops/core/logo/logo_tiger_settings_store.dart';
+import 'package:exfin_ops/modules/field_sales/companies/model/active_company_session.dart';
+import 'package:exfin_ops/modules/field_sales/companies/viewmodel/active_company_store.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -123,6 +126,8 @@ void main() {
 
     setUp(() async {
       SharedPreferences.setMockInitialValues({});
+      LogoActiveFirmPeriod.clear();
+      ActiveCompanyStore.resetMemory();
       dio = Dio(
         BaseOptions(
           baseUrl: 'http://logo.test/api/v1',
@@ -472,6 +477,58 @@ void main() {
 
       expect(loginPath, '/methods/CompanyLogin/12/5');
     });
+
+    test(
+      'ensureSession ActiveCompany firma/dönemini CompanyLogin path’ine yazar',
+      () async {
+        String? loginPath;
+        dio.httpClientAdapter = _MockAdapter((options) async {
+          if (options.path == '/token') {
+            return ResponseBody.fromString(
+              jsonEncode({'access_token': 'tok', 'expires_in': 3600}),
+              200,
+              headers: {
+                Headers.contentTypeHeader: [Headers.jsonContentType],
+              },
+            );
+          }
+          loginPath = options.path;
+          return ResponseBody.fromString('true', 200);
+        });
+
+        await LogoTigerSettingsStore(
+          prefsFactory: SharedPreferences.getInstance,
+        ).save(
+          const LogoTigerConfig(
+            baseUrl: 'http://logo.test:32001',
+            apiKey: 'test-api-key',
+            username: 'LOGO',
+            password: 'x',
+            clientId: 'CID',
+            clientSecret: 'SEC',
+            firmNr: 401,
+            periodNr: 1,
+          ),
+        );
+
+        // ActiveCompany seçimi (012 / 05) registry bootstrap (401/1) üzerine yazılır.
+        await const ActiveCompanyStore(
+          syncPostgresContext: false,
+        ).save(
+          const ActiveCompanySession(
+            companyId: 'c12',
+            companyName: 'Firma 12',
+            companyNo: '012',
+            periodNo: '05',
+          ),
+        );
+
+        final r = await client.ensureSession();
+
+        expect(r.success, isTrue);
+        expect(loginPath, '/methods/CompanyLogin/12/5');
+      },
+    );
 
     test('fetchCash 404 adayı atlar, safes 200 satır döner', () async {
       dio.httpClientAdapter = _MockAdapter((options) async {

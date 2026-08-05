@@ -19,6 +19,7 @@ import 'core/database/database_path_manager.dart';
 import 'core/sync/sync_manager.dart';
 import 'core/sync/sync_config.dart';
 import 'core/services/logo_api_service.dart';
+import 'core/logo/logo_tiger_startup_pull.dart';
 import 'core/providers/loading_provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'core/init/navigation/routes.dart';
@@ -353,6 +354,22 @@ Future<void> main() async {
       print('EXFIN-DEBUG: Sync manager initialized');
     }
     // SyncManager zaten initialize edildi, otomatik senkronizasyon aktif
+
+    // İlk açılış: Logo master (ürün/cari/ambar/…) — UI bloklanmaz; spam yok.
+    unawaited(
+      LogoTigerStartupPull().runIfNeeded().then((r) {
+        if (r.attempted) {
+          debugLog(
+            'EXFIN-DEBUG: Logo startup pull '
+            'ok=${r.ok} err=${r.error ?? '-'}',
+          );
+        } else {
+          debugLog(
+            'EXFIN-DEBUG: Logo startup pull skipped=${r.skipReason}',
+          );
+        }
+      }),
+    );
 
     loadingNotifier.updateMessage('Uygulama başlatıldı!');
     loadingNotifier.updateProgress(1.0);

@@ -8,6 +8,10 @@ import 'package:flutter/material.dart';
 import '../../shared/view/field_sales_dens_theme.dart';
 
 import '../../../../core/localization/app_localization.dart';
+import '../../eod/view/pending_transfer_guard_dialog.dart';
+import '../../eod/viewmodel/pending_transfer_gate.dart';
+import '../../eod/viewmodel/pending_transfer_guard.dart';
+import '../../invoices/view/invoices_untransferred_screen.dart';
 import '../model/day_status_record.dart';
 import '../viewmodel/day_status_store.dart';
 import '../widgets/day_status_mbt_fields.dart';
@@ -36,6 +40,9 @@ class _DayStatusScreenState extends State<DayStatusScreen> {
 
   /// [_store]: SharedPreferences kalıcılık
   final DayStatusStore _store = const DayStatusStore();
+
+  /// [_pendingGuard]: Logo’ya aktarılmamış fatura kapısı
+  final PendingTransferGuard _pendingGuard = const PendingTransferGuard();
 
   /// [_plateController]: Plaka alanı
   final TextEditingController _plateController = TextEditingController();
@@ -90,12 +97,42 @@ class _DayStatusScreenState extends State<DayStatusScreen> {
     return int.tryParse(t);
   }
 
+  /// {@template day_status_pending_gate}
+  /// Gün bitirilirken bekleyen fatura uyarısı; false → kaydı durdur.
+  /// {@endtemplate}
+  Future<bool> _confirmPendingTransfersIfClosing() async {
+    if (!_completed) return true;
+    final decision = await _pendingGuard.evaluate(
+      PendingTransferAction.dayStatusComplete,
+    );
+    if (!decision.shouldInterrupt) return true;
+    if (!mounted) return false;
+    final result = await showPendingTransferGuardDialog(
+      context: context,
+      decision: decision,
+    );
+    if (!mounted) return false;
+    switch (result) {
+      case PendingTransferDialogResult.openList:
+        await Navigator.pushNamed(
+          context,
+          InvoicesUntransferredScreen.routeName,
+        );
+        return false;
+      case PendingTransferDialogResult.forceProceed:
+        return true;
+      case PendingTransferDialogResult.cancel:
+        return false;
+    }
+  }
+
   /// {@template _on_save}
   /// MBT formunu doğrular ve SharedPreferences'a kaydeder.
   /// {@endtemplate}
   Future<void> _onSave() async {
     if (_saving) return;
     if (!_formKey.currentState!.validate()) return;
+    if (!await _confirmPendingTransfersIfClosing()) return;
 
     setState(() => _saving = true);
     try {

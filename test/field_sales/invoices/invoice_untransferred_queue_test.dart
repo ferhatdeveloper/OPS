@@ -76,10 +76,41 @@ void main() {
 
     expect(find.text('FT-LIVE-001'), findsOneWidget);
     expect(find.text('1 Adet'), findsOneWidget);
+    expect(find.text('Bekliyor'), findsOneWidget);
+    expect(find.text('Durum'), findsWidgets);
     expect(
       find.text('Transfer edilmeyen fatura yok.'),
       findsNothing,
     );
+  });
+
+  testWidgets('kuyruk hatası → Aktarılamadı dens durum', (tester) async {
+    final now = DateTime.now();
+    await pumpStubWithL10n(
+      tester,
+      InvoicesUntransferredScreen(
+        store: InvoiceUntransferredStore(
+          loader: () async => [
+            InvoiceUntransferredRecord(
+              id: 'inv-err-1',
+              documentNo: 'FT-ERR-001',
+              docSide: InvoiceUntransferredDocSide.sales,
+              documentDate: now,
+              amount: 10,
+              isSynced: 0,
+              queueJobId: 'job-err',
+              retryCount: 6,
+              lastError: 'logo down',
+            ),
+          ],
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(find.text('FT-ERR-001'), findsOneWidget);
+    expect(find.text('Aktarılamadı'), findsOneWidget);
   });
 
   testWidgets('hata + seedOnError → seed satır', (tester) async {

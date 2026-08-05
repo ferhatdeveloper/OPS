@@ -2,7 +2,7 @@
 // Açıklama: Offline sync kuyruğu — Logo REST / Tiger Objects aktarımı
 // Oluşturulma Tarihi: 2026-02-22
 // Geliştirici: EXFIN OPS Team
-// Son Güncelleme: 2026-07-28
+// Son Güncelleme: 2026-08-05
 
 import 'dart:convert';
 
@@ -14,6 +14,7 @@ import '../core/logo/logo_tiger.dart';
 import '../core/services/logo_api_service.dart';
 import '../core/services/logo_payload_mapper.dart';
 import '../core/sync/outbound_idempotency.dart';
+import '../core/sync/outbound_mirror_status.dart';
 import '../core/sync/outbound_sync_phases.dart';
 import '../core/sync/postgrest_document_mirror.dart';
 import '../modules/field_sales/ai_insights/viewmodel/supply_request_logo_sync_mapper.dart';
@@ -38,36 +39,94 @@ class JobQueueService {
   /// Test inject — PostgREST mirror (null → varsayılan).
   PostgrestDocumentMirror? postgrestMirrorForTest;
 
-  /// Kuyruğa iş ekler ve işlemeyi tetikler.
+  /// Test inject — SQLite (null → DatabaseService).
+  Future<dynamic> Function()? openDbForTest;
+
+  /// Test inject — Logo sync sonucu (null → Tiger/Exfin yolu).
+  Future<LogoApiResult> Function(
+    String type,
+    String entityId,
+    Map<String, dynamic>? payload,
+  )? logoSyncForTest;
+
+  /// Test: enqueue sonrası otomatik [processQueue] (üretimde true).
+  bool autoProcessQueue = true;
+
+  /// {@template job_queue_reset_test_hooks}
+  /// Birim test sonrası inject alanlarını sıfırlar.
+  /// {@endtemplate}
+  void resetTestHooks() {
+    tigerClientForTest = null;
+    tigerStoreForTest = null;
+    postgrestMirrorForTest = null;
+    openDbForTest = null;
+    logoSyncForTest = null;
+    autoProcessQueue = true;
+    _isProcessing = false;
+  }
+
+  Future<dynamic> _openDb() async {
+    if (openDbForTest != null) return openDbForTest!();
+    final dbService = await DatabaseService.getInstance();
+    return dbService.getDatabase();
+  }
+
+  /// Kuyruğa iş ekler (aynı entity_type+entity_id → tek satır) ve tetikler.
+  ///
+  /// Mevcut satır varsa payload/priority güncellenir; [sync_phase] korunur
+  /// (retry’da çift kayıt / faz sıfırlama yok). Yoksa `pg_pending` ile insert.
   Future<void> enqueue({
     required String entityType,
     required String entityId,
     Map<String, dynamic>? payload,
     int priority = 0,
   }) async {
-    final dbService = await DatabaseService.getInstance();
-    final db = await dbService.getDatabase();
+    final db = await _openDb();
     await _ensureOutboundQueueSchema(db);
 
-    final jobId = const Uuid().v4();
-    await db.insert('sync_queue', {
-      'id': jobId,
-      'entity_type': entityType,
-      'entity_id': entityId,
-      'payload': payload != null ? jsonEncode(payload) : null,
-      'priority': priority,
-      'retry_count': 0,
-      'sync_phase': OutboundSyncPhase.logo,
-      'created_at': DateTime.now().toIso8601String(),
-    });
+    final opsId = OutboundIdempotency.opsDocId(entityId);
+    final existing = await db.query(
+      'sync_queue',
+      where: 'LOWER(entity_type) = ? AND entity_id = ?',
+      whereArgs: [entityType.toLowerCase(), opsId],
+      limit: 1,
+    );
 
-    debugPrint('Job Enqueued: $entityType ($entityId)');
-    processQueue();
+    if (existing.isNotEmpty) {
+      final row = existing.first;
+      await db.update(
+        'sync_queue',
+        {
+          if (payload != null) 'payload': jsonEncode(payload),
+          'priority': priority,
+        },
+        where: 'id = ?',
+        whereArgs: [row['id']],
+      );
+      debugPrint(
+        'Job Enqueue idempotent: $entityType ($opsId) '
+        'phase=${OutboundSyncPhase.normalize(row['sync_phase'])}',
+      );
+    } else {
+      final jobId = const Uuid().v4();
+      await db.insert('sync_queue', {
+        'id': jobId,
+        'entity_type': entityType,
+        'entity_id': opsId,
+        'payload': payload != null ? jsonEncode(payload) : null,
+        'priority': priority,
+        'retry_count': 0,
+        'sync_phase': OutboundSyncPhase.pgPending,
+        'created_at': DateTime.now().toIso8601String(),
+      });
+      debugPrint('Job Enqueued: $entityType ($opsId) phase=pg_pending');
+    }
+
+    if (autoProcessQueue) processQueue();
   }
 
   Future<List<Map<String, dynamic>>> getPendingJobs() async {
-    final dbService = await DatabaseService.getInstance();
-    final db = await dbService.getDatabase();
+    final db = await _openDb();
     // Tablo yoksa oluştur (LogoJobStore / dens ekranlarla uyumlu)
     await db.execute(SqlQuerys.createSyncQueueTable);
     final jobs = await db.query(
@@ -82,14 +141,13 @@ class JobQueueService {
     return jobs.length;
   }
 
-  /// Bekleyen işleri Logo → PostgREST sırasıyla aktarır.
+  /// Bekleyen işleri PG pending → Logo → PG confirmed sırasıyla aktarır.
   Future<void> processQueue() async {
     if (_isProcessing) return;
     _isProcessing = true;
 
     try {
-      final dbService = await DatabaseService.getInstance();
-      final db = await dbService.getDatabase();
+      final db = await _openDb();
       await _ensureOutboundQueueSchema(db);
 
       final jobs = await db.query(
@@ -102,7 +160,7 @@ class JobQueueService {
         final jobId = job['id'] as String;
         final type = (job['entity_type'] as String).toLowerCase();
         final entityId = job['entity_id'] as String;
-        final phase = OutboundSyncPhase.normalize(job['sync_phase']);
+        var phase = OutboundSyncPhase.normalize(job['sync_phase']);
         Map<String, dynamic>? payload;
         if (job['payload'] != null) {
           try {
@@ -116,19 +174,63 @@ class JobQueueService {
 
         debugPrint('Processing Job: $type ($entityId) phase=$phase');
 
+        final mirror = postgrestMirrorForTest ?? PostgrestDocumentMirror();
+        final idem = OutboundIdempotency.ficheNumber(type, entityId);
+
+        // 1) Logo öncesi merkez yedek (aynı ops_doc_id upsert)
+        if (phase == OutboundSyncPhase.pgPending) {
+          final pendingOk = await mirror.mirror(
+            entityType: type,
+            entityId: entityId,
+            logoRef: null,
+            idempotencyCode: idem,
+            payload: payload,
+            logoSynced: false,
+            syncStatus: OutboundMirrorStatus.logoPending,
+          );
+          if (!pendingOk) {
+            await _bumpRetry(
+              db,
+              jobId,
+              {...job, 'sync_phase': OutboundSyncPhase.pgPending},
+              'PostgREST pending mirror başarısız',
+            );
+            continue;
+          }
+          await db.update(
+            'sync_queue',
+            {'sync_phase': OutboundSyncPhase.logo, 'last_error': null},
+            where: 'id = ?',
+            whereArgs: [jobId],
+          );
+          phase = OutboundSyncPhase.logo;
+        }
+
         String? logoRef = await _readLogoRef(type, entityId);
         var logoOk = phase == OutboundSyncPhase.postgrest &&
             (logoRef != null && logoRef.isNotEmpty);
 
+        // --- Çift POST / çift fiş engeli (muhasebe) ---
+        // 1) Yerel logo_ref dolu → POST yok (önceki başarı / dedupe).
+        // 2) Tiger findByNumber(NUMBER) → varsa POST yok (deduped).
+        // 3) Logo "already/duplicate" → yeniden find → success.
+        // 4) phase=postgrest → Logo aşaması tekrarlanmaz.
+        // NUMBER = ops_doc_id türevli; retry’da değişmez (SPECODE değil).
         if (phase == OutboundSyncPhase.logo) {
-          // Yerelde zaten Logo'ya yazılmışsa POST atlama (çift fiş engeli)
           if (logoRef != null && logoRef.isNotEmpty) {
             logoOk = true;
             debugPrint('Skip Logo POST (logo_ref=$logoRef)');
           } else {
             final result = await _syncToLogo(type, entityId, payload);
             if (!result.success) {
-              await _bumpRetry(db, jobId, job, result.error);
+              // PG’de logo_pending yedek durur; muhasebe fişi yok.
+              // Retry aynı NUMBER + findByNumber ile.
+              await _bumpRetry(
+                db,
+                jobId,
+                {...job, 'sync_phase': OutboundSyncPhase.logo},
+                result.error,
+              );
               continue;
             }
             logoRef = _logoRefFromResult(result) ??
@@ -138,7 +240,7 @@ class JobQueueService {
             logoOk = true;
           }
 
-          // Logo OK → PostgREST aşamasına geç (silme yok)
+          // Logo OK → PostgREST confirmed aşamasına geç (silme yok)
           await db.update(
             'sync_queue',
             {'sync_phase': OutboundSyncPhase.postgrest, 'last_error': null},
@@ -149,26 +251,26 @@ class JobQueueService {
 
         if (!logoOk) continue;
 
-        final mirror = postgrestMirrorForTest ?? PostgrestDocumentMirror();
-        final idem = OutboundIdempotency.ficheNumber(type, entityId);
         final pgOk = await mirror.mirror(
           entityType: type,
           entityId: entityId,
           logoRef: logoRef,
           idempotencyCode: idem,
           payload: payload,
+          logoSynced: true,
+          syncStatus: OutboundMirrorStatus.confirmed,
         );
 
         if (pgOk) {
           await _markPgSynced(type, entityId);
           await db.delete('sync_queue', where: 'id = ?', whereArgs: [jobId]);
-          debugPrint('Job Completed (Logo→PG): $jobId');
+          debugPrint('Job Completed (PG→Logo→PG): $jobId');
         } else {
           await _bumpRetry(
             db,
             jobId,
             {...job, 'sync_phase': OutboundSyncPhase.postgrest},
-            'PostgREST mirror başarısız',
+            'PostgREST confirmed mirror başarısız',
           );
         }
       }
@@ -223,6 +325,9 @@ class JobQueueService {
     String entityId,
     Map<String, dynamic>? payload,
   ) async {
+    if (logoSyncForTest != null) {
+      return logoSyncForTest!(type, entityId, payload);
+    }
     // Tiger REST açık + config geçerliyse desteklenen entity → Objects POST
     final tigerResult = await _trySyncToTiger(type, entityId, payload);
     if (tigerResult != null) return tigerResult;
@@ -412,7 +517,7 @@ class JobQueueService {
       final client = tigerClientForTest ?? LogoTigerRestClient();
       await client.ensureReady();
 
-      // Çift fatura engeli: aynı NUMBER Logo'da varsa POST atlama
+      // Çift fatura engeli #2: GET by NUMBER → varsa POST yok
       final number = (target.restRecord['NUMBER'] ?? '').toString();
       final existing = await client.findByNumber(target.resource, number);
       if (existing != null) {
@@ -445,7 +550,7 @@ class JobQueueService {
           statusCode: result.statusCode,
         );
       }
-      // Logo "zaten var" benzeri hatalar → dedupe success
+      // Çift fatura engeli #3: yarış / unique hata → find → success
       final err = (result.error ?? '').toLowerCase();
       if (err.contains('already') ||
           err.contains('duplicate') ||
@@ -862,8 +967,7 @@ class JobQueueService {
     }
     if (table == null) return;
     try {
-      final dbService = await DatabaseService.getInstance();
-      final db = await dbService.getDatabase();
+      final db = await _openDb();
       final values = <String, Object?>{'is_synced': 1};
       // Sync approval: ONAY/approval_status = 2 (synced)
       if (table == 'supplier_purchase_requests') {
@@ -948,8 +1052,7 @@ class JobQueueService {
     final table = jobQueueEntityTable(type);
     if (table == null || table == 'warehouse_transfers') return null;
     try {
-      final dbService = await DatabaseService.getInstance();
-      final db = await dbService.getDatabase();
+      final db = await _openDb();
       final rows = await db.query(
         table,
         columns: ['logo_ref'],
@@ -974,8 +1077,7 @@ class JobQueueService {
     final table = jobQueueEntityTable(type);
     if (table == null || table == 'warehouse_transfers') return;
     try {
-      final dbService = await DatabaseService.getInstance();
-      final db = await dbService.getDatabase();
+      final db = await _openDb();
       await db.update(
         table,
         {'logo_ref': logoRef},
@@ -991,8 +1093,7 @@ class JobQueueService {
     final table = jobQueueEntityTable(type);
     if (table == null || table == 'warehouse_transfers') return;
     try {
-      final dbService = await DatabaseService.getInstance();
-      final db = await dbService.getDatabase();
+      final db = await _openDb();
       await db.update(
         table,
         {'pg_synced': 1},

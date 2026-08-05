@@ -21,6 +21,7 @@ import '../../../../service/pod_service.dart';
 import 'package:geolocator/geolocator.dart';
 import 'invoice_customer_selection_screen.dart';
 import '../../shared/view/field_sales_dens_theme.dart';
+import '../../eod/viewmodel/pending_transfer_gate.dart';
 
 class InvoiceEntryScreen extends ConsumerStatefulWidget {
   final String customerId;
@@ -1322,7 +1323,11 @@ class _InvoiceEntryScreenState extends ConsumerState<InvoiceEntryScreen> with Si
               Navigator.pop(context); // Close invoice entry screen
 
               ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                content: Text(AppLocalization.of(context).translate('pod.signature_saved')),
+                content: Text(
+                  AppLocalization.of(context).translate(
+                    PendingTransferGate.savedQueuedKey,
+                  ),
+                ),
                 behavior: SnackBarBehavior.floating,
               ));
 
