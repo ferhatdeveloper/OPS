@@ -2,9 +2,10 @@
 // Açıklama: Logo Tiger Objects REST — barrel export
 // Oluşturulma Tarihi: 2026-07-28
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-29
+// Son Güncelleme: 2026-08-05
 
 export 'logo_tiger_config.dart';
+export 'logo_tiger_defaults.dart';
 export 'logo_tiger_oauth_credentials.dart';
 export 'logo_tiger_pull_sync.dart';
 export 'logo_tiger_push_adapter.dart';

@@ -2,7 +2,7 @@
 // Açıklama: Ürün sosyal medya görseli dens — preset chip + metin + oluştur
 // Oluşturulma Tarihi: 2026-07-28
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-28
+// Son Güncelleme: 2026-08-05
 
 import 'dart:typed_data';
 
@@ -63,6 +63,7 @@ class _SocialMediaImageScreenState extends State<SocialMediaImageScreen> {
   bool _drafting = false;
   Uint8List? _imageBytes;
   String? _statusKey;
+  String? _statusDetail;
 
   ProductCatalogRow? get _product => widget.product;
 
@@ -129,6 +130,7 @@ class _SocialMediaImageScreenState extends State<SocialMediaImageScreen> {
     setState(() {
       _busy = true;
       _statusKey = null;
+      _statusDetail = null;
       _imageBytes = null;
     });
     try {
@@ -141,6 +143,7 @@ class _SocialMediaImageScreenState extends State<SocialMediaImageScreen> {
           _statusKey = result.l10nKey == 'ai.image_fallback_from_claude'
               ? result.l10nKey
               : null;
+          _statusDetail = null;
         });
         return;
       }
@@ -149,10 +152,16 @@ class _SocialMediaImageScreenState extends State<SocialMediaImageScreen> {
         if (result.status == AiImageStatus.unsupported) {
           _statusKey = 'ai.image_unsupported';
         }
+        final detail = result.errorMessage?.trim();
+        _statusDetail =
+            (detail != null && detail.isNotEmpty) ? detail : null;
       });
     } catch (_) {
       if (!mounted) return;
-      setState(() => _statusKey = 'ai.request_failed');
+      setState(() {
+        _statusKey = 'ai.request_failed';
+        _statusDetail = null;
+      });
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -326,6 +335,13 @@ class _SocialMediaImageScreenState extends State<SocialMediaImageScreen> {
               _t(_statusKey!),
               style: TextStyle(fontSize: 12, color: Colors.orange.shade800),
             ),
+            if (_statusDetail != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                _statusDetail!,
+                style: TextStyle(fontSize: 11, color: Colors.orange.shade700),
+              ),
+            ],
           ],
           if (_imageBytes != null) ...[
             const SizedBox(height: 10),

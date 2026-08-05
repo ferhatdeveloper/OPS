@@ -44,7 +44,7 @@ Detay: `docs/plans/2026-07-26-postgrest-tenant-login.md` §2b.
 1. Tiger açıkken **Al** / **Tiger’dan çek** → `LogoTigerPullSync`
 2. Base URL sırası: yukarıdaki kaynak önceliği
 3. `LogoServerUrlBridge` — Ayarlar’da kaydedilen link Logo çekimine yazılır
-4. **Düz adres yeterli:** `212.237.124.14` + Port `32001` → otomatik `http://…/api/v1`
+4. **Düz adres yeterli:** `185.206.80.132` + Port `32001` → otomatik `http://…/api/v1`
 5. **Plasiyer → kullanıcı:** Logo `salesmen` çekilince OPS’ta yoksa
    `username=CODE`, `password=1234`, `role=salesperson` oluşturulur (mevcut şifre ezilmez)
 6. **Opsiyonel master pull** (`pullAll` bayrakları, varsayılan `false`):

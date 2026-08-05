@@ -2,7 +2,7 @@
 // Açıklama: Logo Tiger Objects REST istemcisi (token, help, list, create)
 // Oluşturulma Tarihi: 2026-07-28
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-29
+// Son Güncelleme: 2026-08-05
 
 import 'dart:convert';
 
@@ -155,6 +155,7 @@ class LogoTigerRestClient {
   /// Store’dan config yükler ve Dio hazırlar.
   /// {@endtemplate}
   Future<void> ensureReady() async {
+    await _store.ensureDefaultsPersisted();
     _config = await _store.load();
     _accessToken = await _store.getAccessToken();
     _ensureDio();
@@ -359,6 +360,12 @@ class LogoTigerRestClient {
     return _get('/methods/CompanyLogin/$f/$p', authRequired: true);
   }
 
+  /// Logo "Already connected" — oturum zaten firma bağlamında.
+  static bool isAlreadyConnectedError(LogoTigerResult result) {
+    final blob = '${result.error ?? ''} ${result.data ?? ''}'.toLowerCase();
+    return blob.contains('already connected');
+  }
+
   /// Token + CompanyLogin.
   Future<LogoTigerResult> ensureSession() async {
     await ensureReady();
@@ -368,13 +375,32 @@ class LogoTigerRestClient {
     }
     final login = await companyLogin();
     if (!login.success) {
+      // Aynı token ile zaten bağlıysa pull/push devam edebilir (RetailEX).
+      if (isAlreadyConnectedError(login)) {
+        return LogoTigerResult.ok(
+          {'session': true, 'alreadyConnected': true},
+          statusCode: login.statusCode,
+        );
+      }
       // Token bayatsa yenile
       if (login.statusCode == 401) {
         await _store.clearAccessToken();
         _accessToken = null;
         final tok = await obtainToken();
         if (!tok.success) return tok;
-        return companyLogin();
+        final retry = await companyLogin();
+        if (!retry.success && isAlreadyConnectedError(retry)) {
+          return LogoTigerResult.ok(
+            {'session': true, 'alreadyConnected': true},
+            statusCode: retry.statusCode,
+          );
+        }
+        return retry.success
+            ? LogoTigerResult.ok(
+                {'session': true},
+                statusCode: retry.statusCode,
+              )
+            : retry;
       }
     }
     return login.success

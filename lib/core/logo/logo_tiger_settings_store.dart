@@ -2,13 +2,14 @@
 // Açıklama: Logo Tiger REST ayarları — obfuscated SharedPreferences store
 // Oluşturulma Tarihi: 2026-07-28
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-29
+// Son Güncelleme: 2026-08-05
 
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../auth/remember_me_crypto.dart';
 import 'logo_server_url_bridge.dart';
 import 'logo_tiger_config.dart';
+import 'logo_tiger_defaults.dart';
 import 'logo_tiger_urls.dart';
 
 /// {@template logo_tiger_settings_store}
@@ -50,7 +51,7 @@ class LogoTigerSettingsStore {
   /// [keyRegistryUpdatedAt]: Son registry seed'inin `updated_at` değeri
   static const String keyRegistryUpdatedAt = 'logo_tiger_registry_updated_at';
 
-  /// Örnek host:port — api_key / secret koda yazılmaz.
+  /// Örnek host:port — UI placeholder.
   static String get devExampleHostPort =>
       'http://${LogoTigerUrls.defaultHost}:${LogoTigerUrls.defaultPort}';
 
@@ -71,9 +72,12 @@ class LogoTigerSettingsStore {
   String _dec(String cipher) =>
       RememberMeCrypto.decrypt(cipher, keyMaterial: _keyMaterial);
 
-  /// Tiger REST modu açık mı?
+  /// Tiger REST modu açık mı? (özel testte varsayılan açık)
   Future<bool> isEnabled() async {
     final prefs = await _prefs();
+    if (!prefs.containsKey(keyEnabled)) {
+      return LogoTigerDefaults.applyPrivateTestDefaults;
+    }
     return prefs.getBool(keyEnabled) ?? false;
   }
 
@@ -90,7 +94,7 @@ class LogoTigerSettingsStore {
   }
 
   /// {@template logo_tiger_settings_store_load_raw}
-  /// Yalnızca Tiger prefs (sunucu fallback yok).
+  /// Yalnızca Tiger prefs (sunucu fallback / test default yok).
   /// {@endtemplate}
   Future<LogoTigerConfig> loadRaw() async {
     final prefs = await _prefs();
@@ -109,11 +113,38 @@ class LogoTigerSettingsStore {
   }
 
   /// {@template logo_tiger_settings_store_load}
-  /// Tam yapılandırma; baseUrl boşsa sunucu / Logo REST ayarından doldurulur.
+  /// Tam yapılandırma; boş alanlar özel test default + sunucu köprüsü.
   /// {@endtemplate}
   Future<LogoTigerConfig> load() async {
     final raw = await loadRaw();
-    return LogoServerUrlBridge.mergeIntoConfig(raw);
+    final filled = LogoTigerDefaults.fillEmpty(raw);
+    return LogoServerUrlBridge.mergeIntoConfig(filled);
+  }
+
+  /// {@template logo_tiger_settings_store_ensure_defaults_persisted}
+  /// Prefs boşsa özel test kimliğini kaydeder ve Tiger'ı açar.
+  ///
+  /// Dönüş değeri:
+  /// - [bool]: Prefs yazıldıysa `true`
+  /// {@endtemplate}
+  Future<bool> ensureDefaultsPersisted() async {
+    if (!LogoTigerDefaults.applyPrivateTestDefaults) return false;
+    final raw = await loadRaw();
+    final filled = LogoTigerDefaults.fillEmpty(raw);
+    final needsSave = raw.baseUrl.trim().isEmpty ||
+        raw.apiKey.trim().isEmpty ||
+        raw.clientId.trim().isEmpty ||
+        raw.clientSecret.isEmpty ||
+        raw.username.trim().isEmpty ||
+        raw.password.isEmpty;
+    if (needsSave) {
+      await save(filled, markManualOverride: true);
+    }
+    final prefs = await _prefs();
+    if (!prefs.containsKey(keyEnabled)) {
+      await setEnabled(true);
+    }
+    return needsSave;
   }
 
   /// {@template logo_tiger_settings_store_save}

@@ -2,7 +2,7 @@
 // Açıklama: Çoklu AI sağlayıcı facade — aktif provider + use-case model override
 // Oluşturulma Tarihi: 2026-07-28
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-28
+// Son Güncelleme: 2026-08-05
 
 import 'package:http/http.dart' as http;
 
@@ -512,19 +512,22 @@ class AiGateway {
   }
 
   /// {@template ai_gateway_generate_image_for}
-  /// Use-case model override ile görsel üret.
+  /// Use-case için görsel üret.
+  ///
+  /// Chat use-case model override (gpt-4o-mini vb.) image API’ye
+  /// gönderilmez — sağlayıcı [AiProvider.defaultImageModel] kullanılır.
   /// {@endtemplate}
   Future<AiImageResult> generateImageFor(
     AiUseCase useCase,
     AiImageRequest request, {
     AiProvider? providerOverride,
   }) async {
-    final snapshot = await _store.loadSnapshot();
-    final overrideModel = snapshot.modelOverrideFor(useCase);
+    // Kimlik korunur (analytics / gelecekte image-model ayarı);
+    // chat model override image endpoint’ine uygulanmaz.
+    assert(useCase.storageKey.isNotEmpty);
     return generateImage(
       request,
       providerOverride: providerOverride,
-      modelOverride: overrideModel,
     );
   }
 }

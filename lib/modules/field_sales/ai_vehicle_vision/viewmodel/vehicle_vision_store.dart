@@ -10,7 +10,7 @@ import 'dart:typed_data';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../../../service/database_service.dart';
+import '../../vehicles/viewmodel/vehicle_card_store.dart';
 import '../engine/vehicle_vision_analyzer.dart';
 import '../model/vehicle_vision_result.dart';
 
@@ -81,6 +81,7 @@ class VehicleVisionStore {
 
   final VehicleVisionAnalyzer _analyzer;
   final Uuid _uuid;
+  final VehicleCardStore _vehicleCards;
 
   VehicleVisionState _state = const VehicleVisionState();
 
@@ -88,8 +89,10 @@ class VehicleVisionStore {
   VehicleVisionStore({
     VehicleVisionAnalyzer? analyzer,
     Uuid? uuid,
+    VehicleCardStore? vehicleCards,
   })  : _analyzer = analyzer ?? VehicleVisionAnalyzer(),
-        _uuid = uuid ?? const Uuid();
+        _uuid = uuid ?? const Uuid(),
+        _vehicleCards = vehicleCards ?? VehicleCardStore();
 
   VehicleVisionState get state => _state;
 
@@ -152,48 +155,21 @@ class VehicleVisionStore {
     }
     _state = _state.copyWith(phase: VehicleVisionPhase.saving);
     try {
-      final svc = await DatabaseService.getInstance();
-      final db = await svc.getDatabase();
-      final session = await svc.getUserSession();
-      final userId = session?['id'] as String? ?? 'system';
-
-      final existing = await db.query(
-        'vehicles',
-        where: 'plate = ? COLLATE NOCASE',
-        whereArgs: [plate],
-        limit: 1,
-      );
-
       final name = edited.displayName;
-      String vehicleId;
-      if (existing.isNotEmpty) {
-        vehicleId = existing.first['id'] as String;
-        await db.update(
-          'vehicles',
-          {
-            'name': name,
-            'is_active': 1,
-            'is_synced': 0,
-            'salesperson_id':
-                existing.first['salesperson_id'] ?? userId,
-          },
-          where: 'id = ?',
-          whereArgs: [vehicleId],
+      final card = await _vehicleCards.upsertByPlate(
+        plate: plate,
+        name: name,
+      );
+      if (card == null) {
+        _state = _state.copyWith(
+          phase: VehicleVisionPhase.review,
+          statusKey: 'field_sales.ai_vehicle_vision.need_plate',
         );
-      } else {
-        vehicleId = _uuid.v4();
-        await db.insert('vehicles', {
-          'id': vehicleId,
-          'plate': plate.toUpperCase(),
-          'name': name,
-          'salesperson_id': userId,
-          'is_active': 1,
-          'is_synced': 0,
-        });
+        return false;
       }
 
       await _appendLocalRecord(
-        vehicleId: vehicleId,
+        vehicleId: card.id,
         result: edited.copyWith(
           plate: plate.toUpperCase(),
           manualOverride: true,

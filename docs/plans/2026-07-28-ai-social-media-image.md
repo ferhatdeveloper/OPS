@@ -23,9 +23,9 @@ preset seçilerek AI reklam metni + görsel üretilir; paylaş / yerel kaydet.
 | Provider | Destek | Endpoint / model |
 |----------|--------|------------------|
 | OpenAI | Evet | `/v1/images/generations` · `dall-e-3` |
-| Gemini | Evet | Imagen `:predict` · `imagen-3.0-generate-002` |
-| OpenRouter | Evet | `/images/generations` · `openai/dall-e-3` |
-| Anthropic | Hayır | `AiImageStatus.unsupported` + l10n |
+| Gemini | Evet | Imagen `:predict` · `imagen-4.0-generate-001` |
+| OpenRouter | Evet | `/v1/images` · `google/gemini-2.5-flash-image` |
+| Anthropic | Hayır | `AiImageStatus.unsupported` + l10n (OpenRouter/OpenAI fallback) |
 
 Key / ağ yoksa: `noKey` / error — UI kırılmaz (seed metin + SnackBar/l10n).
 

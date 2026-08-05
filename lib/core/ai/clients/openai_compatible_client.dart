@@ -2,7 +2,7 @@
 // Açıklama: OpenAI Chat Completions uyumlu HTTP istemci (OpenAI + OpenRouter)
 // Oluşturulma Tarihi: 2026-07-28
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-28
+// Son Güncelleme: 2026-08-05
 
 import 'dart:convert';
 import 'dart:typed_data';
@@ -86,25 +86,47 @@ class OpenAiCompatibleClient implements AiProviderClient {
     return httpReq;
   }
 
-  /// DALL-E / OpenRouter images/generations isteği
+  /// OpenAI: `/images/generations` · OpenRouter: unified `/images`
   http.Request buildImageHttpRequest({
     required AiProviderConfig config,
     required String apiKey,
     required AiImageRequest request,
   }) {
     final base = config.baseUrl.replaceAll(RegExp(r'/+$'), '');
-    final uri = Uri.parse('$base/images/generations');
     final model = (request.model?.trim().isNotEmpty == true)
         ? request.model!.trim()
         : provider.defaultImageModel;
-    final size = mapApiSize(request.width, request.height);
-    final body = <String, dynamic>{
-      'model': model,
-      'prompt': request.prompt,
-      'n': 1,
-      'size': size,
-      'response_format': 'b64_json',
-    };
+    final Map<String, dynamic> body;
+    final Uri uri;
+    if (provider == AiProvider.openRouter) {
+      // OpenRouter Image API (dall-e /images/generations desteklenmez)
+      uri = Uri.parse('$base/images');
+      body = <String, dynamic>{
+        'model': model,
+        'prompt': request.prompt,
+        'n': 1,
+        'aspect_ratio': mapAspectRatio(request.width, request.height),
+        'output_format': 'png',
+      };
+      final refUrl = request.productImageUrl?.trim();
+      if (refUrl != null && refUrl.isNotEmpty) {
+        body['input_references'] = [
+          {
+            'type': 'image_url',
+            'image_url': {'url': refUrl},
+          },
+        ];
+      }
+    } else {
+      uri = Uri.parse('$base/images/generations');
+      body = <String, dynamic>{
+        'model': model,
+        'prompt': request.prompt,
+        'n': 1,
+        'size': mapApiSize(request.width, request.height),
+        'response_format': 'b64_json',
+      };
+    }
     final httpReq = http.Request('POST', uri);
     httpReq.headers['Content-Type'] = 'application/json';
     httpReq.headers['Authorization'] = 'Bearer $apiKey';
@@ -122,6 +144,14 @@ class OpenAiCompatibleClient implements AiProviderClient {
     if (ratio > 1.2) return '1792x1024';
     if (ratio < 0.85) return '1024x1792';
     return '1024x1024';
+  }
+
+  /// OpenRouter Image API aspect_ratio
+  static String mapAspectRatio(int width, int height) {
+    final ratio = width / height;
+    if (ratio > 1.2) return '16:9';
+    if (ratio < 0.85) return '9:16';
+    return '1:1';
   }
 
   /// OpenAI JSON yanıtından asistan metnini çıkarır
@@ -223,7 +253,7 @@ class OpenAiCompatibleClient implements AiProviderClient {
       final response = await http.Response.fromStream(streamed);
       if (response.statusCode < 200 || response.statusCode >= 300) {
         return AiImageResult.error(
-          message: 'HTTP ${response.statusCode}',
+          message: _httpErrorMessage(response.statusCode, response.body),
           provider: provider,
         );
       }
@@ -245,6 +275,36 @@ class OpenAiCompatibleClient implements AiProviderClient {
         provider: provider,
       );
     }
+  }
+
+  /// HTTP hata gövdesinden kısa mesaj (key/token loglanmaz)
+  static String _httpErrorMessage(int statusCode, String body) {
+    final snippet = _extractApiError(body);
+    if (snippet != null && snippet.isNotEmpty) {
+      return 'HTTP $statusCode: $snippet';
+    }
+    return 'HTTP $statusCode';
+  }
+
+  static String? _extractApiError(String body) {
+    try {
+      final map = jsonDecode(body) as Map<String, dynamic>;
+      final err = map['error'];
+      if (err is Map) {
+        final msg = err['message'] ?? err['msg'];
+        if (msg is String && msg.trim().isNotEmpty) {
+          final t = msg.trim();
+          return t.length > 180 ? '${t.substring(0, 180)}…' : t;
+        }
+      }
+      if (map['message'] is String) {
+        final t = (map['message'] as String).trim();
+        if (t.isNotEmpty) {
+          return t.length > 180 ? '${t.substring(0, 180)}…' : t;
+        }
+      }
+    } catch (_) {}
+    return null;
   }
 }
 

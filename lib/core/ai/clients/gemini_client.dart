@@ -2,7 +2,7 @@
 // Açıklama: Google Gemini generateContent + Imagen görsel HTTP istemci
 // Oluşturulma Tarihi: 2026-07-28
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-28
+// Son Güncelleme: 2026-08-05
 
 import 'dart:convert';
 import 'dart:typed_data';
@@ -220,7 +220,7 @@ class GeminiClient implements AiProviderClient {
       final response = await http.Response.fromStream(streamed);
       if (response.statusCode < 200 || response.statusCode >= 300) {
         return AiImageResult.error(
-          message: 'HTTP ${response.statusCode}',
+          message: _httpErrorMessage(response.statusCode, response.body),
           provider: provider,
         );
       }
@@ -242,5 +242,20 @@ class GeminiClient implements AiProviderClient {
         provider: provider,
       );
     }
+  }
+
+  static String _httpErrorMessage(int statusCode, String body) {
+    try {
+      final map = jsonDecode(body) as Map<String, dynamic>;
+      final err = map['error'];
+      if (err is Map && err['message'] is String) {
+        final t = (err['message'] as String).trim();
+        if (t.isNotEmpty) {
+          final short = t.length > 180 ? '${t.substring(0, 180)}…' : t;
+          return 'HTTP $statusCode: $short';
+        }
+      }
+    } catch (_) {}
+    return 'HTTP $statusCode';
   }
 }

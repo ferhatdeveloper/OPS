@@ -27,6 +27,8 @@ import 'core/database/migrations/SqlQuerys.dart';
 import 'core/services/postgre_service.dart';
 import 'service/location_service.dart';
 import 'service/notification_service.dart';
+import 'core/ai/ai_provider_defaults.dart';
+import 'core/ai/ai_settings_store.dart';
 
 // EXFIN Splash Renkleri
 const Color _splashDarkBlue = Color.fromARGB(255, 5, 79, 153);
@@ -282,6 +284,8 @@ Future<void> main() async {
     loadingNotifier.updateMessage('Ayarlar yükleniyor...');
     loadingNotifier.updateProgress(0.2);
     await StorageService.getInstance();
+    await AiProviderDefaults.ensurePersisted(AiSettingsStore());
+    debugLog('EXFIN-DEBUG: AI provider defaults checked');
 
     loadingNotifier.updateMessage('Veritabanı bağlantısı kuruluyor...');
     loadingNotifier.updateProgress(0.3);

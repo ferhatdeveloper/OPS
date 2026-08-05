@@ -2,12 +2,15 @@
 // Açıklama: Logo REST API bağlantı ayarlarını SharedPreferences üzerinden yönetir
 // Oluşturulma Tarihi: 2026-07-15
 // Geliştirici: EXFINOPS Team
-// Son Güncelleme: 2026-07-15
+// Son Güncelleme: 2026-08-05
 
 import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../logo/logo_tiger_defaults.dart';
+import '../logo/logo_tiger_urls.dart';
 
 /// Logo REST bağlantı ayarları modeli
 class LogoRestSettings {
@@ -98,17 +101,31 @@ class LogoRestSettingsService {
 
   Future<LogoRestSettings> getSettings() async {
     final prefs = await SharedPreferences.getInstance();
+    final storedUrl = prefs.getString(keyBaseUrl)?.trim() ?? '';
+    final usePrivate = LogoTigerDefaults.applyPrivateTestDefaults;
+    final baseUrl = storedUrl.isNotEmpty
+        ? storedUrl
+        : (usePrivate
+            ? LogoTigerUrls.composeBaseUrl(LogoTigerUrls.defaultHost)
+            : defaultBaseUrl());
+    final storedUser = prefs.getString(keyUsername) ?? '';
+    final storedPass = prefs.getString(keyPassword) ?? '';
+    final storedKey = prefs.getString(keyApiKey);
     return LogoRestSettings(
-      baseUrl: prefs.getString(keyBaseUrl)?.trim().isNotEmpty == true
-          ? prefs.getString(keyBaseUrl)!.trim()
-          : defaultBaseUrl(),
-      apiKey: prefs.getString(keyApiKey),
+      baseUrl: baseUrl,
+      apiKey: (storedKey != null && storedKey.trim().isNotEmpty)
+          ? storedKey
+          : (usePrivate ? LogoTigerDefaults.apiKey : storedKey),
       firma: prefs.getString(keyFirma) ?? '1',
       period: prefs.getString(keyPeriod) ?? '1',
-      username: prefs.getString(keyUsername) ?? '',
-      password: prefs.getString(keyPassword) ?? '',
-      companyId: prefs.getInt(keyCompanyId),
-      periodId: prefs.getInt(keyPeriodId),
+      username: storedUser.isNotEmpty
+          ? storedUser
+          : (usePrivate ? LogoTigerDefaults.username : ''),
+      password: storedPass.isNotEmpty
+          ? storedPass
+          : (usePrivate ? LogoTigerDefaults.password : ''),
+      companyId: prefs.getInt(keyCompanyId) ?? (usePrivate ? 1 : null),
+      periodId: prefs.getInt(keyPeriodId) ?? (usePrivate ? 1 : null),
     );
   }
 

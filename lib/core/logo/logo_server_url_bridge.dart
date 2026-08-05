@@ -2,13 +2,14 @@
 // Açıklama: Sunucu ayarları / Logo REST → Tiger URL çözümleyici
 // Oluşturulma Tarihi: 2026-07-28
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-28
+// Son Güncelleme: 2026-08-05
 
 import 'package:flutter/foundation.dart';
 
 import '../../service/database_service.dart';
 import '../services/logo_rest_settings_service.dart';
 import 'logo_tiger_config.dart';
+import 'logo_tiger_defaults.dart';
 import 'logo_tiger_settings_store.dart';
 import 'logo_tiger_urls.dart';
 
@@ -37,7 +38,9 @@ class LogoServerUrlBridge {
     LogoTigerConfig? tigerOverride,
   }) async {
     final tigerStore = LogoTigerSettingsStore();
-    final tiger = tigerOverride ?? await tigerStore.loadRaw();
+    final tiger = LogoTigerDefaults.fillEmpty(
+      tigerOverride ?? await tigerStore.loadRaw(),
+    );
     if (tiger.baseUrl.trim().isNotEmpty) {
       // Override doğrudan çağıranın manuel değeridir; store okumaya gerek yok.
       final manual =

@@ -2173,7 +2173,7 @@
     "logo_config_source_registry": "Mandantendatensatz",
     "logo_config_source_legacy": "Alter Datensatz",
     "logo_config_source_none": "Nicht definiert",
-    "logo_tiger_base_url_hint": "e.g. 212.237.124.14",
+    "logo_tiger_base_url_hint": "e.g. 185.206.80.132",
     "logo_tiger_base_url_helper": "Host/IP only. Port is separate (default 32001).",
     "logo_tiger_port": "Port",
     "logo_connection_credentials_missing": "Das Logo ist zugänglich; Es fehlen Anmeldeinformationen zum Abrufen von Daten",
@@ -2181,7 +2181,17 @@
     "logo_tiger_required_field": "Dieses Feld ist für die Tiger-Datenübertragung erforderlich",
     "logo_tiger_auth_missing": "Fehlende Felder zum Abrufen von Daten: {fields}",
     "logo_tiger_client_id_helper": "Logo-Panelwert „Rest-Service-Schlüsselinhaber (ClientId)“ (z. B. ARZEN).",
-    "logo_tiger_client_secret_helper": "Fügen Sie nicht die gesamte Panel-Base64 ein. Dekodieren; Secret nach CLIENTID-Trenner (~ oder +) verwenden. Die App sendet das Secret roh im Token-Formular."
+    "logo_tiger_client_secret_helper": "Fügen Sie nicht die gesamte Panel-Base64 ein. Dekodieren; Secret nach CLIENTID-Trenner (~ oder +) verwenden. Die App sendet das Secret roh im Token-Formular.",
+    "day_vehicle_select": "Registriertes Fahrzeug auswählen",
+    "day_vehicle_select_title": "Fahrzeug auswählen",
+    "day_vehicle_add_manual": "Neues Fahrzeug hinzufügen",
+    "day_vehicle_add_camera": "Per Kamera hinzufügen",
+    "day_vehicle_search_hint": "Nach Kennzeichen oder Namen suchen",
+    "day_vehicle_empty": "Keine Fahrzeuge angemeldet",
+    "day_vehicle_manual_title": "Fahrzeugkarte",
+    "day_vehicle_name_label": "Marke/Modell",
+    "day_vehicle_type_label": "Typ",
+    "day_vehicle_saved": "Fahrzeugkarte registriert"
   },
   "submodules": {
     "donem_karsilastirma": "Periodenvergleich",

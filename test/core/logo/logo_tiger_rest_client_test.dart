@@ -2,7 +2,7 @@
 // Açıklama: Logo Tiger client parse + mock HTTP birim testleri
 // Oluşturulma Tarihi: 2026-07-28
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-29
+// Son Güncelleme: 2026-08-05
 
 import 'dart:convert';
 import 'dart:typed_data';
@@ -242,6 +242,39 @@ void main() {
       expect(r.success, isTrue);
       expect(attempt, 2);
       expect(r.asMap()['access_token'], 'basic.tok');
+    });
+
+    test('ensureSession Already connected → oturum OK', () async {
+      dio.httpClientAdapter = _MockAdapter((options) async {
+        if (options.path == '/token') {
+          return ResponseBody.fromString(
+            jsonEncode({'access_token': 'tok', 'expires_in': 3600}),
+            200,
+            headers: {
+              Headers.contentTypeHeader: [Headers.jsonContentType],
+            },
+          );
+        }
+        if (options.path.contains('CompanyLogin')) {
+          return ResponseBody.fromString(
+            jsonEncode({
+              'Message': 'The request is invalid.',
+              'ModelState': {
+                'LOError:': ['Already connected.'],
+              },
+            }),
+            400,
+            headers: {
+              Headers.contentTypeHeader: [Headers.jsonContentType],
+            },
+          );
+        }
+        return ResponseBody.fromString('unexpected', 500);
+      });
+
+      final r = await client.ensureSession();
+      expect(r.success, isTrue);
+      expect(r.asMap()['alreadyConnected'], isTrue);
     });
 
     test('listResource Bearer header + items parse', () async {

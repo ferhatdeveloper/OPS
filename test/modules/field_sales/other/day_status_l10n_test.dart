@@ -29,6 +29,14 @@ void main() {
         l10n.translate('field_sales.day_end_km_invalid'),
         'Bitiş KM başlangıçtan küçük olamaz.',
       );
+      expect(
+        l10n.translate('field_sales.day_vehicle_select_title'),
+        'Araç seç',
+      );
+      expect(
+        l10n.translate('field_sales.day_vehicle_manual_title'),
+        'Araç kartı',
+      );
     });
   });
 }

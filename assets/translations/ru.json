@@ -2173,7 +2173,7 @@
     "logo_config_source_registry": "Запись арендатора",
     "logo_config_source_legacy": "Старая запись",
     "logo_config_source_none": "Не задано",
-    "logo_tiger_base_url_hint": "e.g. 212.237.124.14",
+    "logo_tiger_base_url_hint": "e.g. 185.206.80.132",
     "logo_tiger_base_url_helper": "Host/IP only. Port is separate (default 32001).",
     "logo_tiger_port": "Port",
     "logo_connection_credentials_missing": "Логотип доступен; отсутствуют учетные данные для получения данных",
@@ -2181,7 +2181,17 @@
     "logo_tiger_required_field": "Это поле необходимо для передачи данных Tiger.",
     "logo_tiger_auth_missing": "Отсутствуют поля для получения данных: {fields}",
     "logo_tiger_client_id_helper": "Значение панели Logo «Владелец ключа Rest-сервиса (ClientId)» (напр. ARZEN).",
-    "logo_tiger_client_secret_helper": "Не вставляйте весь Base64 панели. Декодируйте; используйте secret после разделителя CLIENTID (~ или +). Приложение отправляет raw secret в теле формы токена."
+    "logo_tiger_client_secret_helper": "Не вставляйте весь Base64 панели. Декодируйте; используйте secret после разделителя CLIENTID (~ или +). Приложение отправляет raw secret в теле формы токена.",
+    "day_vehicle_select": "Выберите зарегистрированный автомобиль",
+    "day_vehicle_select_title": "Выберите автомобиль",
+    "day_vehicle_add_manual": "Добавить новый автомобиль",
+    "day_vehicle_add_camera": "Добавить через камеру",
+    "day_vehicle_search_hint": "Поиск номерного знака или имени",
+    "day_vehicle_empty": "Транспортные средства не зарегистрированы",
+    "day_vehicle_manual_title": "Карта ТС",
+    "day_vehicle_name_label": "Бренд/модель",
+    "day_vehicle_type_label": "Тип",
+    "day_vehicle_saved": "Карта транспортного средства зарегистрирована"
   },
   "submodules": {
     "donem_karsilastirma": "Сравнение периодов",

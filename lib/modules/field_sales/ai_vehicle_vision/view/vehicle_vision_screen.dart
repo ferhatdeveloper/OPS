@@ -29,8 +29,15 @@ class VehicleVisionScreen extends StatefulWidget {
   /// Test inject
   final VehicleVisionStore? store;
 
+  /// Kaydet sonrası plakayı `Navigator.pop` ile döndür (güne başlama)
+  final bool returnPlateOnSave;
+
   /// {@macro vehicle_vision_screen}
-  const VehicleVisionScreen({Key? key, this.store}) : super(key: key);
+  const VehicleVisionScreen({
+    Key? key,
+    this.store,
+    this.returnPlateOnSave = false,
+  }) : super(key: key);
 
   @override
   State<VehicleVisionScreen> createState() => _VehicleVisionScreenState();
@@ -143,6 +150,10 @@ class _VehicleVisionScreenState extends State<VehicleVisionScreen> {
     if (!mounted) return;
     setState(() => _busy = false);
     if (ok) {
+      if (widget.returnPlateOnSave) {
+        Navigator.of(context).pop(edited.plate.trim().toUpperCase());
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(_t('field_sales.ai_vehicle_vision.saved'))),
       );

@@ -1143,11 +1143,21 @@
     "logo_registry_secrets_helper": "Le registre locataire fournit uniquement l'adresse Logo, la société et la période. Saisissez manuellement client_id, client_secret, l'utilisateur Logo et le mot de passe.",
     "logo_tiger_required_field": "Ce champ est requis pour le transfert de données Tiger",
     "logo_tiger_auth_missing": "Champs manquants pour récupérer les données : {fields}",
-    "logo_tiger_base_url_hint": "e.g. 212.237.124.14",
+    "logo_tiger_base_url_hint": "e.g. 185.206.80.132",
     "logo_tiger_base_url_helper": "Host/IP only. Port is separate (default 32001).",
     "logo_tiger_port": "Port",
     "logo_tiger_client_id_helper": "Valeur du panneau Logo « Propriétaire de la clé du service Rest (ClientId) » (ex. ARZEN).",
-    "logo_tiger_client_secret_helper": "Ne collez pas le Base64 complet. Décodez ; utilisez le secret après le séparateur CLIENTID (~ ou +). L’appli envoie le secret brut dans le corps du formulaire token."
+    "logo_tiger_client_secret_helper": "Ne collez pas le Base64 complet. Décodez ; utilisez le secret après le séparateur CLIENTID (~ ou +). L’appli envoie le secret brut dans le corps du formulaire token.",
+    "day_vehicle_select": "Sélectionner un véhicule enregistré",
+    "day_vehicle_select_title": "Sélectionner le véhicule",
+    "day_vehicle_add_manual": "Ajouter un véhicule",
+    "day_vehicle_add_camera": "Ajouter avec la caméra",
+    "day_vehicle_search_hint": "Rechercher plaque ou nom",
+    "day_vehicle_empty": "Aucun véhicule enregistré",
+    "day_vehicle_manual_title": "Fiche véhicule",
+    "day_vehicle_name_label": "Marque / Modèle",
+    "day_vehicle_type_label": "Type",
+    "day_vehicle_saved": "Fiche véhicule enregistrée"
   },
   "submodules": {
     "donem_karsilastirma": "Comparaison de périodes",

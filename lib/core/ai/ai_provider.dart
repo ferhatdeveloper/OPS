@@ -2,7 +2,7 @@
 // Açıklama: Çoklu AI sağlayıcı enum (OpenAI / Gemini / Claude / OpenRouter)
 // Oluşturulma Tarihi: 2026-07-28
 // Geliştirici: Ferhat NAS
-// Son Güncelleme: 2026-07-28
+// Son Güncelleme: 2026-08-05
 
 /// {@template ai_provider}
 /// Desteklenen harici LLM sağlayıcıları.
@@ -94,9 +94,11 @@ extension AiProviderX on AiProvider {
       case AiProvider.openAi:
         return 'dall-e-3';
       case AiProvider.gemini:
-        return 'imagen-3.0-generate-002';
+        // Imagen 3 kapatıldı; Gemini API Imagen 4
+        return 'imagen-4.0-generate-001';
       case AiProvider.openRouter:
-        return 'openai/dall-e-3';
+        // OpenRouter Image API — dall-e-3 yok; unified /images modeli
+        return 'google/gemini-2.5-flash-image';
       case AiProvider.anthropic:
         return '';
     }

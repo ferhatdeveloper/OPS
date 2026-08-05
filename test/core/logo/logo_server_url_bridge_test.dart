@@ -17,10 +17,11 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  test('mergeIntoConfig: boş tiger → config aynı kalır (sunucu yok)', () async {
+  test('mergeIntoConfig: boş tiger → özel test default host', () async {
     const cfg = LogoTigerConfig(baseUrl: '');
     final merged = await LogoServerUrlBridge.mergeIntoConfig(cfg);
-    expect(merged.baseUrl, isEmpty);
+    expect(merged.baseUrl, contains('185.206.80.132'));
+    expect(merged.apiKey, isNotEmpty);
   });
 
   test('mergeIntoConfig: dolu tiger dokunulmaz', () async {
@@ -84,13 +85,14 @@ void main() {
       expect(resolved.baseUrl, 'http://override.example:32001/api/v1');
     });
 
-    test('Tiger URL boşsa kaynak none kalır', () async {
+    test('Tiger URL boşsa özel test default host kullanılır', () async {
       final resolved = await LogoServerUrlBridge.resolve(
         tigerOverride: const LogoTigerConfig(baseUrl: ''),
       );
 
-      expect(resolved.source, LogoUrlSource.none);
-      expect(resolved.baseUrl, isEmpty);
+      expect(resolved.baseUrl, contains('185.206.80.132'));
+      expect(resolved.source, LogoUrlSource.tigerStore);
+      expect(resolved.apiKey, isNotEmpty);
     });
 
     test('registry seed sonrası manuel kayıt kaynağı tigerStore yapar',

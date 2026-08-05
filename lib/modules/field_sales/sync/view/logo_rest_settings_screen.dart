@@ -2,7 +2,7 @@
 // Açıklama: Logo REST (ExfinApi + Tiger Objects) bağlantı ayarları dens ekranı
 // Oluşturulma Tarihi: 2026-07-15
 // Geliştirici: EXFINOPS Team
-// Son Güncelleme: 2026-07-29
+// Son Güncelleme: 2026-08-05
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -107,6 +107,7 @@ class _LogoRestSettingsScreenState extends State<LogoRestSettingsScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
+      await _tigerStore.ensureDefaultsPersisted();
       await _api.ensureReady();
       final s = await _settingsService.getSettings();
       _baseUrlCtrl.text = s.baseUrl;
@@ -116,7 +117,7 @@ class _LogoRestSettingsScreenState extends State<LogoRestSettingsScreen> {
       _firmaCtrl.text = s.firma;
       _periodCtrl.text = s.period;
       _companyIdCtrl.text = s.companyId?.toString() ?? '1';
-      _periodIdCtrl.text = s.periodId?.toString() ?? '';
+      _periodIdCtrl.text = s.periodId?.toString() ?? '1';
 
       _tigerEnabled = await _tigerStore.isEnabled();
       final t = await _tigerStore.load();

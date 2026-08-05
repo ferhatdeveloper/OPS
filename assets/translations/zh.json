@@ -2139,7 +2139,7 @@
       "fg_notif_title": "EXFINOPS ziyaret kaydı",
       "fg_notif_body": "Ziyaret konuşması kaydediliyor…"
     },
-    "logo_tiger_base_url_hint": "e.g. 212.237.124.14",
+    "logo_tiger_base_url_hint": "e.g. 185.206.80.132",
     "logo_tiger_base_url_helper": "Host/IP only. Port is separate (default 32001).",
     "logo_tiger_port": "Port",
     "logo_connection_credentials_missing": "Logo 可访问；缺少获取数据所需的凭据",
@@ -2147,7 +2147,17 @@
     "logo_tiger_required_field": "Tiger 数据传输需要此字段",
     "logo_tiger_auth_missing": "获取数据缺少以下字段：{fields}",
     "logo_tiger_client_id_helper": "Logo 面板中的“Rest 服务密钥所有者 (ClientId)”（例如 ARZEN）。",
-    "logo_tiger_client_secret_helper": "请勿粘贴完整的面板 Base64。解码后使用 CLIENTID 分隔符（~ 或 +）之后的 secret。应用在 token 表单正文中发送原始 secret。"
+    "logo_tiger_client_secret_helper": "请勿粘贴完整的面板 Base64。解码后使用 CLIENTID 分隔符（~ 或 +）之后的 secret。应用在 token 表单正文中发送原始 secret。",
+    "day_vehicle_select": "选择已登记车辆",
+    "day_vehicle_select_title": "选择车辆",
+    "day_vehicle_add_manual": "手动新增车辆",
+    "day_vehicle_add_camera": "用相机添加",
+    "day_vehicle_search_hint": "搜索车牌或名称",
+    "day_vehicle_empty": "没有已登记车辆",
+    "day_vehicle_manual_title": "车辆卡片",
+    "day_vehicle_name_label": "品牌 / 型号",
+    "day_vehicle_type_label": "类型",
+    "day_vehicle_saved": "车辆卡片已保存"
   },
   "submodules": {
     "donem_karsilastirma": "期间对比",
